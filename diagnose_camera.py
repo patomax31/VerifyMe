@@ -1,4 +1,4 @@
-#!/usr/bin/env python3
+1#!/usr/bin/env python3
 """
 Script de diagnóstico para Raspberry Pi Camera 2 con Raspberry Pi 5
 """
