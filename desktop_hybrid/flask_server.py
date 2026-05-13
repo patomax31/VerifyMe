@@ -11,6 +11,8 @@ from typing import Any, Dict, Optional
 from flask import Flask, jsonify, render_template, request, send_file, send_from_directory
 from werkzeug.security import generate_password_hash
 
+from deep_translator import GoogleTranslator
+
 try:
     import cv2
     import numpy as np
@@ -820,5 +822,33 @@ def create_app() -> Flask:
             return jsonify({"ok": False, "message": "num_empleado o correo ya existe."}), 409
 
         return jsonify({"ok": True, "message": "Administrador registrado correctamente."})
+    
+    @app.route("/translate", methods=["POST"])
+    def translate_text():
 
+        data = request.get_json()
+
+        text = data.get("text", "")
+        target = data.get("target", "en")
+
+        try:
+
+            translated = GoogleTranslator(
+                source="auto",
+                target=target
+            ).translate(text)
+
+            return jsonify({
+                "success": True,
+                "translated": translated
+            })
+
+        except Exception as e:
+
+            return jsonify({
+                "success": False,
+                "error": str(e)
+            }), 500
+        
+    
     return app

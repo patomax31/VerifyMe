@@ -3,240 +3,294 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>IdentifyMe · Panel</title>
+  <title>VerifyMe</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Sora:wght@400;600;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://unpkg.com/simple-keyboard@3.7.95/build/css/index.css">
   <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
 </head>
 <body>
 
-  <!-- ── Overlay oscuro detrás del drawer ───────────────────────────────── -->
   <div id="drawerOverlay" class="drawer-overlay"></div>
 
-  <!-- ── Drawer (sidebar desplegable) ──────────────────────────────────── -->
   <aside id="drawer" class="drawer">
     <div class="drawer-head">
       <div class="drawer-brand">
         <span class="drawer-brand__icon">🔐</span>
         <div>
-          <p class="drawer-brand__name">IdentifyMe</p>
+          <p class="drawer-brand__name">VerifyMe</p>
           <p class="drawer-brand__sub">Biométrico escolar</p>
         </div>
       </div>
-      <button id="drawerClose" class="icon-btn" aria-label="Cerrar menú">✕</button>
+      <button id="drawerClose" class="icon-btn" aria-label="Cerrar">✕</button>
     </div>
 
     <nav class="drawer-nav">
       <button class="nav-btn active" data-view="home">
-        <span class="nav-btn__icon">🏠</span><span>Inicio</span>
+        <span class="nav-btn__icon">🏠</span><span data-i18n="nav_home">Inicio</span>
       </button>
-      <button class="nav-btn" data-view="login">
-        <span class="nav-btn__icon">👤</span><span>Acceso facial</span>
+      <button class="nav-btn" data-view="access">
+        <span class="nav-btn__icon">👤</span><span data-i18n="nav_access">Acceso facial</span>
       </button>
       <button class="nav-btn" data-view="register">
-        <span class="nav-btn__icon">➕</span><span>Registro facial</span>
+        <span class="nav-btn__icon">➕</span><span data-i18n="nav_register">Registro facial</span>
       </button>
       <button class="nav-btn" data-view="admin">
-        <span class="nav-btn__icon">⚙️</span><span>Admin panel</span>
+        <span class="nav-btn__icon">⚙️</span><span data-i18n="nav_admin">Admin panel</span>
       </button>
     </nav>
 
-    <div class="drawer-status-box">
-      <p class="drawer-status-box__label">Estado del sistema</p>
-      <p id="systemStatus" class="drawer-status-box__val">Consultando...</p>
-    </div>
-
-    <button class="drawer-logout" id="logoutBtn">Cerrar sesión</button>
+    <button class="drawer-logout" id="logoutBtn" data-i18n="logout">🚪 Cerrar sesión</button>
   </aside>
 
-  <!-- ── Layout principal ───────────────────────────────────────────────── -->
   <div class="app-layout">
 
-    <!-- Topbar fija -->
     <header class="topbar">
-      <!-- Botón hamburger fijo a la izquierda -->
-      <button id="hamburger" class="icon-btn burger" aria-label="Abrir menú">☰</button>
-
+      <button id="hamburger" class="icon-btn" aria-label="Abrir menú">☰</button>
       <div class="topbar-info">
-        <p class="eyebrow">IdentifyMe</p>
-        <p class="topbar-title">Sistema biométrico escolar</p>
+        <p class="eyebrow">VerifyMe</p>
+        <p class="topbar-title" id="topbarTitle">Panel principal</p>
       </div>
-
-      <!-- Reloj -->
+      <button class="topbar-lang" id="langBtn" aria-label="Idioma">
+        <span id="langFlag">🇲🇽</span>
+        <span id="langLabel">ES</span>
+      </button>
+      <!-- BOTÓN MODO RELOJ -->
+      <button id="clockModeBtn" class="clock-mode-btn" aria-label="Modo reloj" title="Modo reloj">🕐</button>
       <div class="topbar-clock">
         <div id="clockH" class="clock-h">--:--</div>
         <div id="clockD" class="clock-d"></div>
       </div>
     </header>
 
-    <!-- Área de vistas -->
     <main class="views-wrap">
 
-      <!-- ── Vista: Home ───────────────────────────────────────────────── -->
+      <!-- HOME -->
       <section class="view card" id="view-home">
-        <p class="eyebrow">Bienvenido</p>
-        <h2>Panel principal</h2>
-        <p class="muted sm">Dashboard escolar para acceso facial, registro biométrico y administración.</p>
+        <p class="eyebrow" data-i18n="home_eyebrow">Bienvenido</p>
+        <h2 data-i18n="home_title">Panel principal</h2>
+        <p class="muted sm" data-i18n="home_sub">Dashboard escolar para acceso facial, registro biométrico y administración.</p>
 
         <div class="grid-2" style="margin:14px 0 12px">
           <div class="stat-tile">
             <strong id="statTotal">---</strong>
-            <span>Estudiantes</span>
+            <span data-i18n="stat_students">Estudiantes</span>
           </div>
           <div class="stat-tile">
             <strong id="statActivos">---</strong>
-            <span>Activos</span>
+            <span data-i18n="stat_active">Activos</span>
           </div>
         </div>
 
-        <!-- Indicador de estado -->
         <div class="system-status-box">
-          <div class="system-status-box__dot" id="homeStatusDot"></div>
+          <div class="system-status-box__dot"></div>
           <div>
-            <div class="system-status-box__title">Sistema en línea</div>
-            <div class="system-status-box__sub" id="homeStatusSub">Cámara activa · Modelo listo</div>
+            <div class="system-status-box__title" data-i18n="status_online">Sistema en línea</div>
+            <div class="system-status-box__sub" id="homeStatusSub" data-i18n="status_sub">Cámara activa · Modelo listo</div>
           </div>
-          <span class="system-status-box__badge">Operando</span>
+          <span class="system-status-box__badge" data-i18n="status_badge">Operando</span>
         </div>
 
-        <!-- Últimos accesos -->
         <div class="last-access-box">
-          <div class="last-access-box__head">Últimos accesos</div>
+          <div class="last-access-box__head" data-i18n="last_access">Últimos accesos</div>
           <div id="lastAccessList">
-            <div class="last-access-box__empty">Sin registros recientes</div>
+            <div class="last-access-box__empty" data-i18n="no_records">Sin registros recientes</div>
           </div>
+        </div>
+
+        <div class="quick-nav" style="margin-top:16px">
+          <button class="quick-nav-btn" data-goto="access">
+            <span>📷</span><span data-i18n="nav_access">Acceso facial</span>
+          </button>
+          <button class="quick-nav-btn" data-goto="register">
+            <span>➕</span><span data-i18n="qnav_register">Registrar alumno</span>
+          </button>
+          <button class="quick-nav-btn" data-goto="admin">
+            <span>⚙️</span><span data-i18n="nav_admin">Admin panel</span>
+          </button>
         </div>
       </section>
 
-      <!-- ── Vista: Login ──────────────────────────────────────────────── -->
-      <section class="view card hidden" id="view-login">
-        <h2>Acceso facial</h2>
-        <p class="muted sm">Escanea el rostro del estudiante y valida el acceso en tiempo real.</p>
+      <!-- ACCESO FACIAL -->
+      <section class="view view-camera hidden" id="view-access">
 
-        <div class="liveness-hint" id="loginLivenessRow">
-          <span class="liveness-hint__dot" id="loginLivenessDot"></span>
-          <p id="loginLivenessText" class="liveness-hint__txt">Iniciando verificación de vida…</p>
-        </div>
-
-        <div class="camera-box">
-          <video id="loginVideo" autoplay playsinline muted></video>
-          <canvas id="loginCanvas" class="hidden"></canvas>
-        </div>
-
-        <div class="row">
-          <button id="loginStart"><span>▶</span><span>Iniciar</span></button>
-          <button id="loginStop" class="btn-danger" disabled><span>⏹</span><span>Detener</span></button>
-        </div>
-
-        <p id="loginMessage" class="feedback">ESPERANDO ROSTRO...</p>
-
-        <div class="credential-card" id="loginCredentialCard">
-          <div class="credential-card__photo">
-            <img id="loginCredPhoto" class="credential-card__img hidden" alt="Foto credencial" />
-            <div id="loginCredPhotoPh" class="credential-card__ph">Sin foto</div>
-          </div>
-          <div class="credential-card__meta">
-            <p class="credential-card__title">Credencial</p>
-            <p><strong>Nombre</strong> <span id="loginUserName">---</span></p>
-            <p><strong>Grado</strong> <span id="loginUserGrado">---</span></p>
-            <p><strong>Grupo</strong> <span id="loginUserGrupo">---</span></p>
-            <p><strong>Turno</strong> <span id="loginUserTurno">---</span></p>
-            <p><strong>ID</strong> <span id="loginUserId">---</span></p>
+        <!-- Paso 1 -->
+        <div class="camera-stage" id="access-step1">
+          <div class="camera-box camera-full">
+            <video id="loginVideo" autoplay playsinline muted></video>
+            <canvas id="loginCanvas" class="hidden"></canvas>
+            <div class="camera-overlay" id="cameraOverlay">
+              <div class="camera-reticle"></div>
+              <p class="camera-overlay__txt" data-i18n="cam_stopped">Cámara detenida</p>
+            </div>
+            <div class="camera-hud">
+              <div class="camera-hud__top">
+                <div class="camera-pill" data-i18n="step1of2">Paso 1 de 2</div>
+                <h2 data-i18n="nav_access">Acceso facial</h2>
+                <p class="camera-sub" data-i18n="access_sub">Posiciona el rostro del alumno frente a la cámara.</p>
+                <div class="liveness-hint">
+                  <span class="liveness-hint__dot" id="loginLivenessDot"></span>
+                  <p id="loginLivenessText" class="liveness-hint__txt" data-i18n="liveness_init">Inicia la cámara para comenzar con el acceso.</p>
+                </div>
+              </div>
+              <div class="camera-hud__bottom">
+                <p id="loginMessage" class="feedback waiting" data-i18n="waiting_face">ESPERANDO ROSTRO...</p>
+                <p id="loginMessageHelp" class="feedback-help hidden">¿Aun no estas registrado? Pide ayuda a el encargado en direccion.</p>
+              </div>
+            </div>
           </div>
         </div>
+
+        <!-- Paso 2 -->
+        <div class="step-panel card hidden" id="access-step2">
+          <div class="step-badge step-badge--ok" data-i18n="step2of2">Paso 2 de 2</div>
+          <h2 data-i18n="result_title">Resultado</h2>
+          <div id="accessResult" class="access-result"></div>
+          <div class="row" style="margin-top:14px">
+            <button class="btn-full" id="btnScanAnother">
+              <span>🔄</span><span data-i18n="btn_scan_another">Escanear otro alumno</span>
+            </button>
+          </div>
+        </div>
+
       </section>
 
-      <!-- ── Vista: Register ───────────────────────────────────────────── -->
-      <section class="view card hidden" id="view-register">
-        <h2>Registro biométrico</h2>
-        <p class="muted sm">Tres capturas (frente, perfil izquierdo y derecho) y foto de credencial desde el frente.</p>
-
-        <div class="reg-stepper" id="regStepper" aria-hidden="true">
-          <div class="reg-step reg-step--active" data-step="0"><span>1</span><small>Frente</small></div>
-          <div class="reg-step" data-step="1"><span>2</span><small>Izq.</small></div>
-          <div class="reg-step" data-step="2"><span>3</span><small>Der.</small></div>
+      <!-- MODAL AYUDA LOGIN -->
+      <div id="loginHelpModal" class="help-modal hidden" role="dialog" aria-modal="true" aria-labelledby="loginHelpTitle">
+        <div class="help-modal__overlay" id="loginHelpOverlay"></div>
+        <div class="help-modal__card">
+          <div class="help-modal__head">
+            <h3 id="loginHelpTitle">Guia rapida de colocacion</h3>
+            <button id="loginHelpClose" class="icon-btn" aria-label="Cerrar">✕</button>
+          </div>
+          <div class="help-modal__body">
+            <ul>
+              <li>Coloca el rostro centrado dentro del circulo.</li>
+              <li>Mantente a 30-40 cm de la camara.</li>
+              <li>Evita sombras fuertes y quitate gorras o lentes oscuros.</li>
+              <li>Mira al frente y no te muevas por 2 segundos.</li>
+            </ul>
+            <p class="help-modal__note">Si aun falla, pide apoyo en direccion.</p>
+          </div>
         </div>
-        <p id="regStepHint" class="reg-step-hint muted sm">Paso 1 de 3: mira de frente. La foto de credencial se toma en este paso.</p>
+      </div>
 
-        <div class="grid-4 form-grid" style="margin-top:12px">
-          <label>Nombre
-            <input id="regNombre" type="text" maxlength="80" placeholder="Ej. Ana Gómez">
-          </label>
-          <label>Grado
-            <select id="regGrado">
-              <option>1</option><option>2</option><option>3</option>
-            </select>
-          </label>
-          <label>Grupo
-            <input id="regLetra" type="text" maxlength="1" placeholder="A">
-          </label>
-          <label>Turno
-            <select id="regTurno">
-              <option>MATUTINO</option><option>VESPERTINO</option>
-            </select>
-          </label>
+      <!-- REGISTRO BIOMÉTRICO -->
+      <section class="view view-camera hidden" id="view-register">
+
+        <!-- Paso 1: datos -->
+        <div class="step-panel card" id="reg-step1">
+          <div class="step-badge" data-i18n="step1of2">Paso 1 de 2</div>
+          <h2 data-i18n="reg_title_data">Datos del alumno</h2>
+          <p class="muted sm" data-i18n="reg_sub_data">Ingresa la información del estudiante antes de capturar su rostro.</p>
+
+          <div class="form-grid-2" style="margin-top:14px">
+            <label><span data-i18n="field_name">Nombre completo</span>
+              <input id="regNombre" type="text" maxlength="20" placeholder="Ej. Ana Gómez">
+            </label>
+            <div class="form-row-2">
+              <label><span data-i18n="field_grade">Grado</span>
+                <select id="regGrado"><option>1</option><option>2</option><option>3</option></select>
+              </label>
+              <label><span data-i18n="field_group">Grupo</span>
+                <select id="regLetra">
+                  <option>A</option>
+                  <option>B</option>
+                  <option>C</option>
+                  <option>D</option>
+                  <option>E</option>
+                  <option>F</option></select>
+              </label>
+            </div>
+            <label><span data-i18n="field_shift">Turno</span>
+              <select id="regTurno"><option>MATUTINO</option><option>VESPERTINO</option></select>
+            </label>
+          </div>
+
+          <button class="btn-full" style="margin-top:18px" id="regGoToCamera">
+            <span>📷</span><span data-i18n="btn_go_camera">Continuar a cámara</span>
+          </button>
+          <p id="regStep1Msg" class="feedback waiting" style="margin-top:10px">Completa los campos faltantes para continuar.</p>
         </div>
 
-        <div class="camera-box compact">
-          <video id="regVideo" autoplay playsinline muted></video>
-          <canvas id="regCanvas" class="hidden"></canvas>
+        <!-- Paso 2: cámara 3 ángulos -->
+        <div class="camera-stage hidden" id="reg-step2">
+          <div class="camera-box camera-full">
+            <video id="regVideo" autoplay playsinline muted></video>
+            <canvas id="regCanvas" class="hidden"></canvas>
+            <div class="camera-overlay" id="regCameraOverlay">
+              <div class="camera-reticle"></div>
+              <p class="camera-overlay__txt">Cámara detenida</p>
+            </div>
+            <div class="camera-hud">
+              <div class="camera-hud__top">
+                <div class="camera-pill" data-i18n="step2of2">Paso 2 de 2</div>
+                <h2 data-i18n="reg_title_cam">Captura biométrica</h2>
+                <p class="camera-sub" data-i18n="reg_sub_cam">Captura 3 ángulos: frente, perfil izquierdo y perfil derecho.</p>
+                <div class="angle-stepper">
+                  <div class="angle-step angle-step--active" data-angle="0">
+                    <div class="angle-step__num">1</div>
+                    <div class="angle-step__label" data-i18n="angle_front">Frente</div>
+                  </div>
+                  <div class="angle-step__line"></div>
+                  <div class="angle-step" data-angle="1">
+                    <div class="angle-step__num">2</div>
+                    <div class="angle-step__label" data-i18n="angle_left">Izquierda</div>
+                  </div>
+                  <div class="angle-step__line"></div>
+                  <div class="angle-step" data-angle="2">
+                    <div class="angle-step__num">3</div>
+                    <div class="angle-step__label" data-i18n="angle_right">Derecha</div>
+                  </div>
+                </div>
+                <p id="regAngleHint" class="angle-hint" data-i18n="angle_hint_front">Mira de frente a la cámara.</p>
+              </div>
+              <div class="camera-hud__bottom">
+                <p id="regMessage" class="feedback waiting" data-i18n="reg_start_cam">Inicia la cámara y sigue los pasos.</p>
+                <div class="row camera-actions">
+                  <button id="regStart"><span>📷</span><span data-i18n="btn_start_cam">Iniciar</span></button>
+                  <button id="regCapture" disabled><span>✓</span><span id="regCaptureLabel" data-i18n="btn_capture_front">Capturar frente</span></button>
+                  <button id="regStop" class="btn-danger" disabled><span>⏹</span><span data-i18n="btn_stop">Detener</span></button>
+                  <button class="btn-back" id="btnBackToStep1" data-i18n="btn_edit_data">← Editar datos</button>
+                </div>
+              </div>
+            </div>
+          </div>
         </div>
 
-        <div class="row">
-          <button id="regStart"><span>📷</span><span>Iniciar cámara</span></button>
-          <button id="regCapture" disabled><span>✓</span><span id="regCaptureLabel">Capturar frente</span></button>
-          <button id="regStop" class="btn-danger" disabled><span>⏹</span><span>Detener</span></button>
-        </div>
-
-        <p id="regMessage" class="feedback">Completa datos y las tres capturas.</p>
       </section>
 
-      <!-- ── Vista: Admin ──────────────────────────────────────────────── -->
+      <!-- ADMIN -->
       <section class="view card hidden" id="view-admin">
-        <h2>Admin panel</h2>
-        <p class="muted sm">Gestión escolar, parámetros del modelo y administradores.</p>
+        <h2 data-i18n="nav_admin">Admin panel</h2>
+        <p class="muted sm" data-i18n="admin_sub">Gestión escolar, parámetros del modelo y administradores.</p>
 
         <div class="tabs-inline" style="margin-top:12px">
-          <button class="tab-btn active" data-admin-tab="students">
-            <span>👥</span><span>Estudiantes</span>
-          </button>
-          <button class="tab-btn" data-admin-tab="model">
-            <span>🎛</span><span>Modelo</span>
-          </button>
-          <button class="tab-btn" data-admin-tab="admins">
-            <span>🛡</span><span>Admins</span>
-          </button>
+          <button class="tab-btn active" data-admin-tab="students"><span>👥</span><span data-i18n="tab_students">Estudiantes</span></button>
+          <button class="tab-btn" data-admin-tab="model"><span>🎛</span><span data-i18n="tab_model">Modelo</span></button>
+          <button class="tab-btn" data-admin-tab="admins"><span>🛡</span><span data-i18n="tab_admins">Admins</span></button>
         </div>
 
-        <!-- Tab: Estudiantes -->
         <section id="admin-students" class="admin-tab">
           <div class="grid-4 form-grid">
-            <label>Nombre <input id="admNombre" type="text"></label>
-            <label>Grado
-              <select id="admGrado"><option>1</option><option>2</option><option>3</option></select>
-            </label>
-            <label>Grupo <input id="admGrupo" type="text" maxlength="1"></label>
-            <label>Turno
-              <select id="admTurno"><option>MATUTINO</option><option>VESPERTINO</option></select>
-            </label>
+            <label><span data-i18n="field_name">Nombre</span> <input id="admNombre" type="text"></label>
+            <label><span data-i18n="field_grade">Grado</span> <select id="admGrado"><option>1</option><option>2</option><option>3</option></select></label>
+            <label><span data-i18n="field_group">Grupo</span> <input id="admGrupo" type="text" maxlength="1"></label>
+            <label><span data-i18n="field_shift">Turno</span> <select id="admTurno"><option>MATUTINO</option><option>VESPERTINO</option></select></label>
           </div>
           <div class="row">
-            <button id="admCreate"><span>➕</span><span>Crear estudiante</span></button>
-            <button id="admRefresh"><span>🔄</span><span>Refrescar</span></button>
+            <button id="admCreate"><span>➕</span><span data-i18n="btn_create_student">Crear</span></button>
+            <button id="admRefresh"><span>🔄</span><span data-i18n="btn_refresh">Refrescar</span></button>
           </div>
-          <p id="admStudentsMsg" class="feedback">Gestión de estudiantes.</p>
+          <p id="admStudentsMsg" class="feedback waiting" data-i18n="students_mgmt">Gestión de estudiantes.</p>
           <div class="table-wrap">
             <table id="studentsTable">
-              <thead>
-                <tr>
-                  <th>ID</th><th>Nombre</th><th>Grado</th>
-                  <th>Grupo</th><th>Turno</th><th>Estado</th><th>Acciones</th>
-                </tr>
-              </thead>
+              <thead><tr><th>ID</th><th>Nombre</th><th>Grado</th><th>Grupo</th><th>Turno</th><th>Estado</th><th>Acciones</th></tr></thead>
               <tbody></tbody>
             </table>
           </div>
         </section>
 
-        <!-- Tab: Modelo -->
         <section id="admin-model" class="admin-tab hidden">
           <div class="grid-3 form-grid">
             <label>Scale     <input id="cfgScale"     type="number" min="0.05" max="1.0"  step="0.01"></label>
@@ -246,32 +300,27 @@
           <div class="row">
             <button id="cfgLoad"><span>⬇</span><span>Cargar</span></button>
             <button id="cfgSave"><span>💾</span><span>Guardar</span></button>
+            <button id="cfgTest"><span>🧪</span><span>Probar modelo</span></button>
           </div>
-          <p id="cfgMsg" class="feedback">Configuración del modelo.</p>
+          <p id="cfgMsg" class="feedback waiting">Configuración del modelo.</p>
         </section>
 
-        <!-- Tab: Admins -->
         <section id="admin-admins" class="admin-tab hidden">
           <div class="grid-2 form-grid">
-            <label>No. empleado   <input id="adminNum"    type="text"></label>
-            <label>Nombre         <input id="adminNombre" type="text"></label>
-            <label>Rol            <input id="adminRol"    type="text" value="ADMIN"></label>
-            <label>Correo         <input id="adminCorreo" type="email"></label>
-            <label>Password       <input id="adminPass"   type="password"></label>
+            <label>No. empleado <input id="adminNum"    type="text"></label>
+            <label>Nombre       <input id="adminNombre" type="text"></label>
+            <label>Rol          <input id="adminRol"    type="text" value="ADMIN"></label>
+            <label>Correo       <input id="adminCorreo" type="email"></label>
+            <label>Password     <input id="adminPass"   type="password"></label>
           </div>
           <div class="row">
             <button id="adminCreate"><span>🛡</span><span>Registrar admin</span></button>
             <button id="adminRefresh"><span>🔄</span><span>Refrescar</span></button>
           </div>
-          <p id="adminMsg" class="feedback">Registro de administradores.</p>
+          <p id="adminMsg" class="feedback waiting">Registro de administradores.</p>
           <div class="table-wrap">
             <table id="adminsTable">
-              <thead>
-                <tr>
-                  <th>ID</th><th>No. empleado</th><th>Nombre</th>
-                  <th>Rol</th><th>Correo</th><th>Estado</th>
-                </tr>
-              </thead>
+              <thead><tr><th>ID</th><th>No. empleado</th><th>Nombre</th><th>Rol</th><th>Correo</th><th>Estado</th></tr></thead>
               <tbody></tbody>
             </table>
           </div>
@@ -281,6 +330,67 @@
     </main>
   </div>
 
+  <!-- MODAL PRUEBA MODELO -->
+  <div id="modelTestModal" class="model-test hidden" role="dialog" aria-modal="true" aria-labelledby="modelTestTitle">
+    <div class="model-test__overlay" id="modelTestOverlay"></div>
+    <div class="model-test__panel">
+      <div class="model-test__head">
+        <h3 id="modelTestTitle">Prueba del modelo</h3>
+        <button id="modelTestClose" class="icon-btn" aria-label="Cerrar">✕</button>
+      </div>
+      <div class="model-test__body">
+        <div class="model-test__video">
+          <video id="modelTestVideo" autoplay playsinline muted></video>
+              <canvas id="modelTestCanvas" class="model-test__canvas"></canvas>
+        </div>
+            <div class="model-test__stats">
+              <div class="model-test__stat"><span>FPS</span><strong id="modelTestFps">--</strong></div>
+              <div class="model-test__stat"><span>Rostros</span><strong id="modelTestFaces">--</strong></div>
+            </div>
+        <div class="model-test__info">
+          <div><strong>Scale:</strong> <span id="modelTestScale">--</span></div>
+          <div><strong>Tolerance:</strong> <span id="modelTestTolerance">--</span></div>
+          <div><strong>Cooldown:</strong> <span id="modelTestCooldown">--</span> s</div>
+        </div>
+        <p class="model-test__note">Estas variables son las ultimas ajustadas y guardadas.</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══════════════════════════════════════════════════
+       CLOCK OVERLAY — panel de reloj pantalla completa
+       ══════════════════════════════════════════════════ -->
+  <div id="clockOverlay" class="clock-overlay hidden">
+
+    <div class="clock-overlay__grid"></div>
+    <div class="clock-overlay__glow"></div>
+
+    <span class="clock-overlay__corner clock-overlay__corner--tl">VerifyMe</span>
+    <span class="clock-overlay__corner clock-overlay__corner--tr">Sistema biométrico escolar</span>
+    <span class="clock-overlay__corner clock-overlay__corner--bl clock-overlay__seconds" id="covSeconds">00s</span>
+
+    
+
+    <div class="clock-overlay__main">
+      <div class="clock-overlay__time">
+        <span id="covH">--</span><span class="clock-overlay__sep">:</span><span id="covM">--</span>
+      </div>
+      <div class="clock-overlay__ampm" id="covAMPM">AM</div>
+      <div class="clock-overlay__date" id="covDate">cargando...</div>
+      <div class="clock-overlay__divider"></div>
+      <div class="clock-overlay__status">
+        <div class="clock-overlay__dot"></div>
+        <span id="covStatusTxt">SISTEMA EN LÍNEA · CÁMARA ACTIVA</span>
+      </div>
+    </div>
+
+  </div>
+
+  <div id="osk" class="osk hidden" aria-hidden="true">
+    <div class="simple-keyboard"></div>
+  </div>
+
   <script src="{{ url_for('static', filename='js/app.js') }}"></script>
+  <script src="https://unpkg.com/simple-keyboard@3.7.95/build/index.js"></script>
 </body>
 </html>
