@@ -147,6 +147,17 @@ def migrate_local_schema(conn: sqlite3.Connection) -> None:
         """
     )
 
+    conn.execute(
+        """
+        CREATE TABLE IF NOT EXISTS sesiones_escuela (
+            id_sesion INTEGER PRIMARY KEY AUTOINCREMENT,
+            inicio DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            fin DATETIME,
+            estado_activa INTEGER NOT NULL DEFAULT 1 CHECK (estado_activa IN (0, 1))
+        )
+        """
+    )
+
     grupos_info = conn.execute("PRAGMA table_info(grupos)").fetchall()
     grupos_columns = {row[1] for row in grupos_info}
     is_legacy_grupos = {"grado", "letra", "turno"}.issubset(grupos_columns)
@@ -338,6 +349,19 @@ def migrate_local_schema(conn: sqlite3.Connection) -> None:
         """
         CREATE INDEX IF NOT EXISTS ix_logs_acceso_usuario_fecha
         ON logs_acceso (tipo_usuario, id_usuario_ref, fecha_hora DESC)
+        """
+    )
+    conn.execute(
+        """
+        CREATE INDEX IF NOT EXISTS ix_sesiones_estado_inicio
+        ON sesiones_escuela (estado_activa, inicio DESC)
+        """
+    )
+    conn.execute(
+        """
+        CREATE UNIQUE INDEX IF NOT EXISTS ux_sesion_activa
+        ON sesiones_escuela (estado_activa)
+        WHERE estado_activa = 1
         """
     )
     conn.execute(

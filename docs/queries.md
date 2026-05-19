@@ -33,7 +33,10 @@ Funciones disponibles:
 
 - list_students(...)
 - list_access_logs(...)
+- list_access_logs_for_active_session(...)
+- list_access_logs_for_session_id(...)
 - list_failed_attempts(...)
+- list_sessions(...)
 
 Principios de seguridad aplicados:
 
@@ -53,6 +56,7 @@ Comandos:
 - students
 - logs
 - failed
+- sessions
 
 Formatos de salida:
 
@@ -97,6 +101,8 @@ Parametros utiles:
 - --tipo-usuario ESTUDIANTE|PERSONAL
 - --tipo-evento Entrada|Salida
 - --acceso-concedido all|true|false
+- --active-session
+- --session-id
 - --limit
 - --offset
 - --format table|json
@@ -106,6 +112,14 @@ Ejemplos:
 C:/Projects/face-recognition/.venv/Scripts/python.exe scripts/db_queries.py logs --tipo-usuario ESTUDIANTE --acceso-concedido true --limit 100
 
 C:/Projects/face-recognition/.venv/Scripts/python.exe scripts/db_queries.py logs --from-datetime 2026-04-01T00:00:00 --to-datetime 2026-04-30T23:59:59 --format json
+
+Logs de la sesion activa (solo estudiantes):
+
+C:/Projects/face-recognition/.venv/Scripts/python.exe scripts/db_queries.py logs --active-session --format table
+
+Logs de una sesion historica por id (solo estudiantes):
+
+C:/Projects/face-recognition/.venv/Scripts/python.exe scripts/db_queries.py logs --session-id 12 --format json
 
 ## Consultar intentos fallidos
 
@@ -122,12 +136,29 @@ Ejemplo:
 
 C:/Projects/face-recognition/.venv/Scripts/python.exe scripts/db_queries.py failed --tipo-usuario ESTUDIANTE --limit 50
 
+## Consultar sesiones de acceso
+
+Parametros utiles:
+
+- --active all|true|false
+- --limit
+- --offset
+- --format table|json
+
+Ejemplos:
+
+C:/Projects/face-recognition/.venv/Scripts/python.exe scripts/db_queries.py sessions --active true
+
+C:/Projects/face-recognition/.venv/Scripts/python.exe scripts/db_queries.py sessions --active false --format json
+
 ## Reglas de validacion
 
 - Fechas invalidas devuelven error de validacion.
 - Valores fuera de catalogo para tipo de usuario o tipo de evento devuelven error de validacion.
 - limit debe estar entre 1 y 1000.
 - offset no puede ser negativo.
+- Los flags de sesion (--active-session, --session-id) no se combinan con --from-datetime/--to-datetime.
+- Los logs por sesion solo aplican a ESTUDIANTE.
 
 ## Buenas practicas
 

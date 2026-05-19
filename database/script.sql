@@ -97,6 +97,13 @@ CREATE TABLE logs_acceso (
     acceso_concedido INTEGER NOT NULL CHECK (acceso_concedido IN (0, 1))
 );
 
+CREATE TABLE sesiones_escuela (
+    id_sesion INTEGER PRIMARY KEY AUTOINCREMENT,
+    inicio DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    fin DATETIME,
+    estado_activa INTEGER NOT NULL DEFAULT 1 CHECK (estado_activa IN (0, 1))
+);
+
 -- ==============================================================================
 -- CATALOGOS BASE
 -- ==============================================================================
@@ -119,6 +126,13 @@ ON datos_biometricos (tipo_usuario, id_usuario_ref);
 
 CREATE INDEX ix_logs_acceso_usuario_fecha
 ON logs_acceso (tipo_usuario, id_usuario_ref, fecha_hora DESC);
+
+CREATE INDEX ix_sesiones_estado_inicio
+ON sesiones_escuela (estado_activa, inicio DESC);
+
+CREATE UNIQUE INDEX ux_sesion_activa
+ON sesiones_escuela (estado_activa)
+WHERE estado_activa = 1;
 
 CREATE INDEX ix_estudiantes_catalogos
 ON estudiantes (id_grado, id_grupo, id_turno, estado_activo);
