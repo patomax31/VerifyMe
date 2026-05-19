@@ -1,0 +1,356 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>IdentifyMe · Panel</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Sora:wght@400;600;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/app.css') }}">
+</head>
+<body>
+
+  <!-- Overlay drawer -->
+  <div id="drawerOverlay" class="drawer-overlay"></div>
+
+  <!-- Drawer -->
+  <aside id="drawer" class="drawer">
+    <div class="drawer-head">
+      <div class="drawer-brand">
+        <span class="drawer-brand__icon">🔐</span>
+        <div>
+          <p class="drawer-brand__name">IdentifyMe</p>
+          <p class="drawer-brand__sub">Biométrico escolar</p>
+        </div>
+      </div>
+      <button id="drawerClose" class="icon-btn" aria-label="Cerrar menú">✕</button>
+    </div>
+
+    <nav class="drawer-nav">
+      <button class="nav-btn active" data-view="home">
+        <span class="nav-btn__icon">🏠</span><span data-i18n="nav_home">Inicio</span>
+      </button>
+      <button class="nav-btn" data-view="access">
+        <span class="nav-btn__icon">👤</span><span data-i18n="nav_access">Acceso facial</span>
+      </button>
+      <button class="nav-btn" data-view="register">
+        <span class="nav-btn__icon">➕</span><span data-i18n="nav_register">Registro facial</span>
+      </button>
+      <button class="nav-btn" data-view="admin">
+        <span class="nav-btn__icon">⚙️</span><span data-i18n="nav_admin">Admin panel</span>
+      </button>
+    </nav>
+
+    <div class="drawer-status-box">
+      <p class="drawer-status-box__label" data-i18n="system_status_label">Estado del sistema</p>
+      <p id="systemStatus" class="drawer-status-box__val">Consultando...</p>
+    </div>
+
+    <a href="/" class="drawer-home-link" data-i18n="back_home">🏠 Volver al inicio</a>
+    <button class="drawer-logout" id="logoutBtn" data-i18n="logout">🚪 Cerrar sesión</button>
+  </aside>
+
+  <!-- Layout principal -->
+  <div class="app-layout">
+
+    <!-- Topbar -->
+    <header class="topbar">
+      <button id="hamburger" class="icon-btn burger" aria-label="Abrir menú">☰</button>
+      <div class="topbar-info">
+        <p class="eyebrow">IdentifyMe</p>
+        <p class="topbar-title" id="topbarTitle">Panel principal</p>
+      </div>
+      <button class="topbar-lang" id="langBtn" aria-label="Cambiar idioma">
+        <span id="langFlag">🇲🇽</span>
+        <span id="langLabel">ES</span>
+      </button>
+      <div class="topbar-clock">
+        <div id="clockH" class="clock-h">--:--</div>
+        <div id="clockD" class="clock-d"></div>
+      </div>
+    </header>
+
+    <main class="views-wrap">
+
+      <!-- ══════════════════════════════════════════════
+           VISTA: HOME (resumen)
+      ══════════════════════════════════════════════ -->
+      <section class="view card" id="view-home">
+        <p class="eyebrow" data-i18n="home_eyebrow">Bienvenido</p>
+        <h2 data-i18n="home_title">Panel principal</h2>
+        <p class="muted sm" data-i18n="home_sub">Dashboard escolar para acceso facial, registro biométrico y administración.</p>
+
+        <div class="grid-2" style="margin:14px 0 12px">
+          <div class="stat-tile">
+            <strong id="statTotal">---</strong>
+            <span data-i18n="stat_students">Estudiantes</span>
+          </div>
+          <div class="stat-tile">
+            <strong id="statActivos">---</strong>
+            <span data-i18n="stat_active">Activos</span>
+          </div>
+        </div>
+
+        <div class="system-status-box">
+          <div class="system-status-box__dot"></div>
+          <div>
+            <div class="system-status-box__title" data-i18n="status_online">Sistema en línea</div>
+            <div class="system-status-box__sub" id="homeStatusSub" data-i18n="status_sub">Cámara activa · Modelo listo</div>
+          </div>
+          <span class="system-status-box__badge" data-i18n="status_badge">Operando</span>
+        </div>
+
+        <div class="last-access-box">
+          <div class="last-access-box__head" data-i18n="last_access">Últimos accesos</div>
+          <div id="lastAccessList">
+            <div class="last-access-box__empty" data-i18n="no_records">Sin registros recientes</div>
+          </div>
+        </div>
+
+        <!-- Accesos rápidos -->
+        <div class="quick-nav" style="margin-top:16px">
+          <button class="quick-nav-btn" onclick="showView('access')">
+            <span>📷</span>
+            <span data-i18n="nav_access">Acceso facial</span>
+          </button>
+          <button class="quick-nav-btn" onclick="showView('register')">
+            <span>➕</span>
+            <span data-i18n="qnav_register">Registrar alumno</span>
+          </button>
+          <button class="quick-nav-btn" onclick="showView('admin')">
+            <span>⚙️</span>
+            <span data-i18n="nav_admin">Admin panel</span>
+          </button>
+        </div>
+      </section>
+
+      <!-- ══════════════════════════════════════════════
+           VISTA: ACCESO FACIAL (2 pasos)
+      ══════════════════════════════════════════════ -->
+      <section class="view hidden" id="view-access">
+
+        <!-- PASO 1: Cámara -->
+        <div class="step-panel card" id="access-step1">
+          <div class="step-header">
+            <div class="step-badge" data-i18n="step1of2">Paso 1 de 2</div>
+            <h2 data-i18n="nav_access">Acceso facial</h2>
+            <p class="muted sm" data-i18n="access_sub">Posiciona el rostro del alumno frente a la cámara.</p>
+          </div>
+
+          <div class="liveness-hint" id="loginLivenessRow">
+            <span class="liveness-hint__dot" id="loginLivenessDot"></span>
+            <p id="loginLivenessText" class="liveness-hint__txt" data-i18n="liveness_init">Inicia la cámara para comenzar la verificación de vida.</p>
+          </div>
+
+          <div class="camera-box">
+            <video id="loginVideo" autoplay playsinline muted></video>
+            <canvas id="loginCanvas" class="hidden"></canvas>
+            <div class="camera-overlay" id="cameraOverlay">
+              <div class="camera-reticle"></div>
+              <p class="camera-overlay__txt" data-i18n="cam_stopped">Cámara detenida</p>
+            </div>
+          </div>
+
+          <div class="row">
+            <button id="loginStart" class="btn-full">
+              <span>▶</span><span data-i18n="btn_start_cam">Iniciar cámara</span>
+            </button>
+            <button id="loginStop" class="btn-danger" disabled>
+              <span>⏹</span><span data-i18n="btn_stop">Detener</span>
+            </button>
+          </div>
+
+          <p id="loginMessage" class="feedback waiting" data-i18n="waiting_face">ESPERANDO ROSTRO...</p>
+        </div>
+
+        <!-- PASO 2: Resultado -->
+        <div class="step-panel card hidden" id="access-step2">
+          <div class="step-header">
+            <div class="step-badge step-badge--ok" data-i18n="step2of2">Paso 2 de 2</div>
+            <h2 data-i18n="result_title">Resultado</h2>
+          </div>
+
+          <div id="accessResult" class="access-result">
+            <!-- Se rellena dinámicamente -->
+          </div>
+
+          <div class="row" style="margin-top:14px">
+            <button class="btn-full" onclick="resetAccessStep()">
+              <span>🔄</span><span data-i18n="btn_scan_another">Escanear otro alumno</span>
+            </button>
+          </div>
+        </div>
+
+      </section>
+
+      <!-- ══════════════════════════════════════════════
+           VISTA: REGISTRO BIOMÉTRICO (2 pasos)
+      ══════════════════════════════════════════════ -->
+      <section class="view hidden" id="view-register">
+
+        <!-- PASO 1: Datos del alumno -->
+        <div class="step-panel card" id="reg-step1">
+          <div class="step-header">
+            <div class="step-badge" data-i18n="step1of2">Paso 1 de 2</div>
+            <h2 data-i18n="reg_title_data">Datos del alumno</h2>
+            <p class="muted sm" data-i18n="reg_sub_data">Ingresa la información escolar antes de capturar la biometría.</p>
+          </div>
+
+          <div class="form-grid-2" style="margin-top:14px">
+            <label class="form-label">
+              <span data-i18n="field_name">Nombre completo</span>
+              <input id="regNombre" type="text" maxlength="80" placeholder="Ej. Ana Gómez">
+            </label>
+            <div class="form-row-2">
+              <label class="form-label">
+                <span data-i18n="field_grade">Grado</span>
+                <select id="regGrado">
+                  <option>1</option><option>2</option><option>3</option>
+                </select>
+              </label>
+              <label class="form-label">
+                <span data-i18n="field_group">Grupo</span>
+                <input id="regLetra" type="text" maxlength="1" placeholder="A">
+              </label>
+            </div>
+            <label class="form-label">
+              <span data-i18n="field_shift">Turno</span>
+              <select id="regTurno">
+                <option>MATUTINO</option><option>VESPERTINO</option>
+              </select>
+            </label>
+          </div>
+
+          <button class="btn-full" style="margin-top:18px" id="regGoToCamera">
+            <span>📷</span><span data-i18n="btn_go_camera">Continuar a cámara</span>
+          </button>
+          <p id="regStep1Msg" class="feedback waiting" style="margin-top:10px" data-i18n="reg_fill_fields">Completa todos los campos.</p>
+        </div>
+
+        <!-- PASO 2: Cámara 3 ángulos -->
+        <div class="step-panel card hidden" id="reg-step2">
+          <div class="step-header">
+            <div class="step-badge" data-i18n="step2of2">Paso 2 de 2</div>
+            <h2 data-i18n="reg_title_cam">Captura biométrica</h2>
+            <p class="muted sm" data-i18n="reg_sub_cam">Captura 3 ángulos: frente, perfil izquierdo y perfil derecho.</p>
+          </div>
+
+          <!-- Stepper de ángulos -->
+          <div class="angle-stepper" id="angleStepper">
+            <div class="angle-step angle-step--active" data-angle="0">
+              <div class="angle-step__num">1</div>
+              <div class="angle-step__label" data-i18n="angle_front">Frente</div>
+            </div>
+            <div class="angle-step__line"></div>
+            <div class="angle-step" data-angle="1">
+              <div class="angle-step__num">2</div>
+              <div class="angle-step__label" data-i18n="angle_left">Izquierda</div>
+            </div>
+            <div class="angle-step__line"></div>
+            <div class="angle-step" data-angle="2">
+              <div class="angle-step__num">3</div>
+              <div class="angle-step__label" data-i18n="angle_right">Derecha</div>
+            </div>
+          </div>
+
+          <p id="regAngleHint" class="angle-hint" data-i18n="angle_hint_front">Mira de frente a la cámara. Esta imagen será tu foto de credencial.</p>
+
+          <div class="camera-box">
+            <video id="regVideo" autoplay playsinline muted></video>
+            <canvas id="regCanvas" class="hidden"></canvas>
+            <div class="camera-overlay" id="regCameraOverlay">
+              <div class="camera-reticle"></div>
+              <p class="camera-overlay__txt" data-i18n="cam_stopped">Cámara detenida</p>
+            </div>
+          </div>
+
+          <div class="row">
+            <button id="regStart"><span>📷</span><span data-i18n="btn_start_cam">Iniciar cámara</span></button>
+            <button id="regCapture" disabled><span>✓</span><span id="regCaptureLabel" data-i18n="btn_capture_front">Capturar frente</span></button>
+            <button id="regStop" class="btn-danger" disabled><span>⏹</span><span data-i18n="btn_stop">Detener</span></button>
+          </div>
+
+          <p id="regMessage" class="feedback waiting" data-i18n="reg_start_cam">Inicia la cámara y sigue los pasos.</p>
+
+          <button class="btn-back" onclick="backToRegStep1()" data-i18n="btn_edit_data">← Editar datos</button>
+        </div>
+
+      </section>
+
+      <!-- ══════════════════════════════════════════════
+           VISTA: ADMIN
+      ══════════════════════════════════════════════ -->
+      <section class="view card hidden" id="view-admin">
+        <h2 data-i18n="nav_admin">Admin panel</h2>
+        <p class="muted sm" data-i18n="admin_sub">Gestión escolar, parámetros del modelo y administradores.</p>
+
+        <div class="tabs-inline" style="margin-top:12px">
+          <button class="tab-btn active" data-admin-tab="students"><span>👥</span><span data-i18n="tab_students">Estudiantes</span></button>
+          <button class="tab-btn" data-admin-tab="model"><span>🎛</span><span data-i18n="tab_model">Modelo</span></button>
+          <button class="tab-btn" data-admin-tab="admins"><span>🛡</span><span data-i18n="tab_admins">Admins</span></button>
+        </div>
+
+        <!-- Tab: Estudiantes -->
+        <section id="admin-students" class="admin-tab">
+          <div class="grid-4 form-grid">
+            <label><span data-i18n="field_name">Nombre</span> <input id="admNombre" type="text"></label>
+            <label><span data-i18n="field_grade">Grado</span> <select id="admGrado"><option>1</option><option>2</option><option>3</option></select></label>
+            <label><span data-i18n="field_group">Grupo</span> <input id="admGrupo" type="text" maxlength="1"></label>
+            <label><span data-i18n="field_shift">Turno</span> <select id="admTurno"><option>MATUTINO</option><option>VESPERTINO</option></select></label>
+          </div>
+          <div class="row">
+            <button id="admCreate"><span>➕</span><span data-i18n="btn_create_student">Crear estudiante</span></button>
+            <button id="admRefresh"><span>🔄</span><span data-i18n="btn_refresh">Refrescar</span></button>
+          </div>
+          <p id="admStudentsMsg" class="feedback waiting" data-i18n="students_mgmt">Gestión de estudiantes.</p>
+          <div class="table-wrap">
+            <table id="studentsTable">
+              <thead><tr><th>ID</th><th data-i18n="field_name">Nombre</th><th data-i18n="field_grade">Grado</th><th data-i18n="field_group">Grupo</th><th data-i18n="field_shift">Turno</th><th data-i18n="th_status">Estado</th><th data-i18n="th_actions">Acciones</th></tr></thead>
+              <tbody></tbody>
+            </table>
+          </div>
+        </section>
+
+        <!-- Tab: Modelo -->
+        <section id="admin-model" class="admin-tab hidden">
+          <div class="grid-3 form-grid">
+            <label>Scale     <input id="cfgScale"     type="number" min="0.05" max="1.0"  step="0.01"></label>
+            <label>Tolerance <input id="cfgTolerance" type="number" min="0.2"  max="1.0"  step="0.01"></label>
+            <label>Cooldown  <input id="cfgCooldown"  type="number" min="0"    max="120"  step="0.5"></label>
+          </div>
+          <div class="row">
+            <button id="cfgLoad"><span>⬇</span><span>Cargar</span></button>
+            <button id="cfgSave"><span>💾</span><span>Guardar</span></button>
+          </div>
+          <p id="cfgMsg" class="feedback waiting">Configuración del modelo.</p>
+        </section>
+
+        <!-- Tab: Admins -->
+        <section id="admin-admins" class="admin-tab hidden">
+          <div class="grid-2 form-grid">
+            <label>No. empleado   <input id="adminNum"    type="text"></label>
+            <label>Nombre         <input id="adminNombre" type="text"></label>
+            <label>Rol            <input id="adminRol"    type="text" value="ADMIN"></label>
+            <label>Correo         <input id="adminCorreo" type="email"></label>
+            <label>Password       <input id="adminPass"   type="password"></label>
+          </div>
+          <div class="row">
+            <button id="adminCreate"><span>🛡</span><span>Registrar admin</span></button>
+            <button id="adminRefresh"><span>🔄</span><span>Refrescar</span></button>
+          </div>
+          <p id="adminMsg" class="feedback waiting">Registro de administradores.</p>
+          <div class="table-wrap">
+            <table id="adminsTable">
+              <thead><tr><th>ID</th><th>No. empleado</th><th>Nombre</th><th>Rol</th><th>Correo</th><th>Estado</th></tr></thead>
+              <tbody></tbody>
+            </table>
+          </div>
+        </section>
+      </section>
+
+    </main>
+  </div>
+
+  <script src="{{ url_for('static', filename='js/app.js') }}"></script>
+</body>
+</html>
