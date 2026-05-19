@@ -939,11 +939,11 @@ def create_app() -> Flask:
                 "translated": translated
             })
 
-        except Exception as e:
+        except Exception:
 
             return jsonify({
                 "success": False,
-                "error": str(e)
+                "error": "Translation service unavailable."
             }), 500
         
     
