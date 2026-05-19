@@ -26,8 +26,10 @@ if str(PROJECT_DIR) not in sys.path:
 ADMIN_PANEL_DIR = PROJECT_DIR / "admin_panel"
 ADMIN_PANEL_DIST_DIR = ADMIN_PANEL_DIR / "dist"
 
+from database.sqlite.access import close_access_session, get_active_session, start_access_session
 from database.sqlite.connection import connect
 from database.sqlite.migrations import initialize_database
+from database.sqlite.reporting import list_access_logs_for_active_session
 from src.application.auth_service import AuthService
 from src.application.login_use_case import LoginUseCase
 from src.application.registration_service import RegistrationService
@@ -64,6 +66,8 @@ class WebFaceEngine:
     def __init__(self, recognition_settings: RecognitionSettings) -> None:
         if RUNTIME_ERROR is not None:
             raise RuntimeError(RUNTIME_ERROR)
+        if FaceMatcherAdapter is None:
+            raise RuntimeError("Dependencias de reconocimiento no disponibles.")
 
         self.recognition_settings = recognition_settings
         self.login_use_case = LoginUseCase(
@@ -102,8 +106,9 @@ class WebFaceEngine:
 
 
 def _resource_base() -> Path:
-    if hasattr(sys, "_MEIPASS"):
-        return Path(sys._MEIPASS)
+    bundle_dir = getattr(sys, "_MEIPASS", None)
+    if bundle_dir:
+        return Path(bundle_dir)
     return Path(__file__).resolve().parent
 
 
@@ -124,6 +129,8 @@ def _runtime_check(engine_error: Optional[str], engine: Optional[WebFaceEngine])
 
 
 def _decode_image_data_uri(image_data: str):
+    if cv2 is None or np is None:
+        return None
     if not image_data:
         return None
 
@@ -305,6 +312,21 @@ def _save_model_settings(scale: float, tolerance: float, cooldown_seconds: float
         )
 
 
+def _parse_optional_bool(value: Optional[str]) -> Optional[bool]:
+    if value is None:
+        return None
+
+    raw = value.strip().lower()
+    if not raw or raw == "all":
+        return None
+    if raw in {"true", "1", "yes"}:
+        return True
+    if raw in {"false", "0", "no"}:
+        return False
+
+    raise ValueError("acceso_concedido debe ser true, false o all")
+
+
 def create_app() -> Flask:
     initialize_database()
 
@@ -379,6 +401,8 @@ def create_app() -> Flask:
         if runtime_issue is not None:
             return jsonify({"users_count": 0, "ready": False, "message": runtime_issue})
 
+        assert engine is not None
+
         engine.refresh_known_students()
         return jsonify(
             {
@@ -430,6 +454,8 @@ def create_app() -> Flask:
         if runtime_issue is not None:
             return jsonify({"ok": False, "state": "error", "message": runtime_issue}), 500
 
+        assert engine is not None
+
         payload = request.get_json(silent=True) or {}
         frame = _decode_image_data_uri(payload.get("image", ""))
         if frame is None:
@@ -462,6 +488,7 @@ def create_app() -> Flask:
         else:
             enc_live = None
         if enc_live is None:
+            assert detect_face_encodings_from_frame is not None
             _, enc_list = detect_face_encodings_from_frame(frame, scale=base_scale)
             if len(enc_list) > 1:
                 return jsonify(
@@ -530,6 +557,8 @@ def create_app() -> Flask:
         if runtime_issue is not None:
             return jsonify({"ok": False, "message": runtime_issue}), 500
 
+        assert engine is not None
+
         payload = request.get_json(silent=True) or {}
 
         nombre = str(payload.get("nombre", "")).strip()
@@ -556,6 +585,7 @@ def create_app() -> Flask:
         def _encode_registration_frame(fr):
             if detect_face_encodings_from_frame_robust is not None:
                 return detect_face_encodings_from_frame_robust(fr, base_scale=scale)
+            assert detect_face_encodings_from_frame is not None
             return detect_face_encodings_from_frame(fr, scale=scale)
 
         if frame_f is not None and frame_l is not None and frame_r is not None:
@@ -676,6 +706,72 @@ def create_app() -> Flask:
             return jsonify({"ok": False, "message": "Turno invalido."}), 400
 
         return jsonify({"ok": True, "student_id": student_id, "message": "Estudiante creado."})
+
+    @app.get("/api/admin/access-session")
+    def get_access_session():
+        session = get_active_session()
+        return jsonify({"ok": True, "active": session is not None, "session": session})
+
+    @app.post("/api/admin/access-session/start")
+    def start_access_session_admin():
+        payload = request.get_json(silent=True) or {}
+        inicio = payload.get("inicio")
+
+        try:
+            session_id = start_access_session(inicio=str(inicio) if inicio else None)
+        except ValueError as exc:
+            message = str(exc)
+            status = 409 if "Ya existe" in message else 400
+            return jsonify({"ok": False, "message": message}), status
+
+        return jsonify({"ok": True, "session_id": session_id, "message": "Sesion iniciada."})
+
+    @app.post("/api/admin/access-session/close")
+    def close_access_session_admin():
+        payload = request.get_json(silent=True) or {}
+        session_id = payload.get("session_id")
+        fin = payload.get("fin")
+
+        try:
+            session_id_value = int(session_id) if session_id is not None else None
+        except (TypeError, ValueError):
+            return jsonify({"ok": False, "message": "session_id invalido."}), 400
+
+        try:
+            close_access_session(
+                session_id=session_id_value,
+                fin=str(fin) if fin else None,
+            )
+        except ValueError as exc:
+            return jsonify({"ok": False, "message": str(exc)}), 400
+
+        return jsonify({"ok": True, "message": "Sesion cerrada."})
+
+    @app.get("/api/admin/access-logs/active-session")
+    def list_access_logs_active_session():
+        tipo_evento = request.args.get("tipo_evento")
+        acceso_concedido_raw = request.args.get("acceso_concedido")
+        limit_raw = request.args.get("limit", "100")
+        offset_raw = request.args.get("offset", "0")
+
+        try:
+            limit = int(limit_raw)
+            offset = int(offset_raw)
+        except (TypeError, ValueError):
+            return jsonify({"ok": False, "message": "limit/offset deben ser enteros."}), 400
+
+        try:
+            acceso_concedido = _parse_optional_bool(acceso_concedido_raw)
+            rows = list_access_logs_for_active_session(
+                tipo_evento=tipo_evento,
+                acceso_concedido=acceso_concedido,
+                limit=limit,
+                offset=offset,
+            )
+        except ValueError as exc:
+            return jsonify({"ok": False, "message": str(exc)}), 400
+
+        return jsonify({"ok": True, "logs": rows})
 
     @app.put("/api/admin/students/<int:student_id>")
     def update_student_admin(student_id: int):

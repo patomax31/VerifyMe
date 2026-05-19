@@ -11,7 +11,7 @@ import time
 from contextlib import closing
 from dataclasses import dataclass
 from enum import Enum
-from typing import Callable, Optional
+from typing import Callable, Optional, Protocol
 from urllib.request import Request, urlopen
 
 import webview
@@ -224,9 +224,14 @@ def error_html(title: str, detail: str, hint: str = "") -> str:
 
 
 # ── Estado del servidor ───────────────────────────────────────────────────
+class ShutdownableServer(Protocol):
+    def shutdown(self) -> None:
+        ...
+
+
 @dataclass
 class ServerState:
-    server: Optional[object] = None
+    server: Optional[ShutdownableServer] = None
     thread: Optional[threading.Thread] = None
     startup_error: Optional[str] = None
 
@@ -463,7 +468,19 @@ def run_desktop_app() -> int:
             return
 
         _update_splash(splash, 80, "Iniciando servidor...")
-        state.thread.start()
+        thread = state.thread
+        if thread is None:
+            hardware.error()
+            splash.load_html(
+                error_html(
+                    title="No se pudo iniciar",
+                    detail="No se pudo crear el hilo del servidor Flask.",
+                    hint="Revisa la consola y vuelve a abrir la aplicacion.",
+                )
+            )
+            return
+
+        thread.start()
         ready = wait_for_server()
 
         if not ready:
