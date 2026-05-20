@@ -145,6 +145,8 @@ function showView(viewId) {
   if (titleEl) titleEl.textContent = t('title_' + viewId) || viewId;
 
   closeDrawer();
+
+  if (viewId === 'access') startLoginCamera();
 }
 
 navBtns.forEach(b => b.addEventListener('click', () => showView(b.dataset.view)));
@@ -303,6 +305,106 @@ document.getElementById('logoutBtn')?.addEventListener('click', async () => {
   window.location.href = '/';
 });
 
+// ════ ON-SCREEN KEYBOARD (simple-keyboard) ════
+const keyboardInputs = 'input[type="text"], input[type="email"], input[type="password"], input[type="number"], textarea';
+let activeInput = null;
+let osk = null;
+let oskInteracting = false;
+
+function showOsk() {
+  const el = document.getElementById('osk');
+  if (!el) return;
+  el.classList.remove('hidden');
+  el.setAttribute('aria-hidden', 'false');
+}
+
+function hideOsk() {
+  const el = document.getElementById('osk');
+  if (!el) return;
+  el.classList.add('hidden');
+  el.setAttribute('aria-hidden', 'true');
+}
+
+function initOsk() {
+  if (osk || !window.SimpleKeyboard) return;
+  const oskRoot = document.getElementById('osk');
+  oskRoot?.addEventListener('pointerdown', e => {
+    oskInteracting = true;
+    e.preventDefault();
+  });
+  oskRoot?.addEventListener('pointerup', () => {
+    setTimeout(() => { oskInteracting = false; }, 0);
+  });
+  osk = new window.SimpleKeyboard.default({
+    onChange: input => {
+      if (!activeInput) return;
+      activeInput.value = input;
+      activeInput.dispatchEvent(new Event('input', { bubbles: true }));
+    },
+    onKeyPress: button => {
+      if (button === '{enter}') {
+        activeInput?.blur();
+        hideOsk();
+      }
+      if (button === '{shift}' || button === '{lock}') handleShift();
+    },
+    layout: {
+      default: [
+        'q w e r t y u i o p',
+        'a s d f g h j k l',
+        '{shift} z x c v b n m {bksp}',
+        '{space} {enter}'
+      ],
+      shift: [
+        'Q W E R T Y U I O P',
+        'A S D F G H J K L',
+        '{shift} Z X C V B N M {bksp}',
+        '{space} {enter}'
+      ]
+    },
+    display: {
+      '{bksp}': '⌫',
+      '{enter}': '↵',
+      '{space}': 'espacio',
+      '{shift}': '⇧',
+      '{lock}': '⇪'
+    }
+  });
+}
+
+function handleShift() {
+  if (!osk) return;
+  const current = osk.options.layoutName || 'default';
+  const next = current === 'default' ? 'shift' : 'default';
+  osk.setOptions({ layoutName: next });
+}
+
+document.addEventListener('focusin', e => {
+  const target = e.target;
+  if (target && target.matches && target.matches(keyboardInputs)) {
+    initOsk();
+    activeInput = target;
+    osk?.setInput(target.value || '');
+    showOsk();
+  }
+});
+
+document.addEventListener('focusout', e => {
+  const target = e.target;
+  if (target && target.matches && target.matches(keyboardInputs)) {
+    setTimeout(() => {
+      if (oskInteracting) {
+        activeInput?.focus();
+        return;
+      }
+      const focused = document.activeElement;
+      if (focused && focused.matches && focused.matches(keyboardInputs)) return;
+      activeInput = null;
+      hideOsk();
+    }, 0);
+  }
+});
+
 // ════ ACCESO FACIAL ════
 let loginStream      = null;
 let loginInterval    = null;
@@ -336,8 +438,6 @@ function stopLoginCamera() {
   if (loginStream) loginStream.getTracks().forEach(t => t.stop());
   loginStream = null;
   if (loginVideo)  loginVideo.srcObject  = null;
-  if (loginStart)  loginStart.disabled   = false;
-  if (loginStop)   loginStop.disabled    = true;
   if (camOverlay)  camOverlay.classList.remove('hidden');
   loginLivId = null; loginLivOk = false;
 }
@@ -347,6 +447,41 @@ function showAccessStep(n) {
   const s2 = document.getElementById('access-step2');
   if (n === 1) { s1?.classList.remove('hidden'); s2?.classList.add('hidden'); }
   else         { s1?.classList.add('hidden');    s2?.classList.remove('hidden'); }
+}
+
+async function startLoginCamera() {
+  if (loginStream || loginInterval) return;
+  try {
+    showAccessStep(1);
+    loginLivOk = false; loginLivId = null;
+    setLivUi('init', t('liveness_init'));
+
+    try {
+      const ls = await fetch('/api/login/liveness/start', { method:'POST' });
+      const lj = await ls.json();
+      if (lj.ok && lj.session_id) {
+        loginLivId = lj.session_id;
+      } else {
+        loginLivOk = true;
+      }
+    } catch (_) { loginLivOk = true; }
+
+    loginStream = await navigator.mediaDevices.getUserMedia({ video: true });
+    if (loginVideo)  loginVideo.srcObject  = loginStream;
+    if (camOverlay)  camOverlay.classList.add('hidden');
+    if (loginMsgHelp) {
+      loginMsgHelp.classList.add('hidden');
+      loginMsgHelp.classList.remove('is-clickable');
+    }
+    loginDeniedCount = 0;
+
+    loginInterval = setInterval(async () => {
+      if (!loginLivOk) await pushLivFrame();
+      else             await captureAndVerify();
+    }, 700);
+  } catch (_) {
+    if (loginMsg) { loginMsg.textContent = t('no_camera'); loginMsg.className = 'feedback denied'; }
+  }
 }
 
 function renderAccessResult(data) {
@@ -454,52 +589,7 @@ async function captureAndVerify() {
   } catch (_) {}
 }
 
-loginStart?.addEventListener('click', async () => {
-  try {
-    showAccessStep(1);
-    loginLivOk = false; loginLivId = null;
-    setLivUi('init', t('liveness_connecting')||'Conectando…');
-
-    try {
-      const ls = await fetch('/api/login/liveness/start', { method:'POST' });
-      const lj = await ls.json();
-      if (lj.ok && lj.session_id) {
-        loginLivId = lj.session_id;
-      } else {
-        loginLivOk = true;
-      }
-    } catch (_) { loginLivOk = true; }
-
-    loginStream = await navigator.mediaDevices.getUserMedia({ video: true });
-    if (loginVideo)  loginVideo.srcObject  = loginStream;
-    if (camOverlay)  camOverlay.classList.add('hidden');
-    if (loginStart)  loginStart.disabled   = true;
-    if (loginStop)   loginStop.disabled    = false;
-    if (loginMsgHelp) {
-      loginMsgHelp.classList.add('hidden');
-      loginMsgHelp.classList.remove('is-clickable');
-    }
-    loginDeniedCount = 0;
-
-    loginInterval = setInterval(async () => {
-      if (!loginLivOk) await pushLivFrame();
-      else             await captureAndVerify();
-    }, 700);
-  } catch (_) {
-    if (loginMsg) { loginMsg.textContent = t('no_camera'); loginMsg.className = 'feedback denied'; }
-  }
-});
-
-loginStop?.addEventListener('click', () => {
-  stopLoginCamera();
-  setLivUi('off', t('liveness_stopped')||'Verificación detenida.');
-  if (loginMsg) { loginMsg.textContent = t('waiting_face'); loginMsg.className = 'feedback waiting'; }
-  if (loginMsgHelp) {
-    loginMsgHelp.classList.add('hidden');
-    loginMsgHelp.classList.remove('is-clickable');
-  }
-  loginDeniedCount = 0;
-});
+startLoginCamera();
 
 function openLoginHelpModal()  { loginHelpModal?.classList.remove('hidden'); }
 function closeLoginHelpModal() { loginHelpModal?.classList.add('hidden'); }
@@ -523,6 +613,14 @@ const regCapture = document.getElementById('regCapture');
 const regStop    = document.getElementById('regStop');
 const regMsg     = document.getElementById('regMessage');
 const regCamOv   = document.getElementById('regCameraOverlay');
+
+const regNombreInput = document.getElementById('regNombre');
+regNombreInput?.addEventListener('input', () => {
+  const raw = regNombreInput.value;
+  const cleaned = raw.replace(/[^A-Za-zÁÉÍÓÚÑáéíóúñ\s]/g, '').replace(/\s{2,}/g, ' ');
+  const limited = cleaned.slice(0, 20);
+  if (limited !== raw) regNombreInput.value = limited;
+});
 
 const REG_ANGLES = [
   { key:'image_front', get label(){ return t('btn_capture_front'); }, get hint(){ return t('angle_hint_front'); } },
@@ -556,14 +654,33 @@ function stopRegCamera() {
 }
 
 document.getElementById('regGoToCamera')?.addEventListener('click', () => {
-  const nombre = document.getElementById('regNombre')?.value.trim();
+  const nombreRaw = document.getElementById('regNombre')?.value || '';
+  const nombre = nombreRaw.trim().replace(/[^A-Za-zÁÉÍÓÚÑáéíóúñ\s]/g, '');
   const grado  = document.getElementById('regGrado')?.value;
   const letra  = document.getElementById('regLetra')?.value.trim().toUpperCase();
   const turno  = document.getElementById('regTurno')?.value;
   const msg1   = document.getElementById('regStep1Msg');
 
-  if (!nombre) { if (msg1) { msg1.textContent = t('reg_no_name')||'Ingresa el nombre.'; msg1.className='feedback denied'; } return; }
-  if (!letra)  { if (msg1) { msg1.textContent = t('reg_no_group')||'Ingresa el grupo.'; msg1.className='feedback denied'; } return; }
+  if (!nombre || !letra) {
+    if (msg1) {
+      msg1.textContent = 'Completa los campos faltantes para continuar.';
+      msg1.className='feedback denied';
+    }
+    return;
+  }
+
+  if (nombre.length < 3 || nombre.length > 20) {
+    if (msg1) {
+      msg1.textContent = 'El nombre debe tener entre 3 y 20 caracteres.';
+      msg1.className='feedback denied';
+    }
+    return;
+  }
+
+  if (nombre !== nombreRaw.trim()) {
+    const input = document.getElementById('regNombre');
+    if (input) input.value = nombre;
+  }
 
   regDatos = { nombre, grado, letra, turno };
   regStepIndex = 0;

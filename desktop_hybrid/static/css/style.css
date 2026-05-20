@@ -878,3 +878,40 @@ tr:hover td { background: #F4FBF6; }
   .grid-4, .grid-3, .grid-2 { grid-template-columns: 1fr; }
   .form-row-2 { grid-template-columns: 1fr; }
 }
+
+/* ════ ON-SCREEN KEYBOARD ════ */
+.osk {
+  position: fixed;
+  left: 0;
+  bottom: 0;
+  width: 420px;
+  height: 260px;
+  background: #0b1a12;
+  border-top: 2px solid var(--line);
+  z-index: 700;
+  display: flex;
+  align-items: stretch;
+}
+.osk.hidden { display: none; }
+.osk .simple-keyboard {
+  width: 100%;
+  padding: 8px;
+}
+.osk .hg-theme-default {
+  background: transparent;
+  border: none;
+}
+.osk .hg-button {
+  height: 44px;
+  background: #1b2f23;
+  color: #fff;
+  border: 1px solid #2e4c39;
+  border-radius: 8px;
+  font-weight: 700;
+}
+.osk .hg-button:active {
+  background: #2a4735;
+}
+.osk .hg-button.hg-activeButton {
+  background: #2a4735;
+}
