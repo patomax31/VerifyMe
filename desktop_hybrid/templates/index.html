@@ -6,6 +6,7 @@
   <title>VerifyMe</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Sora:wght@400;600;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://unpkg.com/simple-keyboard@3.7.95/build/css/index.css">
   <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
 </head>
 <body>
@@ -135,14 +136,6 @@
               <div class="camera-hud__bottom">
                 <p id="loginMessage" class="feedback waiting" data-i18n="waiting_face">ESPERANDO ROSTRO...</p>
                 <p id="loginMessageHelp" class="feedback-help hidden">¿Aun no estas registrado? Pide ayuda a el encargado en direccion.</p>
-                <div class="row camera-actions">
-                  <button id="loginStart" class="btn-full">
-                    <span>▶</span><span data-i18n="btn_start_cam">Iniciar cámara</span>
-                  </button>
-                  <button id="loginStop" class="btn-danger" disabled>
-                    <span>⏹</span><span data-i18n="btn_stop">Detener</span>
-                  </button>
-                </div>
               </div>
             </div>
           </div>
@@ -193,7 +186,7 @@
 
           <div class="form-grid-2" style="margin-top:14px">
             <label><span data-i18n="field_name">Nombre completo</span>
-              <input id="regNombre" type="text" maxlength="80" placeholder="Ej. Ana Gómez">
+              <input id="regNombre" type="text" maxlength="20" placeholder="Ej. Ana Gómez">
             </label>
             <div class="form-row-2">
               <label><span data-i18n="field_grade">Grado</span>
@@ -217,7 +210,7 @@
           <button class="btn-full" style="margin-top:18px" id="regGoToCamera">
             <span>📷</span><span data-i18n="btn_go_camera">Continuar a cámara</span>
           </button>
-          <p id="regStep1Msg" class="feedback waiting" style="margin-top:10px"></p>
+          <p id="regStep1Msg" class="feedback waiting" style="margin-top:10px">Completa los campos faltantes para continuar.</p>
         </div>
 
         <!-- Paso 2: cámara 3 ángulos -->
@@ -393,6 +386,11 @@
 
   </div>
 
+  <div id="osk" class="osk hidden" aria-hidden="true">
+    <div class="simple-keyboard"></div>
+  </div>
+
   <script src="{{ url_for('static', filename='js/app.js') }}"></script>
+  <script src="https://unpkg.com/simple-keyboard@3.7.95/build/index.js"></script>
 </body>
 </html>
