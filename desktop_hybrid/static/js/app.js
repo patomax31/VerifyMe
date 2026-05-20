@@ -413,6 +413,7 @@ let loginLivOk       = false;
 let loginDeniedCount = 0;
 
 const loginVideo      = document.getElementById('loginVideo');
+const loginImage      = document.getElementById('loginImage');
 const loginCanvas     = document.getElementById('loginCanvas');
 const loginStart      = document.getElementById('loginStart');
 const loginStop       = document.getElementById('loginStop');
@@ -433,11 +434,47 @@ function setLivUi(state, text) {
     state === 'need_blink' ? '#92400E' : '#006B28';
 }
 
+function _activeCameraSource(videoEl, imgEl) {
+  if (videoEl && videoEl.srcObject) return videoEl;
+  if (imgEl && !imgEl.classList.contains('hidden')) return imgEl;
+  return null;
+}
+
+function _sourceDims(el) {
+  const w = el?.videoWidth || el?.naturalWidth || el?.width || 0;
+  const h = el?.videoHeight || el?.naturalHeight || el?.height || 0;
+  return { w, h };
+}
+
+function _useMjpeg(imgEl, videoEl) {
+  if (videoEl) {
+    videoEl.srcObject = null;
+    videoEl.classList.add('hidden');
+  }
+  if (imgEl) {
+    imgEl.src = '/api/camera/stream?ts=' + Date.now();
+    imgEl.classList.remove('hidden');
+  }
+}
+
+function _useGetUserMedia(videoEl, imgEl, stream) {
+  if (videoEl) {
+    videoEl.srcObject = stream;
+    videoEl.classList.remove('hidden');
+  }
+  if (imgEl) {
+    imgEl.src = '';
+    imgEl.classList.add('hidden');
+  }
+}
+
 function stopLoginCamera() {
   clearInterval(loginInterval); loginInterval = null;
-  if (loginStream) loginStream.getTracks().forEach(t => t.stop());
+  if (loginStream && loginStream.getTracks) loginStream.getTracks().forEach(t => t.stop());
   loginStream = null;
   if (loginVideo)  loginVideo.srcObject  = null;
+  if (loginImage)  { loginImage.src = ''; loginImage.classList.add('hidden'); }
+  if (loginVideo)  loginVideo.classList.remove('hidden');
   if (camOverlay)  camOverlay.classList.remove('hidden');
   loginLivId = null; loginLivOk = false;
 }
@@ -466,8 +503,11 @@ async function startLoginCamera() {
       }
     } catch (_) { loginLivOk = true; }
 
+    if (!navigator.mediaDevices?.getUserMedia) {
+      throw new Error('getUserMedia not available');
+    }
     loginStream = await navigator.mediaDevices.getUserMedia({ video: true });
-    if (loginVideo)  loginVideo.srcObject  = loginStream;
+    _useGetUserMedia(loginVideo, loginImage, loginStream);
     if (camOverlay)  camOverlay.classList.add('hidden');
     if (loginMsgHelp) {
       loginMsgHelp.classList.add('hidden');
@@ -480,7 +520,18 @@ async function startLoginCamera() {
       else             await captureAndVerify();
     }, 700);
   } catch (_) {
-    if (loginMsg) { loginMsg.textContent = t('no_camera'); loginMsg.className = 'feedback denied'; }
+    try {
+      loginStream = { backend: 'mjpeg' };
+      _useMjpeg(loginImage, loginVideo);
+      if (camOverlay)  camOverlay.classList.add('hidden');
+      loginDeniedCount = 0;
+      loginInterval = setInterval(async () => {
+        if (!loginLivOk) await pushLivFrame();
+        else             await captureAndVerify();
+      }, 700);
+    } catch (_) {
+      if (loginMsg) { loginMsg.textContent = t('no_camera'); loginMsg.className = 'feedback denied'; }
+    }
   }
 }
 
@@ -532,10 +583,14 @@ function resetAccessStep() {
 document.getElementById('btnScanAnother')?.addEventListener('click', resetAccessStep);
 
 async function pushLivFrame() {
-  if (!loginVideo || !loginCanvas || !loginLivId) return;
-  loginCanvas.width  = loginVideo.videoWidth;
-  loginCanvas.height = loginVideo.videoHeight;
-  loginCanvas.getContext('2d').drawImage(loginVideo, 0, 0);
+  if (!loginCanvas || !loginLivId) return;
+  const source = _activeCameraSource(loginVideo, loginImage);
+  if (!source) return;
+  const dims = _sourceDims(source);
+  if (!dims.w || !dims.h) return;
+  loginCanvas.width  = dims.w;
+  loginCanvas.height = dims.h;
+  loginCanvas.getContext('2d').drawImage(source, 0, 0, dims.w, dims.h);
   const image = loginCanvas.toDataURL('image/jpeg', 0.75);
   try {
     const res  = await fetch('/api/login/liveness/frame', {
@@ -552,10 +607,14 @@ async function pushLivFrame() {
 }
 
 async function captureAndVerify() {
-  if (!loginVideo || !loginCanvas) return;
-  loginCanvas.width  = loginVideo.videoWidth;
-  loginCanvas.height = loginVideo.videoHeight;
-  loginCanvas.getContext('2d').drawImage(loginVideo, 0, 0);
+  if (!loginCanvas) return;
+  const source = _activeCameraSource(loginVideo, loginImage);
+  if (!source) return;
+  const dims = _sourceDims(source);
+  if (!dims.w || !dims.h) return;
+  loginCanvas.width  = dims.w;
+  loginCanvas.height = dims.h;
+  loginCanvas.getContext('2d').drawImage(source, 0, 0, dims.w, dims.h);
   const image = loginCanvas.toDataURL('image/jpeg', 0.8);
   try {
     const res  = await fetch('/api/login/verify', {
@@ -607,6 +666,7 @@ let regImages    = { image_front: null, image_left: null, image_right: null };
 let regDatos     = { nombre:'', grado:'1', letra:'', turno:'MATUTINO' };
 
 const regVideo   = document.getElementById('regVideo');
+const regImage   = document.getElementById('regImage');
 const regCanvas  = document.getElementById('regCanvas');
 const regStart   = document.getElementById('regStart');
 const regCapture = document.getElementById('regCapture');
@@ -644,9 +704,11 @@ function updateRegAngleUi() {
 }
 
 function stopRegCamera() {
-  if (regStream) regStream.getTracks().forEach(t => t.stop());
+  if (regStream && regStream.getTracks) regStream.getTracks().forEach(t => t.stop());
   regStream = null;
   if (regVideo)   regVideo.srcObject  = null;
+  if (regImage)   { regImage.src = ''; regImage.classList.add('hidden'); }
+  if (regVideo)   regVideo.classList.remove('hidden');
   if (regStart)   regStart.disabled   = false;
   if (regCapture) regCapture.disabled = true;
   if (regStop)    regStop.disabled    = true;
@@ -701,23 +763,40 @@ document.getElementById('btnBackToStep1')?.addEventListener('click', () => {
 
 regStart?.addEventListener('click', async () => {
   try {
+    if (!navigator.mediaDevices?.getUserMedia) {
+      throw new Error('getUserMedia not available');
+    }
     regStream = await navigator.mediaDevices.getUserMedia({ video: true });
-    if (regVideo)   regVideo.srcObject  = regStream;
+    _useGetUserMedia(regVideo, regImage, regStream);
     if (regCamOv)   regCamOv.classList.add('hidden');
     if (regStart)   regStart.disabled   = true;
     if (regCapture) regCapture.disabled = false;
     if (regStop)    regStop.disabled    = false;
     if (regMsg)     { regMsg.textContent = t('reg_cam_ready'); regMsg.className = 'feedback waiting'; }
   } catch (_) {
-    if (regMsg) { regMsg.textContent = t('no_camera'); regMsg.className = 'feedback denied'; }
+    try {
+      regStream = { backend: 'mjpeg' };
+      _useMjpeg(regImage, regVideo);
+      if (regCamOv)   regCamOv.classList.add('hidden');
+      if (regStart)   regStart.disabled   = true;
+      if (regCapture) regCapture.disabled = false;
+      if (regStop)    regStop.disabled    = false;
+      if (regMsg)     { regMsg.textContent = t('reg_cam_ready'); regMsg.className = 'feedback waiting'; }
+    } catch (_) {
+      if (regMsg) { regMsg.textContent = t('no_camera'); regMsg.className = 'feedback denied'; }
+    }
   }
 });
 
 regCapture?.addEventListener('click', async () => {
-  if (!regVideo || !regCanvas) return;
-  regCanvas.width  = regVideo.videoWidth;
-  regCanvas.height = regVideo.videoHeight;
-  regCanvas.getContext('2d').drawImage(regVideo, 0, 0);
+  if (!regCanvas) return;
+  const source = _activeCameraSource(regVideo, regImage);
+  if (!source) return;
+  const dims = _sourceDims(source);
+  if (!dims.w || !dims.h) return;
+  regCanvas.width  = dims.w;
+  regCanvas.height = dims.h;
+  regCanvas.getContext('2d').drawImage(source, 0, 0, dims.w, dims.h);
   const image = regCanvas.toDataURL('image/jpeg', 0.88);
   const angle = REG_ANGLES[regStepIndex];
   regImages[angle.key] = image;

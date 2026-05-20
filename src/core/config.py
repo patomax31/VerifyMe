@@ -17,7 +17,7 @@ class CameraSettings:
         self.profile = os.getenv("CAMERA_PROFILE", "AUTO").strip().upper()
         self.width = int(os.getenv("CAMERA_WIDTH", "640"))
         self.height = int(os.getenv("CAMERA_HEIGHT", "480"))
-        self.fps = int(os.getenv("CAMERA_FPS", "20"))
+        self.fps = int(os.getenv("CAMERA_FPS", "60"))
 
 
 class RecognitionSettings:
