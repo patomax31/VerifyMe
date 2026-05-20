@@ -4,11 +4,12 @@ import base64
 import re
 import sqlite3
 import sys
+import threading
 from contextlib import closing
 from pathlib import Path
 from typing import Any, Dict, Optional
 
-from flask import Flask, jsonify, render_template, request, send_file, send_from_directory
+from flask import Flask, Response, jsonify, render_template, request, send_file, send_from_directory
 from werkzeug.security import generate_password_hash
 
 from deep_translator import GoogleTranslator
@@ -35,6 +36,7 @@ from src.application.login_use_case import LoginUseCase
 from src.application.registration_service import RegistrationService
 from src.application.registration_use_case import RegistrationUseCase
 from src.core.config import RecognitionSettings, get_recognition_settings
+from src.infrastructure.camera.opencv_camera import open_camera
 from src.infrastructure.persistence.pkl_repository import PklRepository
 from src.infrastructure.persistence.sqlite_repository import SQLiteRepository
 
@@ -158,6 +160,29 @@ def _jpeg_encode_frame(frame, max_width: int = 520, quality: int = 88) -> Option
     if not ok:
         return None
     return bytes(buf)
+
+
+_camera_stream_lock = threading.Lock()
+
+
+def _mjpeg_frame_stream(cap):
+    try:
+        while True:
+            ret, frame = cap.read()
+            if not ret or frame is None:
+                continue
+            jpeg = _jpeg_encode_frame(frame)
+            if not jpeg:
+                continue
+            yield (
+                b"--frame\r\n"
+                b"Content-Type: image/jpeg\r\n\r\n" + jpeg + b"\r\n"
+            )
+    finally:
+        try:
+            cap.release()
+        except Exception:
+            pass
 
 
 def _parse_user_data(label: str, student_id: int) -> Dict[str, Any]:
@@ -374,6 +399,28 @@ def create_app() -> Flask:
                 "message": runtime_issue or "Servidor Flask activo",
             }
         )
+
+    @app.get("/api/camera/stream")
+    def camera_stream():
+        if cv2 is None:
+            return jsonify({"ok": False, "message": "OpenCV no disponible."}), 500
+
+        acquired = _camera_stream_lock.acquire(blocking=False)
+        if not acquired:
+            return jsonify({"ok": False, "message": "Camara en uso."}), 409
+
+        cap = open_camera()
+        if cap is None:
+            _camera_stream_lock.release()
+            return jsonify({"ok": False, "message": "No se pudo abrir la camara."}), 503
+
+        def _generate():
+            try:
+                yield from _mjpeg_frame_stream(cap)
+            finally:
+                _camera_stream_lock.release()
+
+        return Response(_generate(), mimetype="multipart/x-mixed-replace; boundary=frame")
 
     @app.get("/api/login/status")
     def login_status():
