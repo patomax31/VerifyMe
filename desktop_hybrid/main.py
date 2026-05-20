@@ -1,11 +1,7 @@
 from __future__ import annotations
 
-import html
-import json
-import os
-import socket
-import sqlite3
 import sys
+<<<<<<< HEAD
 import threading
 import time
 from contextlib import closing
@@ -516,6 +512,10 @@ def run_desktop_app() -> int:
       stop_server(state)
 
     return 0
+=======
+
+from app.runner import run_desktop_app
+>>>>>>> cba8b4fb92ca2d2066cc460125743d32a31b0884
 
 
 if __name__ == "__main__":

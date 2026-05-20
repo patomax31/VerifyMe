@@ -1,0 +1,6 @@
+HOST = "127.0.0.1"
+PORT = 5000
+
+WIN_WIDTH = 420
+WIN_HEIGHT = 800
+WIN_TITLE = "VerifyMe"
