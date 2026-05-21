@@ -1,12 +1,12 @@
 /* ═══════════════════════════════════════════════════════════════════════
-   IdentifyMe · panel.js  — navegación, drawer, cámara, admin, clock overlay
+   VerifyMe · app.js
 ═══════════════════════════════════════════════════════════════════════ */
 
 // ════ I18N ════
 const I18N = {
   es: {
     nav_home:'Inicio', nav_access:'Acceso facial', nav_register:'Registro facial', nav_admin:'Admin panel',
-    system_status_label:'Estado del sistema', back_home:'🏠 Volver al inicio', logout:'🚪 Cerrar sesión',
+    logout:'Cerrar sesión',
     home_eyebrow:'Bienvenido', home_title:'Panel principal',
     home_sub:'Dashboard escolar para acceso facial, registro biométrico y administración.',
     stat_students:'Estudiantes', stat_active:'Activos',
@@ -20,28 +20,26 @@ const I18N = {
     waiting_face:'ESPERANDO ROSTRO...', result_title:'Resultado', btn_scan_another:'Escanear otro alumno',
     reg_title_data:'Datos del alumno', reg_sub_data:'Ingresa la información escolar.',
     field_name:'Nombre completo', field_grade:'Grado', field_group:'Grupo', field_shift:'Turno',
-    btn_go_camera:'Continuar a cámara', reg_fill_fields:'Completa todos los campos.',
+    btn_go_camera:'Continuar a cámara',
     reg_title_cam:'Captura biométrica', reg_sub_cam:'Captura 3 ángulos: frente, izquierdo y derecho.',
     angle_front:'Frente', angle_left:'Izquierda', angle_right:'Derecha',
     angle_hint_front:'Mira de frente a la cámara. Esta foto será tu credencial.',
     angle_hint_left:'Gira la cabeza hacia tu izquierda.',
     angle_hint_right:'Gira la cabeza hacia tu derecha. Luego pulsa el botón.',
-    btn_capture_front:'Capturar frente', btn_capture_left:'Capturar perfil izq.', btn_save_student:'Registrar alumno ✓',
-    reg_start_cam:'Inicia la cámara y sigue los pasos.', btn_edit_data:'← Editar datos',
+    btn_capture_front:'Capturar frente', btn_capture_left:'Capturar perfil izq.', btn_save_student:'Registrar alumno',
+    reg_start_cam:'Inicia la cámara y sigue los pasos.', btn_edit_data:'Editar datos',
     reg_cam_ready:'Cámara lista. Sigue los pasos.', reg_saved_angle:'Captura guardada. Siguiente ángulo.',
     reg_success:'¡Alumno registrado exitosamente!', reg_error:'Error al registrar.', reg_conn_error:'Error de conexión.',
     admin_sub:'Gestión escolar, parámetros del modelo y administradores.',
     tab_students:'Estudiantes', tab_model:'Modelo', tab_admins:'Admins',
-    btn_create_student:'Crear estudiante', btn_refresh:'Refrescar',
+    btn_create_student:'Crear', btn_refresh:'Refrescar',
     students_mgmt:'Gestión de estudiantes.',
-    status_active:'Sistema activo', status_no_users:'Sin usuarios registrados', status_no_conn:'Sin conexión',
-    users_loaded:'usuarios cargados', no_camera:'No se pudo acceder a la cámara.',
-    clock_mode:'Modo reloj', clock_status:'SISTEMA EN LÍNEA · CÁMARA ACTIVA',
-    clock_back:'✕ volver al sistema',
+    no_camera:'No se pudo acceder a la cámara.',
+    clock_status:'SISTEMA EN LÍNEA · CÁMARA ACTIVA',
   },
   en: {
     nav_home:'Home', nav_access:'Facial access', nav_register:'Facial register', nav_admin:'Admin panel',
-    system_status_label:'System status', back_home:'🏠 Back to home', logout:'🚪 Log out',
+    logout:'Log out',
     home_eyebrow:'Welcome', home_title:'Main panel',
     home_sub:'School dashboard for facial access, biometric registration and administration.',
     stat_students:'Students', stat_active:'Active',
@@ -55,33 +53,31 @@ const I18N = {
     waiting_face:'WAITING FOR FACE...', result_title:'Result', btn_scan_another:'Scan another student',
     reg_title_data:'Student data', reg_sub_data:'Enter school information.',
     field_name:'Full name', field_grade:'Grade', field_group:'Group', field_shift:'Shift',
-    btn_go_camera:'Continue to camera', reg_fill_fields:'Fill in all fields.',
+    btn_go_camera:'Continue to camera',
     reg_title_cam:'Biometric capture', reg_sub_cam:'Capture 3 angles: front, left, right.',
     angle_front:'Front', angle_left:'Left', angle_right:'Right',
     angle_hint_front:'Look straight at the camera. This will be your ID photo.',
     angle_hint_left:'Turn your head to your left.',
     angle_hint_right:'Turn your head to your right. Then press the button.',
-    btn_capture_front:'Capture front', btn_capture_left:'Capture left profile', btn_save_student:'Save student ✓',
-    reg_start_cam:'Start the camera and follow the steps.', btn_edit_data:'← Edit data',
+    btn_capture_front:'Capture front', btn_capture_left:'Capture left profile', btn_save_student:'Save student',
+    reg_start_cam:'Start the camera and follow the steps.', btn_edit_data:'Edit data',
     reg_cam_ready:'Camera ready. Follow the steps.', reg_saved_angle:'Saved. Continue with next angle.',
     reg_success:'Student registered successfully!', reg_error:'Registration error.', reg_conn_error:'Connection error.',
     admin_sub:'School management, model settings and administrators.',
     tab_students:'Students', tab_model:'Model', tab_admins:'Admins',
-    btn_create_student:'Create student', btn_refresh:'Refresh',
+    btn_create_student:'Create', btn_refresh:'Refresh',
     students_mgmt:'Student management.',
-    status_active:'System active', status_no_users:'No registered users', status_no_conn:'No connection',
-    users_loaded:'users loaded', no_camera:'Could not access camera.',
-    clock_mode:'Clock mode', clock_status:'SYSTEM ONLINE · CAMERA ACTIVE',
-    clock_back:'✕ back to system',
+    no_camera:'Could not access camera.',
+    clock_status:'SYSTEM ONLINE · CAMERA ACTIVE',
   },
 };
 
-let currentLang = localStorage.getItem('im_lang') || 'es';
+let currentLang = localStorage.getItem('vm_lang') || 'es';
 function t(k) { return I18N[currentLang][k] || I18N.es[k] || k; }
 
 function applyLang(lang) {
   currentLang = lang;
-  localStorage.setItem('im_lang', lang);
+  localStorage.setItem('vm_lang', lang);
   document.documentElement.lang = lang;
   document.querySelectorAll('[data-i18n]').forEach(el => {
     const v = I18N[lang][el.dataset.i18n];
@@ -89,12 +85,10 @@ function applyLang(lang) {
   });
   const flagEl  = document.getElementById('langFlag');
   const labelEl = document.getElementById('langLabel');
-  if (flagEl)  flagEl.textContent  = lang === 'es' ? '🇲🇽' : '🇺🇸';
+  if (flagEl)  flagEl.textContent  = lang === 'es' ? 'MX' : 'US';
   if (labelEl) labelEl.textContent = lang === 'es' ? 'ES' : 'EN';
   updateRegAngleUi();
-  const closeTxt = document.getElementById('covCloseTxt');
   const statusTxt = document.getElementById('covStatusTxt');
-  if (closeTxt)  closeTxt.textContent  = t('clock_back');
   if (statusTxt) statusTxt.textContent = t('clock_status');
 }
 
@@ -161,9 +155,9 @@ if (urlView && ['home','access','register','admin'].includes(urlView)) {
 // ════ RELOJ TOPBAR ════
 function updateClock() {
   const locale = currentLang === 'es' ? 'es-MX' : 'en-US';
-  const now  = new Date();
-  const hh   = now.toLocaleTimeString(locale, { hour:'2-digit', minute:'2-digit', hour12:false });
-  const dd   = now.toLocaleDateString(locale, { weekday:'short', day:'numeric', month:'short' });
+  const now = new Date();
+  const hh  = now.toLocaleTimeString(locale, { hour:'2-digit', minute:'2-digit', hour12:false });
+  const dd  = now.toLocaleDateString(locale,  { weekday:'short', day:'numeric', month:'short' });
   const h = document.getElementById('clockH');
   const d = document.getElementById('clockD');
   if (h) h.textContent = hh;
@@ -176,7 +170,22 @@ setInterval(updateClock, 1000);
 const clockOverlay = document.getElementById('clockOverlay');
 let clockInterval   = null;
 let inactivityTimer = null;
-const INACTIVITY_MS = 10000; // 10 segundos de inactividad
+let countdownTimer  = null;
+let countdownInterval = null;
+
+// ── Tiempos configurables ──
+const INACTIVITY_MS  = 60000; // 60s inactivo → inicia cuenta regresiva
+const COUNTDOWN_SECS = 10;    // 10s de cuenta regresiva visible
+
+// ── Toast elementos ──
+const clockToast    = document.getElementById('clockToast');
+const toastNum      = document.getElementById('toastNum');
+const toastProgress = document.getElementById('toastProgress');
+const toastCancel   = document.getElementById('toastCancel');
+const toastMsg      = document.getElementById('toastMsg');
+
+// Circunferencia del SVG circle r=13 → 2π×13 ≈ 81.68 ≈ 82
+const CIRC = 82;
 
 const DAYS_ES   = ['Domingo','Lunes','Martes','Miércoles','Jueves','Viernes','Sábado'];
 const DAYS_EN   = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
@@ -210,10 +219,16 @@ function tickClockOverlay() {
   if (covS)  covS.textContent  = String(s).padStart(2,'0') + 's';
 }
 
+// ── Mostrar overlay con transición suave ──
 function openClockOverlay() {
   if (!clockOverlay) return;
+  stopCountdown();
   stopInactivityTimer();
+  hideToast();
   clockOverlay.classList.remove('hidden');
+  // Forzar reflow para que la transición CSS funcione
+  clockOverlay.getBoundingClientRect();
+  clockOverlay.classList.add('visible');
   document.body.style.overflow = 'hidden';
   tickClockOverlay();
   clockInterval = setInterval(tickClockOverlay, 1000);
@@ -221,67 +236,103 @@ function openClockOverlay() {
 
 function closeClockOverlay() {
   if (!clockOverlay) return;
-  clockOverlay.classList.add('hidden');
+  clockOverlay.classList.remove('visible');
   document.body.style.overflow = '';
   clearInterval(clockInterval);
   clockInterval = null;
+  // Esperar a que termine la transición antes de ocultar
+  setTimeout(() => {
+    if (!clockOverlay.classList.contains('visible')) {
+      clockOverlay.classList.add('hidden');
+    }
+  }, 650);
   resetInactivityTimer();
 }
 
-// ── Timer de inactividad ──
+// ── Toast cuenta regresiva ──
+function showToast() {
+  if (!clockToast) return;
+  let secs = COUNTDOWN_SECS;
+  toastNum.textContent = secs;
+  // Barra arranca llena y va vaciando
+  toastProgress.style.strokeDashoffset = 0;
+  clockToast.classList.add('visible');
+
+  countdownInterval = setInterval(() => {
+    secs--;
+    if (toastNum) toastNum.textContent = secs;
+    // Progreso: va de 0 a CIRC conforme bajan los segundos
+    const offset = CIRC * (1 - secs / COUNTDOWN_SECS);
+    if (toastProgress) toastProgress.style.strokeDashoffset = offset;
+    if (secs <= 0) {
+      stopCountdown();
+      hideToast();
+      openClockOverlay();
+    }
+  }, 1000);
+}
+
+function hideToast() {
+  if (!clockToast) return;
+  clockToast.classList.remove('visible');
+  clearInterval(countdownInterval);
+  countdownInterval = null;
+}
+
+function stopCountdown() {
+  hideToast();
+  clearTimeout(countdownTimer);
+  countdownTimer = null;
+}
+
 function resetInactivityTimer() {
   clearTimeout(inactivityTimer);
+  stopCountdown();
   inactivityTimer = setTimeout(() => {
-    openClockOverlay();
+    // Primero muestra el toast con cuenta regresiva
+    showToast();
   }, INACTIVITY_MS);
 }
 
 function stopInactivityTimer() {
   clearTimeout(inactivityTimer);
   inactivityTimer = null;
+  stopCountdown();
 }
 
-// Reiniciar timer con cualquier actividad del usuario (solo cuando el overlay está oculto)
-['click', 'touchstart', 'mousemove', 'keydown', 'scroll', 'pointerdown'].forEach(ev => {
+// Cancelar con el botón del toast
+toastCancel?.addEventListener('click', e => {
+  e.stopPropagation();
+  stopCountdown();
+  resetInactivityTimer();
+});
+
+// Reiniciar timer con cualquier actividad (solo cuando overlay está oculto)
+['click','touchstart','mousemove','keydown','scroll','pointerdown'].forEach(ev => {
   document.addEventListener(ev, () => {
-    if (!clockOverlay?.classList.contains('hidden')) return; // reloj visible, ignorar
-    resetInactivityTimer();
+    if (!clockOverlay?.classList.contains('visible')) {
+      // Si el toast está visible, ocultarlo y reiniciar
+      if (clockToast?.classList.contains('visible')) {
+        stopCountdown();
+        resetInactivityTimer();
+        return;
+      }
+      resetInactivityTimer();
+    }
   }, { passive: true });
 });
 
-// Tocar CUALQUIER parte del overlay lo cierra
-clockOverlay?.addEventListener('click', () => {
-  closeClockOverlay();
-});
+// Tocar cualquier parte del overlay lo cierra
+clockOverlay?.addEventListener('click', closeClockOverlay);
 
-// Botón en topbar abre el reloj manualmente
-document.getElementById('clockModeBtn')?.addEventListener('click', (e) => {
+// Botón reloj en topbar
+document.getElementById('clockModeBtn')?.addEventListener('click', e => {
   e.stopPropagation();
   openClockOverlay();
 });
 
-// Botón cerrar dentro del overlay
-document.getElementById('clockOverlayClose')?.addEventListener('click', (e) => {
-  e.stopPropagation();
-  closeClockOverlay();
-});
-
-// Arrancar en modo reloj automáticamente al cargar la página
+// Arrancar en modo reloj al cargar (sin cuenta regresiva, directo)
 openClockOverlay();
-
-// ════ ESTADO DEL SISTEMA ════
-async function fetchSystemStatus() {
-  const el = document.getElementById('systemStatus');
-  if (!el) return;
-  try {
-    const res  = await fetch('/api/login/status');
-    const data = await res.json();
-    el.textContent = data.ready
-      ? `✓ ${data.users_count} ${t('users_loaded')}`
-      : t('status_no_users');
-  } catch (_) { el.textContent = t('status_no_conn'); }
-}
-fetchSystemStatus();
 
 // ════ HOME STATS ════
 async function fetchHomeStats() {
@@ -357,10 +408,10 @@ function renderAccessResult(data) {
   const u       = data.user || {};
   cont.innerHTML = `
     <div class="result-banner result-banner--${granted ? 'granted':'denied'}">
-      <span class="result-banner__icon">${granted ? '✅':'🚫'}</span>
+      <span class="result-banner__icon material-symbols-outlined">${granted ? 'check_circle':'cancel'}</span>
       <div>
-        <div>${granted ? t('access_granted') || 'Acceso concedido' : t('access_denied') || 'Acceso denegado'}</div>
-        <div class="result-banner__time">${t('result_record')||'Registro:'} ${now}</div>
+        <div>${granted ? 'Acceso concedido' : 'Acceso denegado'}</div>
+        <div class="result-banner__time">Registro: ${now}</div>
       </div>
     </div>
     ${granted ? `
@@ -368,18 +419,18 @@ function renderAccessResult(data) {
       <div class="credential-card__photo">
         ${u.foto_url
           ? `<img class="credential-card__img" src="${u.foto_url}?t=${Date.now()}" alt="Foto">`
-          : `<div class="credential-card__ph">${t('no_photo')||'Sin foto'}</div>`}
+          : `<div class="credential-card__ph">Sin foto</div>`}
       </div>
       <div class="credential-card__meta">
-        <div class="credential-card__title">${t('credential_title')||'Credencial'}</div>
-        <p><strong>${t('cred_name')||'Nombre'}</strong> ${u.nombre||'---'}</p>
-        <p><strong>${t('cred_grade')||'Grado'}</strong>  ${u.grado||u.salon||'---'}</p>
-        <p><strong>${t('cred_group')||'Grupo'}</strong>  ${u.letra||u.grupo||'---'}</p>
-        <p><strong>${t('cred_shift')||'Turno'}</strong>  ${u.turno||'---'}</p>
-        <p><strong>${t('cred_id')||'ID'}</strong>     ${u.id != null ? '#'+u.id : '---'}</p>
+        <div class="credential-card__title">Credencial</div>
+        <p><strong>Nombre</strong> ${u.nombre||'---'}</p>
+        <p><strong>Grado</strong>  ${u.grado||u.salon||'---'}</p>
+        <p><strong>Grupo</strong>  ${u.letra||u.grupo||'---'}</p>
+        <p><strong>Turno</strong>  ${u.turno||'---'}</p>
+        <p><strong>ID</strong>     ${u.id != null ? '#'+u.id : '---'}</p>
       </div>
     </div>` : `
-    <div class="feedback denied">${data.message || t('face_not_rec') || 'Rostro no reconocido.'}</div>`}`;
+    <div class="feedback denied">${data.message || 'Rostro no reconocido.'}</div>`}`;
 }
 
 function resetAccessStep() {
@@ -387,10 +438,7 @@ function resetAccessStep() {
   stopLoginCamera();
   setLivUi('init', t('liveness_init'));
   if (loginMsg) { loginMsg.textContent = t('waiting_face'); loginMsg.className = 'feedback waiting'; }
-  if (loginMsgHelp) {
-    loginMsgHelp.classList.add('hidden');
-    loginMsgHelp.classList.remove('is-clickable');
-  }
+  if (loginMsgHelp) { loginMsgHelp.classList.add('hidden'); loginMsgHelp.classList.remove('is-clickable'); }
   loginDeniedCount = 0;
 }
 
@@ -411,7 +459,7 @@ async function pushLivFrame() {
     setLivUi(data.state, data.message);
     if (data.state === 'ready') {
       loginLivOk = true;
-      if (loginMsg) { loginMsg.textContent = t('identified')||'Identificando…'; loginMsg.className = 'feedback waiting'; }
+      if (loginMsg) { loginMsg.textContent = 'Identificando…'; loginMsg.className = 'feedback waiting'; }
     }
   } catch (_) {}
 }
@@ -433,18 +481,10 @@ async function captureAndVerify() {
       stopLoginCamera();
       renderAccessResult(data);
       showAccessStep(2);
-      if (loginMsgHelp) {
-        loginMsgHelp.classList.add('hidden');
-        loginMsgHelp.classList.remove('is-clickable');
-      }
+      if (loginMsgHelp) { loginMsgHelp.classList.add('hidden'); loginMsgHelp.classList.remove('is-clickable'); }
       loginDeniedCount = 0;
     }
     if (data.state === 'denied') {
-      showAccessStep(1);
-      if (loginMsg) {
-        loginMsg.textContent = data.message || t('access_denied') || 'Acceso denegado.';
-        loginMsg.className = 'feedback denied';
-      }
       loginDeniedCount += 1;
       if (loginMsgHelp) {
         loginMsgHelp.classList.remove('hidden');
@@ -458,16 +498,12 @@ loginStart?.addEventListener('click', async () => {
   try {
     showAccessStep(1);
     loginLivOk = false; loginLivId = null;
-    setLivUi('init', t('liveness_connecting')||'Conectando…');
-
+    setLivUi('init', 'Conectando…');
     try {
       const ls = await fetch('/api/login/liveness/start', { method:'POST' });
       const lj = await ls.json();
-      if (lj.ok && lj.session_id) {
-        loginLivId = lj.session_id;
-      } else {
-        loginLivOk = true;
-      }
+      if (lj.ok && lj.session_id) loginLivId = lj.session_id;
+      else loginLivOk = true;
     } catch (_) { loginLivOk = true; }
 
     loginStream = await navigator.mediaDevices.getUserMedia({ video: true });
@@ -475,10 +511,7 @@ loginStart?.addEventListener('click', async () => {
     if (camOverlay)  camOverlay.classList.add('hidden');
     if (loginStart)  loginStart.disabled   = true;
     if (loginStop)   loginStop.disabled    = false;
-    if (loginMsgHelp) {
-      loginMsgHelp.classList.add('hidden');
-      loginMsgHelp.classList.remove('is-clickable');
-    }
+    if (loginMsgHelp) { loginMsgHelp.classList.add('hidden'); loginMsgHelp.classList.remove('is-clickable'); }
     loginDeniedCount = 0;
 
     loginInterval = setInterval(async () => {
@@ -492,21 +525,15 @@ loginStart?.addEventListener('click', async () => {
 
 loginStop?.addEventListener('click', () => {
   stopLoginCamera();
-  setLivUi('off', t('liveness_stopped')||'Verificación detenida.');
+  setLivUi('off', 'Verificación detenida.');
   if (loginMsg) { loginMsg.textContent = t('waiting_face'); loginMsg.className = 'feedback waiting'; }
-  if (loginMsgHelp) {
-    loginMsgHelp.classList.add('hidden');
-    loginMsgHelp.classList.remove('is-clickable');
-  }
+  if (loginMsgHelp) { loginMsgHelp.classList.add('hidden'); loginMsgHelp.classList.remove('is-clickable'); }
   loginDeniedCount = 0;
 });
 
 function openLoginHelpModal()  { loginHelpModal?.classList.remove('hidden'); }
 function closeLoginHelpModal() { loginHelpModal?.classList.add('hidden'); }
-
-loginMsgHelp?.addEventListener('click', () => {
-  if (loginMsgHelp?.classList.contains('is-clickable')) openLoginHelpModal();
-});
+loginMsgHelp?.addEventListener('click', () => { if (loginMsgHelp?.classList.contains('is-clickable')) openLoginHelpModal(); });
 loginHelpOverlay?.addEventListener('click', closeLoginHelpModal);
 loginHelpClose?.addEventListener('click', closeLoginHelpModal);
 
@@ -562,8 +589,8 @@ document.getElementById('regGoToCamera')?.addEventListener('click', () => {
   const turno  = document.getElementById('regTurno')?.value;
   const msg1   = document.getElementById('regStep1Msg');
 
-  if (!nombre) { if (msg1) { msg1.textContent = t('reg_no_name')||'Ingresa el nombre.'; msg1.className='feedback denied'; } return; }
-  if (!letra)  { if (msg1) { msg1.textContent = t('reg_no_group')||'Ingresa el grupo.'; msg1.className='feedback denied'; } return; }
+  if (!nombre) { if (msg1) { msg1.textContent = 'Ingresa el nombre.'; msg1.className='feedback denied'; } return; }
+  if (!letra)  { if (msg1) { msg1.textContent = 'Ingresa el grupo.';  msg1.className='feedback denied'; } return; }
 
   regDatos = { nombre, grado, letra, turno };
   regStepIndex = 0;
@@ -612,7 +639,7 @@ regCapture?.addEventListener('click', async () => {
     return;
   }
 
-  if (regMsg) { regMsg.textContent = t('reg_sending')||'Enviando…'; regMsg.className = 'feedback waiting'; }
+  if (regMsg) { regMsg.textContent = 'Enviando…'; regMsg.className = 'feedback waiting'; }
   try {
     const res  = await fetch('/api/registro', {
       method:'POST', headers:{'Content-Type':'application/json'},
@@ -631,7 +658,7 @@ regCapture?.addEventListener('click', async () => {
         const l = document.getElementById('regLetra');
         if (n) n.value = ''; if (l) l.value = '';
         const m = document.getElementById('regStep1Msg');
-        if (m) { m.textContent = t('reg_done_msg')||'¡Registrado!'; m.className = 'feedback granted'; }
+        if (m) { m.textContent = '¡Registrado!'; m.className = 'feedback granted'; }
       }, 2000);
     }
   } catch (_) {
@@ -665,8 +692,8 @@ async function loadStudents() {
       <tr>
         <td>${s.id}</td><td>${s.nombre}</td><td>${s.grado}</td>
         <td>${s.letra||s.grupo||'---'}</td><td>${s.turno}</td>
-        <td>${s.activo !== false ? '✅':'❌'}</td>
-        <td><button style="padding:4px 9px;font-size:.72rem;box-shadow:none"
+        <td style="text-align:center">${s.activo !== false ? '&#10003;':'&#10007;'}</td>
+        <td><button style="padding:4px 9px;font-size:.72rem;box-shadow:none;background:#B91C1C"
           onclick="deleteStudent(${s.id})">Eliminar</button></td>
       </tr>`).join('');
     if (msg) { msg.textContent = `${list.length} estudiantes.`; msg.className = 'feedback waiting'; }
@@ -740,7 +767,7 @@ async function loadAdmins() {
       <tr>
         <td>${a.id}</td><td>${a.numero_empleado}</td><td>${a.nombre}</td>
         <td>${a.rol}</td><td>${a.correo||'---'}</td>
-        <td>${a.activo !== false ? '✅':'❌'}</td>
+        <td style="text-align:center">${a.activo !== false ? '&#10003;':'&#10007;'}</td>
       </tr>`).join('');
     if (msg) { msg.textContent=`${list.length} administradores.`; msg.className='feedback waiting'; }
   } catch (_) {}
