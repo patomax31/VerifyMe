@@ -4,6 +4,7 @@ import sqlite3
 from datetime import datetime, timezone
 from typing import Dict, List, Optional
 
+from .access import get_active_session
 from .connection import connect
 from .migrations import initialize_database
 
@@ -162,6 +163,102 @@ def list_access_logs(
         FROM vw_logs_acceso
         {where_clause}
         ORDER BY fecha_hora DESC, id_log DESC
+        LIMIT ? OFFSET ?
+    """
+    params.extend([limit, offset])
+
+    with connect() as conn:
+        conn.row_factory = sqlite3.Row
+        rows = conn.execute(query, params).fetchall()
+
+    return _rows_to_dicts(rows)
+
+
+def list_access_logs_for_active_session(
+    *,
+    tipo_evento: Optional[str] = None,
+    acceso_concedido: Optional[bool] = None,
+    limit: int = 100,
+    offset: int = 0,
+) -> List[Dict]:
+    session = get_active_session()
+    if not session:
+        raise ValueError("No hay sesion activa")
+
+    return list_access_logs(
+        from_datetime=session["inicio"],
+        to_datetime=session["fin"],
+        tipo_usuario="ESTUDIANTE",
+        tipo_evento=tipo_evento,
+        acceso_concedido=acceso_concedido,
+        limit=limit,
+        offset=offset,
+    )
+
+
+def list_access_logs_for_session_id(
+    *,
+    session_id: int,
+    tipo_evento: Optional[str] = None,
+    acceso_concedido: Optional[bool] = None,
+    limit: int = 100,
+    offset: int = 0,
+) -> List[Dict]:
+    initialize_database()
+
+    with connect() as conn:
+        conn.row_factory = sqlite3.Row
+        row = conn.execute(
+            """
+            SELECT inicio, fin
+            FROM sesiones_escuela
+            WHERE id_sesion = ?
+            """,
+            (session_id,),
+        ).fetchone()
+
+    if not row:
+        raise ValueError("Sesion no encontrada")
+
+    return list_access_logs(
+        from_datetime=row["inicio"],
+        to_datetime=row["fin"],
+        tipo_usuario="ESTUDIANTE",
+        tipo_evento=tipo_evento,
+        acceso_concedido=acceso_concedido,
+        limit=limit,
+        offset=offset,
+    )
+
+
+def list_sessions(
+    *,
+    active_only: Optional[bool] = None,
+    limit: int = 100,
+    offset: int = 0,
+) -> List[Dict]:
+    initialize_database()
+    _validate_limit_offset(limit, offset)
+
+    conditions = []
+    params = []
+
+    if active_only is True:
+        conditions.append("estado_activa = 1")
+    elif active_only is False:
+        conditions.append("estado_activa = 0")
+
+    where_clause = f"WHERE {' AND '.join(conditions)}" if conditions else ""
+
+    query = f"""
+        SELECT
+            id_sesion,
+            inicio,
+            fin,
+            estado_activa
+        FROM sesiones_escuela
+        {where_clause}
+        ORDER BY inicio DESC, id_sesion DESC
         LIMIT ? OFFSET ?
     """
     params.extend([limit, offset])

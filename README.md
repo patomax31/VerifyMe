@@ -93,6 +93,7 @@ source venv/bin/activate
 pip install --upgrade pip
 pip install opencv-python face-recognition dlib numpy pygame
 pip install -r requirements.txt
+pip install --no-deps "pywebview>=5.0,<6.0"
 pip install deep_translator
 ```
 

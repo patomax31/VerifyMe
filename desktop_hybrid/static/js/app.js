@@ -139,6 +139,8 @@ function showView(viewId) {
   if (titleEl) titleEl.textContent = t('title_' + viewId) || viewId;
 
   closeDrawer();
+
+  if (viewId === 'access') startLoginCamera();
 }
 
 navBtns.forEach(b => b.addEventListener('click', () => showView(b.dataset.view)));
@@ -354,6 +356,106 @@ document.getElementById('logoutBtn')?.addEventListener('click', async () => {
   window.location.href = '/';
 });
 
+// ════ ON-SCREEN KEYBOARD (simple-keyboard) ════
+const keyboardInputs = 'input[type="text"], input[type="email"], input[type="password"], input[type="number"], textarea';
+let activeInput = null;
+let osk = null;
+let oskInteracting = false;
+
+function showOsk() {
+  const el = document.getElementById('osk');
+  if (!el) return;
+  el.classList.remove('hidden');
+  el.setAttribute('aria-hidden', 'false');
+}
+
+function hideOsk() {
+  const el = document.getElementById('osk');
+  if (!el) return;
+  el.classList.add('hidden');
+  el.setAttribute('aria-hidden', 'true');
+}
+
+function initOsk() {
+  if (osk || !window.SimpleKeyboard) return;
+  const oskRoot = document.getElementById('osk');
+  oskRoot?.addEventListener('pointerdown', e => {
+    oskInteracting = true;
+    e.preventDefault();
+  });
+  oskRoot?.addEventListener('pointerup', () => {
+    setTimeout(() => { oskInteracting = false; }, 0);
+  });
+  osk = new window.SimpleKeyboard.default({
+    onChange: input => {
+      if (!activeInput) return;
+      activeInput.value = input;
+      activeInput.dispatchEvent(new Event('input', { bubbles: true }));
+    },
+    onKeyPress: button => {
+      if (button === '{enter}') {
+        activeInput?.blur();
+        hideOsk();
+      }
+      if (button === '{shift}' || button === '{lock}') handleShift();
+    },
+    layout: {
+      default: [
+        'q w e r t y u i o p',
+        'a s d f g h j k l',
+        '{shift} z x c v b n m {bksp}',
+        '{space} {enter}'
+      ],
+      shift: [
+        'Q W E R T Y U I O P',
+        'A S D F G H J K L',
+        '{shift} Z X C V B N M {bksp}',
+        '{space} {enter}'
+      ]
+    },
+    display: {
+      '{bksp}': '⌫',
+      '{enter}': '↵',
+      '{space}': 'espacio',
+      '{shift}': '⇧',
+      '{lock}': '⇪'
+    }
+  });
+}
+
+function handleShift() {
+  if (!osk) return;
+  const current = osk.options.layoutName || 'default';
+  const next = current === 'default' ? 'shift' : 'default';
+  osk.setOptions({ layoutName: next });
+}
+
+document.addEventListener('focusin', e => {
+  const target = e.target;
+  if (target && target.matches && target.matches(keyboardInputs)) {
+    initOsk();
+    activeInput = target;
+    osk?.setInput(target.value || '');
+    showOsk();
+  }
+});
+
+document.addEventListener('focusout', e => {
+  const target = e.target;
+  if (target && target.matches && target.matches(keyboardInputs)) {
+    setTimeout(() => {
+      if (oskInteracting) {
+        activeInput?.focus();
+        return;
+      }
+      const focused = document.activeElement;
+      if (focused && focused.matches && focused.matches(keyboardInputs)) return;
+      activeInput = null;
+      hideOsk();
+    }, 0);
+  }
+});
+
 // ════ ACCESO FACIAL ════
 let loginStream      = null;
 let loginInterval    = null;
@@ -362,6 +464,7 @@ let loginLivOk       = false;
 let loginDeniedCount = 0;
 
 const loginVideo      = document.getElementById('loginVideo');
+const loginImage      = document.getElementById('loginImage');
 const loginCanvas     = document.getElementById('loginCanvas');
 const loginStart      = document.getElementById('loginStart');
 const loginStop       = document.getElementById('loginStop');
@@ -382,13 +485,47 @@ function setLivUi(state, text) {
     state === 'need_blink' ? '#92400E' : '#006B28';
 }
 
+function _activeCameraSource(videoEl, imgEl) {
+  if (videoEl && videoEl.srcObject) return videoEl;
+  if (imgEl && !imgEl.classList.contains('hidden')) return imgEl;
+  return null;
+}
+
+function _sourceDims(el) {
+  const w = el?.videoWidth || el?.naturalWidth || el?.width || 0;
+  const h = el?.videoHeight || el?.naturalHeight || el?.height || 0;
+  return { w, h };
+}
+
+function _useMjpeg(imgEl, videoEl) {
+  if (videoEl) {
+    videoEl.srcObject = null;
+    videoEl.classList.add('hidden');
+  }
+  if (imgEl) {
+    imgEl.src = '/api/camera/stream?ts=' + Date.now();
+    imgEl.classList.remove('hidden');
+  }
+}
+
+function _useGetUserMedia(videoEl, imgEl, stream) {
+  if (videoEl) {
+    videoEl.srcObject = stream;
+    videoEl.classList.remove('hidden');
+  }
+  if (imgEl) {
+    imgEl.src = '';
+    imgEl.classList.add('hidden');
+  }
+}
+
 function stopLoginCamera() {
   clearInterval(loginInterval); loginInterval = null;
-  if (loginStream) loginStream.getTracks().forEach(t => t.stop());
+  if (loginStream && loginStream.getTracks) loginStream.getTracks().forEach(t => t.stop());
   loginStream = null;
   if (loginVideo)  loginVideo.srcObject  = null;
-  if (loginStart)  loginStart.disabled   = false;
-  if (loginStop)   loginStop.disabled    = true;
+  if (loginImage)  { loginImage.src = ''; loginImage.classList.add('hidden'); }
+  if (loginVideo)  loginVideo.classList.remove('hidden');
   if (camOverlay)  camOverlay.classList.remove('hidden');
   loginLivId = null; loginLivOk = false;
 }
@@ -398,6 +535,55 @@ function showAccessStep(n) {
   const s2 = document.getElementById('access-step2');
   if (n === 1) { s1?.classList.remove('hidden'); s2?.classList.add('hidden'); }
   else         { s1?.classList.add('hidden');    s2?.classList.remove('hidden'); }
+}
+
+async function startLoginCamera() {
+  if (loginStream || loginInterval) return;
+  try {
+    showAccessStep(1);
+    loginLivOk = false; loginLivId = null;
+    setLivUi('init', t('liveness_init'));
+
+    try {
+      const ls = await fetch('/api/login/liveness/start', { method:'POST' });
+      const lj = await ls.json();
+      if (lj.ok && lj.session_id) {
+        loginLivId = lj.session_id;
+      } else {
+        loginLivOk = true;
+      }
+    } catch (_) { loginLivOk = true; }
+
+    if (!navigator.mediaDevices?.getUserMedia) {
+      throw new Error('getUserMedia not available');
+    }
+    loginStream = await navigator.mediaDevices.getUserMedia({ video: true });
+    _useGetUserMedia(loginVideo, loginImage, loginStream);
+    if (camOverlay)  camOverlay.classList.add('hidden');
+    if (loginMsgHelp) {
+      loginMsgHelp.classList.add('hidden');
+      loginMsgHelp.classList.remove('is-clickable');
+    }
+    loginDeniedCount = 0;
+
+    loginInterval = setInterval(async () => {
+      if (!loginLivOk) await pushLivFrame();
+      else             await captureAndVerify();
+    }, 700);
+  } catch (_) {
+    try {
+      loginStream = { backend: 'mjpeg' };
+      _useMjpeg(loginImage, loginVideo);
+      if (camOverlay)  camOverlay.classList.add('hidden');
+      loginDeniedCount = 0;
+      loginInterval = setInterval(async () => {
+        if (!loginLivOk) await pushLivFrame();
+        else             await captureAndVerify();
+      }, 700);
+    } catch (_) {
+      if (loginMsg) { loginMsg.textContent = t('no_camera'); loginMsg.className = 'feedback denied'; }
+    }
+  }
 }
 
 function renderAccessResult(data) {
@@ -445,10 +631,14 @@ function resetAccessStep() {
 document.getElementById('btnScanAnother')?.addEventListener('click', resetAccessStep);
 
 async function pushLivFrame() {
-  if (!loginVideo || !loginCanvas || !loginLivId) return;
-  loginCanvas.width  = loginVideo.videoWidth;
-  loginCanvas.height = loginVideo.videoHeight;
-  loginCanvas.getContext('2d').drawImage(loginVideo, 0, 0);
+  if (!loginCanvas || !loginLivId) return;
+  const source = _activeCameraSource(loginVideo, loginImage);
+  if (!source) return;
+  const dims = _sourceDims(source);
+  if (!dims.w || !dims.h) return;
+  loginCanvas.width  = dims.w;
+  loginCanvas.height = dims.h;
+  loginCanvas.getContext('2d').drawImage(source, 0, 0, dims.w, dims.h);
   const image = loginCanvas.toDataURL('image/jpeg', 0.75);
   try {
     const res  = await fetch('/api/login/liveness/frame', {
@@ -465,10 +655,14 @@ async function pushLivFrame() {
 }
 
 async function captureAndVerify() {
-  if (!loginVideo || !loginCanvas) return;
-  loginCanvas.width  = loginVideo.videoWidth;
-  loginCanvas.height = loginVideo.videoHeight;
-  loginCanvas.getContext('2d').drawImage(loginVideo, 0, 0);
+  if (!loginCanvas) return;
+  const source = _activeCameraSource(loginVideo, loginImage);
+  if (!source) return;
+  const dims = _sourceDims(source);
+  if (!dims.w || !dims.h) return;
+  loginCanvas.width  = dims.w;
+  loginCanvas.height = dims.h;
+  loginCanvas.getContext('2d').drawImage(source, 0, 0, dims.w, dims.h);
   const image = loginCanvas.toDataURL('image/jpeg', 0.8);
   try {
     const res  = await fetch('/api/login/verify', {
@@ -494,6 +688,7 @@ async function captureAndVerify() {
   } catch (_) {}
 }
 
+<<<<<<< HEAD
 loginStart?.addEventListener('click', async () => {
   try {
     showAccessStep(1);
@@ -530,6 +725,9 @@ loginStop?.addEventListener('click', () => {
   if (loginMsgHelp) { loginMsgHelp.classList.add('hidden'); loginMsgHelp.classList.remove('is-clickable'); }
   loginDeniedCount = 0;
 });
+=======
+startLoginCamera();
+>>>>>>> ad2090cf3f0414a8585b98d0e147810ff4dff5a5
 
 function openLoginHelpModal()  { loginHelpModal?.classList.remove('hidden'); }
 function closeLoginHelpModal() { loginHelpModal?.classList.add('hidden'); }
@@ -544,12 +742,21 @@ let regImages    = { image_front: null, image_left: null, image_right: null };
 let regDatos     = { nombre:'', grado:'1', letra:'', turno:'MATUTINO' };
 
 const regVideo   = document.getElementById('regVideo');
+const regImage   = document.getElementById('regImage');
 const regCanvas  = document.getElementById('regCanvas');
 const regStart   = document.getElementById('regStart');
 const regCapture = document.getElementById('regCapture');
 const regStop    = document.getElementById('regStop');
 const regMsg     = document.getElementById('regMessage');
 const regCamOv   = document.getElementById('regCameraOverlay');
+
+const regNombreInput = document.getElementById('regNombre');
+regNombreInput?.addEventListener('input', () => {
+  const raw = regNombreInput.value;
+  const cleaned = raw.replace(/[^A-Za-zÁÉÍÓÚÑáéíóúñ\s]/g, '').replace(/\s{2,}/g, ' ');
+  const limited = cleaned.slice(0, 20);
+  if (limited !== raw) regNombreInput.value = limited;
+});
 
 const REG_ANGLES = [
   { key:'image_front', get label(){ return t('btn_capture_front'); }, get hint(){ return t('angle_hint_front'); } },
@@ -573,9 +780,11 @@ function updateRegAngleUi() {
 }
 
 function stopRegCamera() {
-  if (regStream) regStream.getTracks().forEach(t => t.stop());
+  if (regStream && regStream.getTracks) regStream.getTracks().forEach(t => t.stop());
   regStream = null;
   if (regVideo)   regVideo.srcObject  = null;
+  if (regImage)   { regImage.src = ''; regImage.classList.add('hidden'); }
+  if (regVideo)   regVideo.classList.remove('hidden');
   if (regStart)   regStart.disabled   = false;
   if (regCapture) regCapture.disabled = true;
   if (regStop)    regStop.disabled    = true;
@@ -583,14 +792,38 @@ function stopRegCamera() {
 }
 
 document.getElementById('regGoToCamera')?.addEventListener('click', () => {
-  const nombre = document.getElementById('regNombre')?.value.trim();
+  const nombreRaw = document.getElementById('regNombre')?.value || '';
+  const nombre = nombreRaw.trim().replace(/[^A-Za-zÁÉÍÓÚÑáéíóúñ\s]/g, '');
   const grado  = document.getElementById('regGrado')?.value;
   const letra  = document.getElementById('regLetra')?.value.trim().toUpperCase();
   const turno  = document.getElementById('regTurno')?.value;
   const msg1   = document.getElementById('regStep1Msg');
 
+<<<<<<< HEAD
   if (!nombre) { if (msg1) { msg1.textContent = 'Ingresa el nombre.'; msg1.className='feedback denied'; } return; }
   if (!letra)  { if (msg1) { msg1.textContent = 'Ingresa el grupo.';  msg1.className='feedback denied'; } return; }
+=======
+  if (!nombre || !letra) {
+    if (msg1) {
+      msg1.textContent = 'Completa los campos faltantes para continuar.';
+      msg1.className='feedback denied';
+    }
+    return;
+  }
+
+  if (nombre.length < 3 || nombre.length > 20) {
+    if (msg1) {
+      msg1.textContent = 'El nombre debe tener entre 3 y 20 caracteres.';
+      msg1.className='feedback denied';
+    }
+    return;
+  }
+
+  if (nombre !== nombreRaw.trim()) {
+    const input = document.getElementById('regNombre');
+    if (input) input.value = nombre;
+  }
+>>>>>>> ad2090cf3f0414a8585b98d0e147810ff4dff5a5
 
   regDatos = { nombre, grado, letra, turno };
   regStepIndex = 0;
@@ -611,23 +844,40 @@ document.getElementById('btnBackToStep1')?.addEventListener('click', () => {
 
 regStart?.addEventListener('click', async () => {
   try {
+    if (!navigator.mediaDevices?.getUserMedia) {
+      throw new Error('getUserMedia not available');
+    }
     regStream = await navigator.mediaDevices.getUserMedia({ video: true });
-    if (regVideo)   regVideo.srcObject  = regStream;
+    _useGetUserMedia(regVideo, regImage, regStream);
     if (regCamOv)   regCamOv.classList.add('hidden');
     if (regStart)   regStart.disabled   = true;
     if (regCapture) regCapture.disabled = false;
     if (regStop)    regStop.disabled    = false;
     if (regMsg)     { regMsg.textContent = t('reg_cam_ready'); regMsg.className = 'feedback waiting'; }
   } catch (_) {
-    if (regMsg) { regMsg.textContent = t('no_camera'); regMsg.className = 'feedback denied'; }
+    try {
+      regStream = { backend: 'mjpeg' };
+      _useMjpeg(regImage, regVideo);
+      if (regCamOv)   regCamOv.classList.add('hidden');
+      if (regStart)   regStart.disabled   = true;
+      if (regCapture) regCapture.disabled = false;
+      if (regStop)    regStop.disabled    = false;
+      if (regMsg)     { regMsg.textContent = t('reg_cam_ready'); regMsg.className = 'feedback waiting'; }
+    } catch (_) {
+      if (regMsg) { regMsg.textContent = t('no_camera'); regMsg.className = 'feedback denied'; }
+    }
   }
 });
 
 regCapture?.addEventListener('click', async () => {
-  if (!regVideo || !regCanvas) return;
-  regCanvas.width  = regVideo.videoWidth;
-  regCanvas.height = regVideo.videoHeight;
-  regCanvas.getContext('2d').drawImage(regVideo, 0, 0);
+  if (!regCanvas) return;
+  const source = _activeCameraSource(regVideo, regImage);
+  if (!source) return;
+  const dims = _sourceDims(source);
+  if (!dims.w || !dims.h) return;
+  regCanvas.width  = dims.w;
+  regCanvas.height = dims.h;
+  regCanvas.getContext('2d').drawImage(source, 0, 0, dims.w, dims.h);
   const image = regCanvas.toDataURL('image/jpeg', 0.88);
   const angle = REG_ANGLES[regStepIndex];
   regImages[angle.key] = image;
@@ -729,30 +979,144 @@ document.getElementById('admCreate')?.addEventListener('click', async () => {
 document.getElementById('cfgLoad')?.addEventListener('click', async () => {
   const msg = document.getElementById('cfgMsg');
   try {
-    const res  = await fetch('/api/admin/config');
+    const res  = await fetch('/api/admin/model-config');
     const data = await res.json();
-    if (data.scale)     document.getElementById('cfgScale').value     = data.scale;
-    if (data.tolerance) document.getElementById('cfgTolerance').value = data.tolerance;
-    if (data.cooldown)  document.getElementById('cfgCooldown').value  = data.cooldown;
+    const cfg = data.config || {};
+    if (cfg.scale != null)     document.getElementById('cfgScale').value     = cfg.scale;
+    if (cfg.tolerance != null) document.getElementById('cfgTolerance').value = cfg.tolerance;
+    if (cfg.cooldown_seconds != null)  document.getElementById('cfgCooldown').value  = cfg.cooldown_seconds;
     if (msg) { msg.textContent='Configuración cargada.'; msg.className='feedback granted'; }
+    updateModelTestValues();
   } catch (_) {}
 });
 
 document.getElementById('cfgSave')?.addEventListener('click', async () => {
   const msg = document.getElementById('cfgMsg');
   try {
-    const res  = await fetch('/api/admin/config', {
-      method:'POST', headers:{'Content-Type':'application/json'},
+    const res  = await fetch('/api/admin/model-config', {
+      method:'PUT', headers:{'Content-Type':'application/json'},
       body: JSON.stringify({
         scale:     parseFloat(document.getElementById('cfgScale')?.value),
         tolerance: parseFloat(document.getElementById('cfgTolerance')?.value),
-        cooldown:  parseFloat(document.getElementById('cfgCooldown')?.value),
+        cooldown_seconds:  parseFloat(document.getElementById('cfgCooldown')?.value),
       }),
     });
     const data = await res.json();
     if (msg) { msg.textContent = data.message||(data.ok?'Guardado.':'Error'); msg.className='feedback '+(data.ok?'granted':'denied'); }
+    if (data.ok) updateModelTestValues();
   } catch (_) {}
 });
+
+// ════ ADMIN: PRUEBA MODELO ════
+let modelTestStream = null;
+const modelTestModal = document.getElementById('modelTestModal');
+const modelTestOverlay = document.getElementById('modelTestOverlay');
+const modelTestClose = document.getElementById('modelTestClose');
+const modelTestVideo = document.getElementById('modelTestVideo');
+const modelTestCanvas = document.getElementById('modelTestCanvas');
+const modelTestFps = document.getElementById('modelTestFps');
+const modelTestFaces = document.getElementById('modelTestFaces');
+const modelTestScale = document.getElementById('modelTestScale');
+const modelTestTolerance = document.getElementById('modelTestTolerance');
+const modelTestCooldown = document.getElementById('modelTestCooldown');
+let modelTestDetector = null;
+let modelTestAnimId = null;
+let modelTestFrames = 0;
+let modelTestLastTick = 0;
+
+function updateModelTestValues() {
+  const scale = document.getElementById('cfgScale')?.value;
+  const tolerance = document.getElementById('cfgTolerance')?.value;
+  const cooldown = document.getElementById('cfgCooldown')?.value;
+  if (modelTestScale) modelTestScale.textContent = scale || '--';
+  if (modelTestTolerance) modelTestTolerance.textContent = tolerance || '--';
+  if (modelTestCooldown) modelTestCooldown.textContent = cooldown || '--';
+}
+
+async function openModelTest() {
+  if (!modelTestModal) return;
+  updateModelTestValues();
+  modelTestModal.classList.remove('hidden');
+  try {
+    modelTestStream = await navigator.mediaDevices.getUserMedia({ video: true });
+    if (modelTestVideo) modelTestVideo.srcObject = modelTestStream;
+    if ('FaceDetector' in window) {
+      modelTestDetector = new FaceDetector({ fastMode: true, maxDetectedFaces: 3 });
+    } else {
+      modelTestDetector = null;
+    }
+    modelTestFrames = 0;
+    modelTestLastTick = performance.now();
+    startModelTestLoop();
+  } catch (_) {}
+}
+
+function closeModelTest() {
+  if (modelTestModal) modelTestModal.classList.add('hidden');
+  if (modelTestAnimId) cancelAnimationFrame(modelTestAnimId);
+  modelTestAnimId = null;
+  if (modelTestStream) modelTestStream.getTracks().forEach(t => t.stop());
+  modelTestStream = null;
+  if (modelTestVideo) modelTestVideo.srcObject = null;
+  if (modelTestCanvas) {
+    const ctx = modelTestCanvas.getContext('2d');
+    ctx?.clearRect(0, 0, modelTestCanvas.width, modelTestCanvas.height);
+  }
+  if (modelTestFps) modelTestFps.textContent = '--';
+  if (modelTestFaces) modelTestFaces.textContent = '--';
+}
+
+async function startModelTestLoop() {
+  if (!modelTestVideo || !modelTestCanvas) return;
+  const ctx = modelTestCanvas.getContext('2d');
+  const loop = async () => {
+    if (!modelTestModal || modelTestModal.classList.contains('hidden')) return;
+    if (modelTestVideo.readyState < 2) {
+      modelTestAnimId = requestAnimationFrame(loop);
+      return;
+    }
+
+    modelTestCanvas.width = modelTestVideo.videoWidth;
+    modelTestCanvas.height = modelTestVideo.videoHeight;
+    ctx?.clearRect(0, 0, modelTestCanvas.width, modelTestCanvas.height);
+
+    let facesCount = 0;
+    if (modelTestDetector && ctx) {
+      try {
+        const faces = await modelTestDetector.detect(modelTestVideo);
+        facesCount = faces.length;
+        ctx.lineWidth = 3;
+        ctx.strokeStyle = 'rgba(0, 255, 140, 0.9)';
+        ctx.fillStyle = 'rgba(0, 255, 140, 0.12)';
+        faces.forEach(face => {
+          const box = face.boundingBox;
+          ctx.strokeRect(box.x, box.y, box.width, box.height);
+          ctx.fillRect(box.x, box.y, box.width, box.height);
+        });
+      } catch (_) {
+        facesCount = 0;
+      }
+    }
+
+    modelTestFrames += 1;
+    const now = performance.now();
+    const elapsed = now - modelTestLastTick;
+    if (elapsed >= 500) {
+      const fps = Math.round((modelTestFrames / elapsed) * 1000);
+      if (modelTestFps) modelTestFps.textContent = String(fps);
+      if (modelTestFaces) modelTestFaces.textContent = String(facesCount);
+      modelTestFrames = 0;
+      modelTestLastTick = now;
+    }
+
+    modelTestAnimId = requestAnimationFrame(loop);
+  };
+  modelTestAnimId = requestAnimationFrame(loop);
+}
+
+document.getElementById('cfgTest')?.addEventListener('click', openModelTest);
+modelTestOverlay?.addEventListener('click', closeModelTest);
+modelTestClose?.addEventListener('click', closeModelTest);
 
 // ════ ADMIN: ADMINS ════
 async function loadAdmins() {
