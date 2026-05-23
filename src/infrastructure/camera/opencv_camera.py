@@ -36,7 +36,7 @@ def _try_picamera2():
                     if frame_rgb is None or frame_rgb.size == 0:
                         return False, None
                     # Convert RGB to BGR for OpenCV
-                    frame_bgr = cv2.cvtColor(frame_rgb, cv2.COLOR_BGRB2RGB)
+                    frame_bgr = cv2.cvtColor(frame_rgb, cv2.COLOR_RGB2BGR)
                     return True, frame_bgr
                 except Exception:
                     return False, None
@@ -44,8 +44,10 @@ def _try_picamera2():
             def release(self):
                 try:
                     self.camera.stop()
+                    if hasattr(self.camera, "close"):
+                        self.camera.close()
                     self.is_open = False
-                except:
+                except Exception:
                     pass
             
             def isOpened(self):
@@ -90,6 +92,8 @@ def open_camera():
         cap = _try_picamera2()
         if cap is not None:
             return cap
+        print("[ERROR] picamera2 is required on Raspberry Pi. No fallback enabled.", file=sys.stderr)
+        return None
     
     # Priority 2: Try OpenCV backends
     if profile == "WINDOWS_STABLE":

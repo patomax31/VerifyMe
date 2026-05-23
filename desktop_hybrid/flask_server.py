@@ -5,6 +5,7 @@ import re
 import sqlite3
 import sys
 import threading
+import time
 from contextlib import closing
 from pathlib import Path
 from typing import Any, Dict, Optional
@@ -183,6 +184,19 @@ def _mjpeg_frame_stream(cap):
             cap.release()
         except Exception:
             pass
+
+
+def _prime_camera(cap, timeout_seconds: float = 5.0, min_success: int = 1) -> bool:
+    deadline = time.monotonic() + timeout_seconds
+    successes = 0
+    while time.monotonic() < deadline:
+        ret, frame = cap.read()
+        if ret and frame is not None:
+            successes += 1
+            if successes >= min_success:
+                return True
+        time.sleep(0.05)
+    return False
 
 
 def _parse_user_data(label: str, student_id: int) -> Dict[str, Any]:
@@ -413,6 +427,14 @@ def create_app() -> Flask:
         if cap is None:
             _camera_stream_lock.release()
             return jsonify({"ok": False, "message": "No se pudo abrir la camara."}), 503
+
+        if not _prime_camera(cap):
+            try:
+                cap.release()
+            except Exception:
+                pass
+            _camera_stream_lock.release()
+            return jsonify({"ok": False, "message": "La camara no entrega frames."}), 503
 
         def _generate():
             try:
