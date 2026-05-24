@@ -1,66 +1,155 @@
-      <!-- ADMIN -->
-      <section class="view card hidden" id="view-admin">
-        <h2 data-i18n="nav_admin">Admin panel</h2>
-        <p class="muted sm" data-i18n="admin_sub">Gestión escolar, parámetros del modelo y administradores.</p>
+<!-- ADMIN -->
+<section class="view card hidden" id="view-admin">
+  <h2 data-i18n="nav_admin">Admin panel</h2>
 
-        <div class="tabs-inline" style="margin-top:12px">
-          <button class="tab-btn active" data-admin-tab="students"><span>👥</span><span data-i18n="tab_students">Estudiantes</span></button>
-          <button class="tab-btn" data-admin-tab="model"><span>🎛</span><span data-i18n="tab_model">Modelo</span></button>
-          <button class="tab-btn" data-admin-tab="admins"><span>🛡</span><span data-i18n="tab_admins">Admins</span></button>
-        </div>
+  <div class="tabs-inline" style="margin-top:12px">
+    <button class="tab-btn active" data-admin-tab="students"><span>👥</span><span data-i18n="tab_students">Estudiantes</span></button>
+    <button class="tab-btn" data-admin-tab="model"><span>🎛</span><span data-i18n="tab_model">Modelo</span></button>
+    <button class="tab-btn" data-admin-tab="admins"><span>🛡</span><span data-i18n="tab_admins">Admins</span></button>
+    <button class="tab-btn" data-admin-tab="dashboard"><span>📊</span><span data-i18n="tab_dashboard">Dashboard</span></button>
+  </div>
 
-        <section id="admin-students" class="admin-tab">
-          <div class="grid-4 form-grid">
-            <label><span data-i18n="field_name">Nombre</span> <input id="admNombre" type="text"></label>
-            <label><span data-i18n="field_grade">Grado</span> <select id="admGrado"><option>1</option><option>2</option><option>3</option></select></label>
-            <label><span data-i18n="field_group">Grupo</span> <input id="admGrupo" type="text" maxlength="1"></label>
-            <label><span data-i18n="field_shift">Turno</span> <select id="admTurno"><option>MATUTINO</option><option>VESPERTINO</option></select></label>
-          </div>
-          <div class="row">
-            <button id="admCreate"><span>➕</span><span data-i18n="btn_create_student">Crear</span></button>
-            <button id="admRefresh"><span>🔄</span><span data-i18n="btn_refresh">Refrescar</span></button>
-          </div>
-          <p id="admStudentsMsg" class="feedback waiting" data-i18n="students_mgmt">Gestión de estudiantes.</p>
-          <div class="table-wrap">
-            <table id="studentsTable">
-              <thead><tr><th>ID</th><th>Nombre</th><th>Grado</th><th>Grupo</th><th>Turno</th><th>Estado</th><th>Acciones</th></tr></thead>
-              <tbody></tbody>
-            </table>
-          </div>
-        </section>
+  <section id="admin-students" class="admin-tab">
+    <div class="grid-4 form-grid">
+      <label><span data-i18n="field_name">Nombre</span> <input id="admNombre" type="text"></label>
+      <label><span data-i18n="field_grade">Grado</span> <select id="admGrado"><option>1</option><option>2</option><option>3</option></select></label>
+      <label><span data-i18n="field_group">Grupo</span> <input id="admGrupo" type="text" maxlength="1"></label>
+      <label><span data-i18n="field_shift">Turno</span> <select id="admTurno"><option>MATUTINO</option><option>VESPERTINO</option></select></label>
+    </div>
+    <div class="row">
+      <button id="admCreate"><span>➕</span><span data-i18n="btn_create_student">Crear</span></button>
+      <button id="admRefresh"><span>🔄</span><span data-i18n="btn_refresh">Refrescar</span></button>
+    </div>
+    <p id="admStudentsMsg" class="feedback waiting" data-i18n="students_mgmt">Gestión de estudiantes.</p>
+    <div class="table-wrap">
+      <table id="studentsTable">
+        <thead><tr><th>ID</th><th>Nombre</th><th>Grado</th><th>Grupo</th><th>Turno</th><th>Estado</th><th>Acciones</th></tr></thead>
+        <tbody></tbody>
+      </table>
+    </div>
+  </section>
 
-        <section id="admin-model" class="admin-tab hidden">
-          <div class="grid-3 form-grid">
-            <label>Scale     <input id="cfgScale"     type="number" min="0.05" max="1.0"  step="0.01"></label>
-            <label>Tolerance <input id="cfgTolerance" type="number" min="0.2"  max="1.0"  step="0.01"></label>
-            <label>Cooldown  <input id="cfgCooldown"  type="number" min="0"    max="120"  step="0.5"></label>
-          </div>
-          <div class="row">
-            <button id="cfgLoad"><span>⬇</span><span>Cargar</span></button>
-            <button id="cfgSave"><span>💾</span><span>Guardar</span></button>
-            <button id="cfgTest"><span>🧪</span><span>Probar modelo</span></button>
-          </div>
-          <p id="cfgMsg" class="feedback waiting">Configuración del modelo.</p>
-        </section>
+  <section id="admin-model" class="admin-tab hidden">
+    <div class="grid-3 form-grid">
+      <label>Scale     <input id="cfgScale"     type="number" min="0.05" max="1.0"  step="0.01"></label>
+      <label>Tolerance <input id="cfgTolerance" type="number" min="0.2"  max="1.0"  step="0.01"></label>
+      <label>Cooldown  <input id="cfgCooldown"  type="number" min="0"    max="120"  step="0.5"></label>
+    </div>
+    <div class="row">
+      <button id="cfgLoad"><span>⬇</span><span>Cargar</span></button>
+      <button id="cfgSave"><span>💾</span><span>Guardar</span></button>
+      <button id="cfgTest"><span>🧪</span><span>Probar modelo</span></button>
+    </div>
+    <p id="cfgMsg" class="feedback waiting">Configuración del modelo.</p>
+  </section>
 
-        <section id="admin-admins" class="admin-tab hidden">
-          <div class="grid-2 form-grid">
-            <label>No. empleado <input id="adminNum"    type="text"></label>
-            <label>Nombre       <input id="adminNombre" type="text"></label>
-            <label>Rol          <input id="adminRol"    type="text" value="ADMIN"></label>
-            <label>Correo       <input id="adminCorreo" type="email"></label>
-            <label>Password     <input id="adminPass"   type="password"></label>
-          </div>
-          <div class="row">
-            <button id="adminCreate"><span>🛡</span><span>Registrar admin</span></button>
-            <button id="adminRefresh"><span>🔄</span><span>Refrescar</span></button>
-          </div>
-          <p id="adminMsg" class="feedback waiting">Registro de administradores.</p>
-          <div class="table-wrap">
-            <table id="adminsTable">
-              <thead><tr><th>ID</th><th>No. empleado</th><th>Nombre</th><th>Rol</th><th>Correo</th><th>Estado</th></tr></thead>
-              <tbody></tbody>
-            </table>
-          </div>
-        </section>
-      </section>
+  <section id="admin-admins" class="admin-tab hidden">
+    <!-- adminNum eliminado: se asigna automáticamente como autoincremento -->
+    <div class="grid-2 form-grid">
+      <label>
+        Nombre
+        <input
+          id="adminNombre"
+          type="text"
+          minlength="3"
+          maxlength="20"
+          placeholder="Nombre completo..."
+          autocomplete="off"
+          oninput="adminValidateNombre(this)"
+        >
+        <span class="field-hint sm muted">3–20 caracteres, solo letras y espacios</span>
+        <span class="field-err sm" id="errAdminNombre" style="display:none;color:var(--color-danger,#c0392b)">
+          Solo letras y espacios (3–20 caracteres)
+        </span>
+      </label>
+
+      <label>
+        Correo electrónico
+        <input
+          id="adminCorreo"
+          type="email"
+          placeholder="correo@ejemplo.com"
+          autocomplete="off"
+          oninput="adminValidateCorreo(this)"
+        >
+        <span class="field-err sm" id="errAdminCorreo" style="display:none;color:var(--color-danger,#c0392b)">
+          Ingresa un correo válido
+        </span>
+      </label>
+
+      <label>
+        Contraseña
+        <input
+          id="adminPass"
+          type="password"
+          placeholder="Contraseña..."
+          autocomplete="new-password"
+          oninput="adminValidatePass(this)"
+        >
+        <span class="field-hint sm muted">Debe incluir al menos un número o carácter especial</span>
+        <span class="field-err sm" id="errAdminPass" style="display:none;color:var(--color-danger,#c0392b)">
+          Debe tener al menos un número o carácter especial (!@#$%...)
+        </span>
+      </label>
+    </div>
+
+    <div class="row">
+      <button id="adminCreate"><span>🛡</span><span>Registrar admin</span></button>
+      <button id="adminRefresh"><span>🔄</span><span>Refrescar</span></button>
+    </div>
+    <p id="adminMsg" class="feedback waiting">Registro de administradores.</p>
+
+    <div class="table-wrap">
+      <table id="adminsTable">
+        <thead>
+          <tr>
+            <th>ID</th>
+            <th>No. empleado</th>
+            <th>Nombre</th>
+            <th>Rol</th>
+            <th>Correo</th>
+            <th>Estado</th>
+            <th>Acciones</th>
+          </tr>
+        </thead>
+        <tbody id="adminsTbody"></tbody>
+      </table>
+    </div>
+  </section>
+</section>
+
+
+
+<!-- MODAL: Registro biométrico -->
+<div id="biometricModal" class="modal-overlay hidden" role="dialog" aria-modal="true" aria-labelledby="bioModalTitle">
+  <div class="modal-box">
+    <h3 id="bioModalTitle">🫆 Registro biométrico</h3>
+    <p id="bioModalSubtitle" class="muted sm">
+      Admin registrado. Captura los datos biométricos para activar el acceso.
+    </p>
+    <div class="biometric-area" id="bioArea">
+      <div class="scan-ring" id="scanRing">
+        <span id="bioIcon" style="font-size:2.2rem">🫆</span>
+      </div>
+      <p id="bioStatus" class="sm muted">Presiona "Iniciar escaneo" y coloca tu huella</p>
+    </div>
+    <div class="row">
+      <button id="btnBioScan">🫆 Iniciar escaneo</button>
+      <button id="btnBioFinish" class="hidden">✅ Finalizar</button>
+      <button id="btnBioSkip" class="btn-ghost">Omitir por ahora</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL: Confirmar eliminación -->
+<div id="deleteAdminModal" class="modal-overlay hidden" role="dialog" aria-modal="true" aria-labelledby="delModalTitle">
+  <div class="modal-box">
+    <h3 id="delModalTitle">⚠️ Confirmar eliminación</h3>
+    <p id="deleteAdminMsg" class="muted sm">¿Eliminar a este administrador? Esta acción no se puede deshacer.</p>
+    <div class="row">
+      <button id="btnConfirmDeleteAdmin" class="btn-danger">🗑 Eliminar</button>
+      <button id="btnCancelDeleteAdmin" class="btn-ghost">Cancelar</button>
+    </div>
+  </div>
+</div>
+

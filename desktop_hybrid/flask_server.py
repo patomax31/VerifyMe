@@ -370,8 +370,8 @@ def create_app() -> Flask:
         return jsonify(
             {
                 "ok": runtime_issue is None,
-                "service": "IdentifyMe Desktop",
-                "message": runtime_issue or "Servidor Flask activo",
+                "service": "VerifyMe",
+                "message": runtime_issue or "",
             }
         )
 

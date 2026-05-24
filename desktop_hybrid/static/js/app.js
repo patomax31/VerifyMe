@@ -306,7 +306,7 @@ document.getElementById('logoutBtn')?.addEventListener('click', async () => {
 });
 
 // ════ ON-SCREEN KEYBOARD (simple-keyboard) ════
-const keyboardInputs = 'input[type="text"], input[type="email"], input[type="password"], input[type="number"], textarea';
+const keyboardInputs = 'input[type="text"], input[type="email"], input[type="password"], input[type="number"], input[type="adminValidateNombre"],input[type="adminValidateCorreo"],input[type="adminValidatePass"], textarea';
 let activeInput = null;
 let osk = null;
 let oskInteracting = false;
