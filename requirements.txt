@@ -16,4 +16,5 @@ PyQt6>=6.7.0
 PyQt6-WebEngine>=6.7.0
 proxy_tools
 bottle
+numpy
 typing_extensions
