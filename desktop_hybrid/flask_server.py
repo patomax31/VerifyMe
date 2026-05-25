@@ -41,6 +41,7 @@ from src.core.config import RecognitionSettings, get_recognition_settings
 from src.infrastructure.camera.opencv_camera import open_camera
 from src.infrastructure.persistence.pkl_repository import PklRepository
 from src.infrastructure.persistence.sqlite_repository import SQLiteRepository
+from src.hardware import servomotor
 
 RUNTIME_ERROR = None
 try:
@@ -339,6 +340,58 @@ def _save_model_settings(scale: float, tolerance: float, cooldown_seconds: float
         )
 
 
+def _ensure_servo_settings_table() -> None:
+    with connect() as conn:
+        conn.execute(
+            """
+            CREATE TABLE IF NOT EXISTS servo_settings (
+                id INTEGER PRIMARY KEY CHECK (id = 1),
+                hold_seconds REAL NOT NULL,
+                always_active INTEGER NOT NULL,
+                updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+            )
+            """
+        )
+
+
+def _load_servo_settings() -> Dict[str, float | bool]:
+    _ensure_servo_settings_table()
+    defaults = servomotor.get_servo_settings()
+
+    with connect() as conn:
+        row = conn.execute(
+            "SELECT hold_seconds, always_active FROM servo_settings WHERE id = 1"
+        ).fetchone()
+
+    if row:
+        return {
+            "hold_seconds": float(row[0]),
+            "always_active": bool(int(row[1])),
+        }
+
+    return {
+        "hold_seconds": float(defaults["hold_seconds"]),
+        "always_active": bool(defaults["always_active"]),
+    }
+
+
+def _save_servo_settings(*, hold_seconds: float, always_active: bool) -> None:
+    _ensure_servo_settings_table()
+
+    with connect() as conn:
+        conn.execute(
+            """
+            INSERT INTO servo_settings (id, hold_seconds, always_active)
+            VALUES (1, ?, ?)
+            ON CONFLICT(id) DO UPDATE SET
+                hold_seconds = excluded.hold_seconds,
+                always_active = excluded.always_active,
+                updated_at = CURRENT_TIMESTAMP
+            """,
+            (float(hold_seconds), 1 if always_active else 0),
+        )
+
+
 def _parse_optional_bool(value: Optional[str]) -> Optional[bool]:
     if value is None:
         return None
@@ -374,6 +427,12 @@ def create_app() -> Flask:
     recognition_settings.scale = cfg["scale"]
     recognition_settings.tolerance = cfg["tolerance"]
     recognition_settings.access_cooldown_seconds = cfg["cooldown_seconds"]
+
+    servo_cfg = _load_servo_settings()
+    servomotor.update_servo_settings(
+        hold_seconds=float(servo_cfg["hold_seconds"]),
+        always_active=bool(servo_cfg["always_active"]),
+    )
 
     engine = None
     engine_error = None
@@ -869,6 +928,20 @@ def create_app() -> Flask:
             if cur.rowcount == 0:
                 return jsonify({"ok": False, "message": "Estudiante no encontrado."}), 404
 
+        cred_path = PROJECT_DIR / "data" / "credentials" / f"est_{student_id}.jpg"
+        pkl_path = PROJECT_DIR / "data" / f"est_{student_id}.pkl"
+        try:
+            if cred_path.exists():
+                cred_path.unlink()
+        except Exception as exc:
+            print(f"[WARN] No se pudo borrar credencial: {exc}")
+
+        try:
+            if pkl_path.exists():
+                pkl_path.unlink()
+        except Exception as exc:
+            print(f"[WARN] No se pudo borrar pkl: {exc}")
+
         return jsonify({"ok": True, "message": "Estudiante desactivado."})
 
     @app.get("/api/admin/model-config")
@@ -912,6 +985,52 @@ def create_app() -> Flask:
             }
         )
 
+    @app.get("/api/admin/servo-settings")
+    def get_servo_settings():
+        cfg_local = _load_servo_settings()
+        return jsonify({"ok": True, "config": cfg_local})
+
+    @app.put("/api/admin/servo-settings")
+    def update_servo_settings():
+        payload = request.get_json(silent=True) or {}
+        current = _load_servo_settings()
+        hold_raw = payload.get("hold_seconds", current["hold_seconds"])
+        always_raw = payload.get("always_active", current["always_active"])
+
+        try:
+            hold_seconds = float(hold_raw)
+        except (TypeError, ValueError):
+            return jsonify({"ok": False, "message": "hold_seconds debe ser numerico."}), 400
+
+        if hold_seconds < 0 or hold_seconds > 120:
+            return jsonify({"ok": False, "message": "hold_seconds debe estar entre 0 y 120."}), 400
+
+        if isinstance(always_raw, bool):
+            always_active = always_raw
+        elif isinstance(always_raw, (int, float)):
+            always_active = bool(always_raw)
+        elif isinstance(always_raw, str):
+            always_active = always_raw.strip().lower() in {"1", "true", "yes", "on"}
+        else:
+            always_active = False
+
+        _save_servo_settings(hold_seconds=hold_seconds, always_active=always_active)
+        servomotor.update_servo_settings(
+            hold_seconds=hold_seconds,
+            always_active=always_active,
+        )
+
+        return jsonify(
+            {
+                "ok": True,
+                "message": "Configuracion del servomotor actualizada.",
+                "config": {
+                    "hold_seconds": hold_seconds,
+                    "always_active": always_active,
+                },
+            }
+        )
+
     @app.get("/api/admin/admins")
     def list_admins():
         with connect() as conn:
@@ -927,7 +1046,9 @@ def create_app() -> Flask:
             {
                 "id": int(row[0]),
                 "num_empleado": row[1],
+                "numero_empleado": row[1],
                 "nombre_completo": row[2],
+                "nombre": row[2],
                 "rol": row[3],
                 "correo": row[4],
                 "estado_activo": int(row[5]),
@@ -936,11 +1057,92 @@ def create_app() -> Flask:
         ]
         return jsonify({"ok": True, "admins": admins})
 
+    @app.post("/api/admin/admins")
+    def create_admin():
+        payload = request.get_json(silent=True) or {}
+        num_empleado = str(payload.get("num_empleado") or payload.get("numero_empleado") or "").strip()
+        nombre_completo = str(payload.get("nombre_completo") or payload.get("nombre") or "").strip()
+        rol = str(payload.get("rol", "")).strip() or "ADMIN"
+        correo = str(payload.get("correo", "")).strip().lower()
+        password = str(payload.get("password", ""))
+
+        if not all([num_empleado, nombre_completo, correo, password]):
+            return jsonify({"ok": False, "message": "Todos los campos son obligatorios."}), 400
+
+        password_hash = generate_password_hash(password)
+
+        try:
+            with closing(connect()) as conn:
+                conn.execute(
+                    """
+                    INSERT INTO personal_administrativo
+                    (num_empleado, nombre_completo, rol, correo, password_hash, estado_activo)
+                    VALUES (?, ?, ?, ?, ?, 1)
+                    """,
+                    (num_empleado, nombre_completo, rol, correo, password_hash),
+                )
+                conn.commit()
+        except sqlite3.IntegrityError:
+            return jsonify({"ok": False, "message": "num_empleado o correo ya existe."}), 409
+
+        return jsonify({"ok": True, "message": "Administrador registrado correctamente."})
+
+    @app.put("/api/admin/admins/<int:admin_id>")
+    def update_admin(admin_id: int):
+        payload = request.get_json(silent=True) or {}
+        num_empleado = str(payload.get("num_empleado") or payload.get("numero_empleado") or "").strip()
+        nombre_completo = str(payload.get("nombre_completo") or payload.get("nombre") or "").strip()
+        rol = str(payload.get("rol", "")).strip() or "ADMIN"
+        correo = str(payload.get("correo", "")).strip().lower()
+        estado_activo = int(payload.get("estado_activo", 1))
+        password = str(payload.get("password") or "").strip()
+
+        if not nombre_completo or not correo:
+            return jsonify({"ok": False, "message": "Nombre y correo son obligatorios."}), 400
+
+        updates = ["nombre_completo = ?", "rol = ?", "correo = ?", "estado_activo = ?"]
+        params = [nombre_completo, rol, correo, 1 if estado_activo else 0]
+
+        if num_empleado:
+            updates.append("num_empleado = ?")
+            params.append(num_empleado)
+
+        if password:
+            password_hash = generate_password_hash(password)
+            updates.append("password_hash = ?")
+            params.append(password_hash)
+
+        params.append(admin_id)
+
+        with closing(connect()) as conn:
+            cur = conn.execute(
+                f"UPDATE personal_administrativo SET {', '.join(updates)} WHERE id_personal = ?",
+                params,
+            )
+            if cur.rowcount == 0:
+                return jsonify({"ok": False, "message": "Administrador no encontrado."}), 404
+            conn.commit()
+
+        return jsonify({"ok": True, "message": "Administrador actualizado."})
+
+    @app.delete("/api/admin/admins/<int:admin_id>")
+    def deactivate_admin(admin_id: int):
+        with closing(connect()) as conn:
+            cur = conn.execute(
+                "UPDATE personal_administrativo SET estado_activo = 0 WHERE id_personal = ?",
+                (admin_id,),
+            )
+            if cur.rowcount == 0:
+                return jsonify({"ok": False, "message": "Administrador no encontrado."}), 404
+            conn.commit()
+
+        return jsonify({"ok": True, "message": "Administrador desactivado."})
+
     @app.post("/api/admin/register")
     def register_admin():
         payload = request.get_json(silent=True) or {}
-        num_empleado = str(payload.get("num_empleado", "")).strip()
-        nombre_completo = str(payload.get("nombre_completo", "")).strip()
+        num_empleado = str(payload.get("num_empleado") or payload.get("numero_empleado") or "").strip()
+        nombre_completo = str(payload.get("nombre_completo") or payload.get("nombre") or "").strip()
         rol = str(payload.get("rol", "")).strip() or "ADMIN"
         correo = str(payload.get("correo", "")).strip().lower()
         password = str(payload.get("password", ""))
