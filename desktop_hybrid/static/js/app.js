@@ -2,6 +2,52 @@
    VerifyMe · app.js
 ═══════════════════════════════════════════════════════════════════════ */
 
+// ════ GLOBALES DE CAMARA Y TIMERS ════
+let regStream = null;
+let regAdminStream = null;
+let loginStream = null;
+let loginInterval = null;
+
+const loginVideo = document.getElementById('loginVideo');
+const regVideo = document.getElementById('regVideo');
+const regAdminVideo = document.getElementById('regAdminVideo');
+
+const loginImage = document.getElementById('loginImage');
+const regImage = document.getElementById('regImage');
+let regAdminImage = regAdminVideo ? document.createElement('img') : null; // For mjpeg fallback
+
+if (regAdminImage && regAdminVideo && regAdminVideo.parentNode) {
+  regAdminImage.id = 'regAdminImage';
+  regAdminImage.style.display = 'none';
+  regAdminVideo.parentNode.insertBefore(regAdminImage, regAdminVideo);
+}
+
+// ════ ACCESO FACIAL DOM ════
+const camOverlay = document.getElementById('cameraOverlay');
+const loginStart = document.getElementById('loginStart');
+const loginStop = document.getElementById('loginStop');
+const loginMsg = document.getElementById('loginMessage');
+const loginMsgHelp = document.getElementById('loginMessageHelp');
+const loginHelpModal = document.getElementById('loginHelpModal');
+const loginHelpOverlay = document.getElementById('loginHelpOverlay');
+const loginHelpClose = document.getElementById('loginHelpClose');
+
+// ════ REGISTRO BIOMÉTRICO DOM ════
+let regStepIndex = 0;
+const regStart = document.getElementById('regStart');
+const regCapture = document.getElementById('regCapture');
+const regStop = document.getElementById('regStop');
+const regMsg = document.getElementById('regMessage');
+const regCamOv = document.getElementById('regCameraOverlay');
+
+// ════ REGISTRO ADMIN DOM ════
+let regAdminStepIndex = 0;
+const regAdminStart = document.getElementById('regAdminStart');
+const regAdminCapture = document.getElementById('regAdminCapture');
+const regAdminStop = document.getElementById('regAdminStop');
+const regAdminMsg = document.getElementById('regAdminMessage');
+const regAdminCamOv = document.getElementById('regAdminCameraOverlay');
+
 // ════ I18N ════
 const I18N = {
   es: {
@@ -151,6 +197,7 @@ const navBtns  = document.querySelectorAll('.nav-btn[data-view]');
 function showView(viewId) {
   if (viewId !== 'access')   stopLoginCamera();
   if (viewId !== 'register') stopRegCamera();
+  if (viewId !== 'register-admin') stopRegAdminCamera();
 
   allViews.forEach(v => v.classList.add('hidden'));
   navBtns.forEach(b => b.classList.remove('active'));
@@ -176,8 +223,10 @@ document.querySelectorAll('.quick-nav-btn[data-goto]').forEach(b => {
 });
 
 const urlView = new URLSearchParams(window.location.search).get('view');
-if (urlView && ['home','access','register','admin'].includes(urlView)) {
+if (urlView && ['access','register','admin'].includes(urlView)) {
   showView(urlView);
+} else {
+  showView('access'); // Redirigir a login / acceso facial por defecto
 }
 
 // ════ RELOJ TOPBAR ════
@@ -483,23 +532,11 @@ document.addEventListener('focusout', e => {
 });
 
 // ════ ACCESO FACIAL ════
-let loginStream      = null;
-let loginInterval    = null;
 let loginLivId       = null;
 let loginLivOk       = false;
 let loginDeniedCount = 0;
 
-const loginVideo      = document.getElementById('loginVideo');
-const loginImage      = document.getElementById('loginImage');
 const loginCanvas     = document.getElementById('loginCanvas');
-const loginStart      = document.getElementById('loginStart');
-const loginStop       = document.getElementById('loginStop');
-const loginMsg        = document.getElementById('loginMessage');
-const loginMsgHelp    = document.getElementById('loginMessageHelp');
-const loginHelpModal  = document.getElementById('loginHelpModal');
-const loginHelpOverlay= document.getElementById('loginHelpOverlay');
-const loginHelpClose  = document.getElementById('loginHelpClose');
-const camOverlay      = document.getElementById('cameraOverlay');
 const livDot          = document.getElementById('loginLivenessDot');
 const livText         = document.getElementById('loginLivenessText');
 
@@ -758,19 +795,10 @@ loginHelpOverlay?.addEventListener('click', closeLoginHelpModal);
 loginHelpClose?.addEventListener('click', closeLoginHelpModal);
 
 // ════ REGISTRO BIOMÉTRICO ════
-let regStream    = null;
-let regStepIndex = 0;
 let regImages    = { image_front: null, image_left: null, image_right: null };
 let regDatos     = { nombre:'', grado:'1', letra:'', turno:'MATUTINO' };
 
-const regVideo   = document.getElementById('regVideo');
-const regImage   = document.getElementById('regImage');
 const regCanvas  = document.getElementById('regCanvas');
-const regStart   = document.getElementById('regStart');
-const regCapture = document.getElementById('regCapture');
-const regStop    = document.getElementById('regStop');
-const regMsg     = document.getElementById('regMessage');
-const regCamOv   = document.getElementById('regCameraOverlay');
 
 const regNombreInput = document.getElementById('regNombre');
 regNombreInput?.addEventListener('input', () => {
@@ -936,6 +964,176 @@ regCapture?.addEventListener('click', async () => {
 regStop?.addEventListener('click', stopRegCamera);
 updateRegAngleUi();
 
+// ════ CAMBIO A REGISTRO DE ADMIN ════
+document.getElementById('btnSwitchToAdminReg')?.addEventListener('click', () => {
+  const pass = prompt('Ingresa la contraseña de administrador para continuar:');
+  if (pass === '1234') {
+    showView('register-admin');
+  } else if (pass !== null) {
+    alert('Contraseña incorrecta');
+  }
+});
+
+// ════ REGISTRO ADMIN ════
+let regAdminDatos = {};
+let regAdminImages = { image_front:null, image_left:null, image_right:null };
+
+const regAdminCanvas = document.getElementById('regAdminCanvas');
+
+function updateRegAdminAngleUi() {
+  document.querySelectorAll('#regAdminStepper .angle-step').forEach((el, i) => {
+    el.classList.remove('angle-step--active','angle-step--done');
+    const numEl = el.querySelector('.angle-step__num');
+    if (i < regAdminStepIndex)        { el.classList.add('angle-step--done');   if (numEl) numEl.textContent = '✓'; }
+    else if (i === regAdminStepIndex) { el.classList.add('angle-step--active'); if (numEl) numEl.textContent = i+1; }
+    else                         { if (numEl) numEl.textContent = i+1; }
+  });
+  const hint  = document.getElementById('regAdminAngleHint');
+  const label = document.getElementById('regAdminCaptureLabel');
+  const angle = REG_ANGLES[regAdminStepIndex];
+  if (hint  && angle) hint.textContent  = angle.hint;
+  if (label && angle) label.textContent = angle.label;
+}
+
+function stopRegAdminCamera() {
+  if (regAdminStream && regAdminStream.getTracks) regAdminStream.getTracks().forEach(t => t.stop());
+  regAdminStream = null;
+  if (regAdminVideo)   regAdminVideo.srcObject  = null;
+  if (regAdminImage)   { regAdminImage.src = ''; regAdminImage.classList.add('hidden'); }
+  if (regAdminVideo)   regAdminVideo.classList.remove('hidden');
+  if (regAdminStart)   regAdminStart.disabled   = false;
+  if (regAdminCapture) regAdminCapture.disabled = true;
+  if (regAdminStop)    regAdminStop.disabled    = true;
+  if (regAdminCamOv)   regAdminCamOv.classList.remove('hidden');
+}
+
+document.getElementById('regAdminGoToCamera')?.addEventListener('click', () => {
+  const num_empleado = document.getElementById('regAdminNum')?.value || '';
+  const nombreRaw = document.getElementById('regAdminNombre')?.value || '';
+  const nombre = nombreRaw.trim().replace(/[^A-Za-zÁÉÍÓÚÑáéíóúñ\s]/g, '');
+  const rol = document.getElementById('regAdminRol')?.value || 'ADMIN';
+  const correo = document.getElementById('regAdminCorreo')?.value.trim().toLowerCase() || '';
+  const password = document.getElementById('regAdminPass')?.value || '';
+  const msg1 = document.getElementById('regAdminStep1Msg');
+
+  if (!num_empleado || !nombre || !correo || !password) {
+    if (msg1) {
+      msg1.textContent = 'Completa los campos faltantes para continuar.';
+      msg1.className='feedback denied';
+    }
+    return;
+  }
+
+  if (nombre.length < 3 || nombre.length > 20) {
+    if (msg1) {
+      msg1.textContent = 'El nombre debe tener entre 3 y 20 caracteres.';
+      msg1.className='feedback denied';
+    }
+    return;
+  }
+
+  if (!_isEmail(correo)) {
+    if (msg1) { msg1.textContent='Correo invalido.'; msg1.className='feedback denied'; }
+    return;
+  }
+
+  regAdminDatos = { num_empleado, nombre, rol, correo, password };
+  regAdminStepIndex = 0;
+  regAdminImages    = { image_front:null, image_left:null, image_right:null };
+
+  document.getElementById('reg-admin-step1')?.classList.add('hidden');
+  document.getElementById('reg-admin-step2')?.classList.remove('hidden');
+  updateRegAdminAngleUi();
+});
+
+document.getElementById('btnBackToAdminStep1')?.addEventListener('click', () => {
+  stopRegAdminCamera();
+  document.getElementById('reg-admin-step2')?.classList.add('hidden');
+  document.getElementById('reg-admin-step1')?.classList.remove('hidden');
+});
+
+document.getElementById('regAdminCancel')?.addEventListener('click', () => {
+  showView('register');
+});
+
+regAdminStart?.addEventListener('click', async () => {
+  try {
+    if (!navigator.mediaDevices?.getUserMedia) {
+      throw new Error('getUserMedia not available');
+    }
+    regAdminStream = await navigator.mediaDevices.getUserMedia({ video: true });
+    _useGetUserMedia(regAdminVideo, regAdminImage, regAdminStream);
+    if (regAdminCamOv)   regAdminCamOv.classList.add('hidden');
+    if (regAdminStart)   regAdminStart.disabled   = true;
+    if (regAdminCapture) regAdminCapture.disabled = false;
+    if (regAdminStop)    regAdminStop.disabled    = false;
+    if (regAdminMsg)     { regAdminMsg.textContent = t('reg_cam_ready'); regAdminMsg.className = 'feedback waiting'; }
+  } catch (_) {
+    try {
+      regAdminStream = { backend: 'mjpeg' };
+      _useMjpeg(regAdminImage, regAdminVideo);
+      if (regAdminCamOv)   regAdminCamOv.classList.add('hidden');
+      if (regAdminStart)   regAdminStart.disabled   = true;
+      if (regAdminCapture) regAdminCapture.disabled = false;
+      if (regAdminStop)    regAdminStop.disabled    = false;
+      if (regAdminMsg)     { regAdminMsg.textContent = t('reg_cam_ready'); regAdminMsg.className = 'feedback waiting'; }
+    } catch (_) {
+      if (regAdminMsg) { regAdminMsg.textContent = t('no_camera'); regAdminMsg.className = 'feedback denied'; }
+    }
+  }
+});
+
+regAdminCapture?.addEventListener('click', async () => {
+  if (!regAdminCanvas) return;
+  const source = _activeCameraSource(regAdminVideo, regAdminImage);
+  if (!source) return;
+  const dims = _sourceDims(source);
+  if (!dims.w || !dims.h) return;
+  regAdminCanvas.width  = dims.w;
+  regAdminCanvas.height = dims.h;
+  regAdminCanvas.getContext('2d').drawImage(source, 0, 0, dims.w, dims.h);
+  const image = regAdminCanvas.toDataURL('image/jpeg', 0.88);
+  const angle = REG_ANGLES[regAdminStepIndex];
+  regAdminImages[angle.key] = image;
+
+  if (regAdminStepIndex < 2) {
+    regAdminStepIndex++;
+    updateRegAdminAngleUi();
+    if (regAdminMsg) { regAdminMsg.textContent = t('reg_saved_angle'); regAdminMsg.className = 'feedback waiting'; }
+    return;
+  }
+
+  if (regAdminMsg) { regAdminMsg.textContent = 'Enviando…'; regAdminMsg.className = 'feedback waiting'; }
+  try {
+    const res  = await fetch('/api/registro-admin', {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({ ...regAdminDatos, ...regAdminImages }),
+    });
+    const data = await res.json();
+    if (regAdminMsg) { regAdminMsg.textContent = data.message || (data.ok ? t('reg_success') : t('reg_error')); regAdminMsg.className = 'feedback '+(data.ok?'granted':'denied'); }
+    if (data.ok) {
+      stopRegAdminCamera();
+      setTimeout(() => {
+        regAdminStepIndex = 0;
+        regAdminImages    = { image_front:null, image_left:null, image_right:null };
+        document.getElementById('reg-admin-step2')?.classList.add('hidden');
+        document.getElementById('reg-admin-step1')?.classList.remove('hidden');
+        document.getElementById('regAdminNum').value = '';
+        document.getElementById('regAdminNombre').value = '';
+        document.getElementById('regAdminCorreo').value = '';
+        document.getElementById('regAdminPass').value = '';
+        const m = document.getElementById('regAdminStep1Msg');
+        if (m) { m.textContent = '¡Administrador Registrado!'; m.className = 'feedback granted'; }
+      }, 2000);
+    }
+  } catch (_) {
+    if (regAdminMsg) { regAdminMsg.textContent = t('reg_conn_error'); regAdminMsg.className = 'feedback denied'; }
+  }
+});
+
+regAdminStop?.addEventListener('click', stopRegAdminCamera);
+
+
 // ════ ADMIN TABS ════
 document.querySelectorAll('.tab-btn[data-admin-tab]').forEach(btn => {
   btn.addEventListener('click', () => {
@@ -951,6 +1149,12 @@ document.querySelectorAll('.tab-btn[data-admin-tab]').forEach(btn => {
     if (tab === 'hardware') loadServoSettings();
   });
 });
+
+// Click por defecto en el primer tab de admin ('home') al abrir app, o al abrir view admin
+const btnAdminHome = document.querySelector('.tab-btn[data-admin-tab="home"]');
+if (btnAdminHome) btnAdminHome.classList.add('active');
+const adminHomeTab = document.getElementById('admin-home');
+if (adminHomeTab) adminHomeTab.classList.remove('hidden');
 
 function _dashInitials(value) {
   const raw = String(value || '').trim();

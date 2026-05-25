@@ -27,9 +27,6 @@
     </div>
 
     <nav class="drawer-nav">
-      <button class="nav-btn active" data-view="home">
-        <span class="nav-btn__icon">🏠</span><span data-i18n="nav_home">Inicio</span>
-      </button>
       <button class="nav-btn" data-view="access">
         <span class="nav-btn__icon">👤</span><span data-i18n="nav_access">Acceso facial</span>
       </button>
@@ -66,60 +63,14 @@
 
     <main class="views-wrap">
 
-      <!-- VISTA: HOME -->
-      <section class="view card" id="view-home">
-        <p class="eyebrow" data-i18n="home_eyebrow">Bienvenido</p>
-        <h2 data-i18n="home_title">Panel principal</h2>
-        <p class="muted sm" data-i18n="home_sub">Dashboard escolar para acceso facial, registro biométrico y administración.</p>
-
-        <div class="grid-2" style="margin:14px 0 12px">
-          <div class="stat-tile">
-            <strong id="statTotal">---</strong>
-            <span data-i18n="stat_students">Estudiantes</span>
-          </div>
-          <div class="stat-tile">
-            <strong id="statActivos">---</strong>
-            <span data-i18n="stat_active">Activos</span>
-          </div>
-        </div>
-
-        <div class="system-status-box">
-          <div class="system-status-box__dot"></div>
-          <div>
-            <div class="system-status-box__title" data-i18n="status_online">Sistema en línea</div>
-            <div class="system-status-box__sub" id="homeStatusSub" data-i18n="status_sub">Cámara activa · Modelo listo</div>
-          </div>
-          <span class="system-status-box__badge" data-i18n="status_badge">Operando</span>
-        </div>
-
-        <div class="last-access-box">
-          <div class="last-access-box__head" data-i18n="last_access">Últimos accesos</div>
-          <div id="lastAccessList">
-            <div class="last-access-box__empty" data-i18n="no_records">Sin registros recientes</div>
-          </div>
-        </div>
-
-        <div class="quick-nav" style="margin-top:16px">
-          <button class="quick-nav-btn" data-goto="access">
-            <span>📷</span>
-            <span data-i18n="nav_access">Acceso facial</span>
-          </button>
-          <button class="quick-nav-btn" data-goto="register">
-            <span>➕</span>
-            <span data-i18n="qnav_register">Registrar alumno</span>
-          </button>
-          <button class="quick-nav-btn" data-goto="admin">
-            <span>⚙️</span>
-            <span data-i18n="nav_admin">Admin panel</span>
-          </button>
-        </div>
-      </section>
+      
 
       
 
 
-     {% include 'partials/login.html' %}
+      {% include 'partials/login.html' %}
       {% include 'partials/register.html' %}
+      {% include 'partials/register_admin.html' %}
       {% include 'partials/admin.html' %}
 
     </main>

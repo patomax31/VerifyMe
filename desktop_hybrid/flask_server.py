@@ -659,6 +659,96 @@ def create_app() -> Flask:
             }
         )
 
+    @app.post("/api/registro-admin")
+    def register_admin_face():
+        runtime_issue = _runtime_check(engine_error, engine)
+        if runtime_issue is not None:
+            return jsonify({"ok": False, "message": runtime_issue}), 500
+
+        assert engine is not None
+
+        payload = request.get_json(silent=True) or {}
+
+        num_empleado = str(payload.get("num_empleado") or payload.get("numero_empleado") or "").strip()
+        nombre = str(payload.get("nombre", "")).strip()
+        rol = str(payload.get("rol", "")).strip() or "ADMIN"
+        correo = str(payload.get("correo", "")).strip().lower()
+        password = str(payload.get("password", ""))
+
+        if not all([num_empleado, nombre, correo, password]):
+            return jsonify({"ok": False, "message": "Todos los campos de administrador son obligatorios."}), 400
+
+        frame_f = _decode_image_data_uri(str(payload.get("image_front", "") or ""))
+        frame_l = _decode_image_data_uri(str(payload.get("image_left", "") or ""))
+        frame_r = _decode_image_data_uri(str(payload.get("image_right", "") or ""))
+
+        if not (frame_f is not None and frame_l is not None and frame_r is not None):
+            return jsonify({"ok": False, "message": "Faltan imagenes para el registro biometrico."}), 400
+
+        scale = engine.recognition_settings.scale
+
+        def _encode_registration_frame(fr):
+            if detect_face_encodings_from_frame_robust is not None:
+                return detect_face_encodings_from_frame_robust(fr, base_scale=scale)
+            return detect_face_encodings_from_frame(fr, scale=scale)
+
+        encodings_f = _encode_registration_frame(frame_f)[1]
+        encodings_l = _encode_registration_frame(frame_l)[1]
+        encodings_r = _encode_registration_frame(frame_r)[1]
+
+        for tag, encs in (
+            ("frente", encodings_f),
+            ("perfil izquierdo", encodings_l),
+            ("perfil derecho", encodings_r),
+        ):
+            if len(encs) == 0:
+                return jsonify({"ok": False, "message": f"No se detecto rostro en {tag}."}), 400
+            if len(encs) > 1:
+                return jsonify({"ok": False, "message": f"Varios rostros en {tag}. Debe haber solo uno."}), 400
+
+        foto_bytes = _jpeg_encode_frame(frame_f)
+        if not foto_bytes:
+            return jsonify({"ok": False, "message": "No se pudo guardar la foto de credencial."}), 400
+
+        password_hash = generate_password_hash(password)
+
+        try:
+            with closing(connect()) as conn:
+                cur = conn.execute(
+                    """
+                    INSERT INTO personal_administrativo
+                    (num_empleado, nombre_completo, rol, correo, password_hash, estado_activo)
+                    VALUES (?, ?, ?, ?, ?, 1)
+                    """,
+                    (num_empleado, nombre, rol, correo, password_hash),
+                )
+                admin_id = cur.lastrowid
+                
+                import json
+                conn.execute(
+                    """
+                    INSERT INTO datos_biometricos 
+                    (tipo_usuario, id_usuario_ref, vector_facial, vector_perfil_izq, vector_perfil_der, foto_credencial)
+                    VALUES (?, ?, ?, ?, ?, ?)
+                    """,
+                    (
+                        "PERSONAL",
+                        admin_id,
+                        json.dumps(encodings_f[0].tolist()),
+                        json.dumps(encodings_l[0].tolist()),
+                        json.dumps(encodings_r[0].tolist()),
+                        foto_bytes
+                    )
+                )
+                conn.commit()
+        except sqlite3.IntegrityError:
+            return jsonify({"ok": False, "message": "El numero de empleado o correo ya esta registrado."}), 400
+        except Exception as e:
+            return jsonify({"ok": False, "message": f"Error en base de datos: {str(e)}"}), 500
+
+        engine.refresh_known_students() # It also refreshes staff
+        return jsonify({"ok": True, "message": "Administrador y datos biometricos registrados correctamene."})
+
     @app.post("/api/registro")
     def register_face():
         runtime_issue = _runtime_check(engine_error, engine)
