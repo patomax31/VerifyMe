@@ -115,57 +115,11 @@
         </div>
       </section>
 
-      <!-- VISTA: ACCESO FACIAL -->
-      <section class="view hidden" id="view-access">
-        <div class="step-panel card" id="access-step1">
-          <div class="step-badge" data-i18n="step1of2">Paso 1 de 2</div>
-          <h2 data-i18n="nav_access">Acceso facial</h2>
-          <p class="muted sm" data-i18n="access_sub">Posiciona el rostro del alumno frente a la cámara.</p>
+      
 
-          <div class="liveness-hint" id="loginLivenessRow">
-            <span class="liveness-hint__dot" id="loginLivenessDot"></span>
-            <p id="loginLivenessText" class="liveness-hint__txt" data-i18n="liveness_init">Inicia la cámara para comenzar la verificación.</p>
-          </div>
 
-          <div class="camera-box">
-            <video id="loginVideo" autoplay playsinline muted></video>
-            <img id="loginImage" class="camera-mjpeg hidden" alt="Camera stream">
-            <canvas id="loginCanvas" class="hidden"></canvas>
-            <div class="camera-overlay" id="cameraOverlay">
-              <div class="camera-reticle"></div>
-              <p class="camera-overlay__txt" data-i18n="cam_stopped">Cámara detenida</p>
-            </div>
-          </div>
-
-          <div class="row">
-            <button id="loginStart" class="btn-full">
-              <span>▶</span><span data-i18n="btn_start_cam">Iniciar cámara</span>
-            </button>
-            <button id="loginStop" class="btn-danger" disabled>
-              <span>⏹</span><span data-i18n="btn_stop">Detener</span>
-            </button>
-          </div>
-
-          <p id="loginMessage" class="feedback waiting" data-i18n="waiting_face">ESPERANDO ROSTRO...</p>
-          <p id="loginMessageHelp" class="feedback-help hidden">Necesitas ayuda? Toca aqui.</p>
-        </div>
-
-        <div class="step-panel card hidden" id="access-step2">
-          <div class="step-badge step-badge--ok" data-i18n="step2of2">Paso 2 de 2</div>
-          <h2 data-i18n="result_title">Resultado</h2>
-          <div id="accessResult" class="access-result"></div>
-          <div class="row" style="margin-top:14px">
-            <button class="btn-full" id="btnScanAnother">
-              <span>🔄</span><span data-i18n="btn_scan_another">Escanear otro alumno</span>
-            </button>
-          </div>
-        </div>
-      </section>
-
-      <!-- VISTA: REGISTRO BIOMÉTRICO -->
+     {% include 'partials/login.html' %}
       {% include 'partials/register.html' %}
-
-      <!-- VISTA: ADMIN -->
       {% include 'partials/admin.html' %}
 
     </main>
