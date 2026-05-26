@@ -10,69 +10,60 @@
 </head>
 <body>
 
+  <!-- Overlay drawer -->
   <div id="drawerOverlay" class="drawer-overlay"></div>
 
+  <!-- Drawer -->
   <aside id="drawer" class="drawer">
     <div class="drawer-head">
       <div class="drawer-brand">
-        <div class="drawer-brand__icon">
-          <span class="material-symbols-outlined">lock</span>
-        </div>
+        <span class="drawer-brand__icon">🔐</span>
         <div>
           <p class="drawer-brand__name">VerifyMe</p>
           <p class="drawer-brand__sub">Biométrico escolar</p>
         </div>
       </div>
-      <button id="drawerClose" class="icon-btn" aria-label="Cerrar">
-        <span class="material-symbols-outlined">close</span>
-      </button>
+      <button id="drawerClose" class="icon-btn" aria-label="Cerrar menú">✕</button>
     </div>
 
     <nav class="drawer-nav">
-      <button class="nav-btn active" data-view="home">
-        <span class="nav-btn__icon"><span class="material-symbols-outlined">home</span></span>
-        <span data-i18n="nav_home">Inicio</span>
-      </button>
       <button class="nav-btn" data-view="access">
-        <span class="nav-btn__icon"><span class="material-symbols-outlined">face</span></span>
-        <span data-i18n="nav_access">Acceso facial</span>
+        <span class="nav-btn__icon">👤</span><span data-i18n="nav_access">Acceso facial</span>
       </button>
       <button class="nav-btn" data-view="register">
-        <span class="nav-btn__icon"><span class="material-symbols-outlined">person_add</span></span>
-        <span data-i18n="nav_register">Registro facial</span>
+        <span class="nav-btn__icon">➕</span><span data-i18n="nav_register">Registro facial</span>
       </button>
       <button class="nav-btn" data-view="admin">
-        <span class="nav-btn__icon"><span class="material-symbols-outlined">settings</span></span>
-        <span data-i18n="nav_admin">Admin panel</span>
+        <span class="nav-btn__icon">⚙️</span><span data-i18n="nav_admin">Admin panel</span>
       </button>
     </nav>
 
-    <button class="drawer-logout" id="logoutBtn">
-      <span class="material-symbols-outlined">logout</span>
-      <span data-i18n="logout">Cerrar sesión</span>
-    </button>
+    <button class="drawer-logout" id="logoutBtn" data-i18n="logout">🚪 Cerrar sesión</button>
   </aside>
 
+  <!-- Layout principal -->
   <div class="app-layout">
 
+    <!-- Topbar -->
     <header class="topbar">
-      <button id="hamburger" class="icon-btn" aria-label="Abrir menú">
-        <span class="material-symbols-outlined">menu</span>
-      </button>
+      <button id="hamburger" class="icon-btn burger" aria-label="Abrir menú">☰</button>
       <div class="topbar-info">
         <p class="eyebrow">VerifyMe</p>
         <p class="topbar-title" id="topbarTitle">Panel principal</p>
       </div>
-      <button class="topbar-lang" id="langBtn" aria-label="Idioma">
-        <span id="langFlag">MX</span>
+      <button class="topbar-lang" id="langBtn" aria-label="Cambiar idioma">
+        <span id="langFlag">🇲🇽</span>
         <span id="langLabel">ES</span>
       </button>
+<<<<<<< HEAD
       <button id="clockModeBtn" class="clock-mode-btn" aria-label="Modo reloj" title="Modo reloj">
         <span class="material-symbols-outlined">schedule</span>
       </button>
       <button id="kioskBtn" class="clock-mode-btn" aria-label="Pantalla completa" title="Modo kiosco">
         <span class="material-symbols-outlined" id="kioskIcon">fullscreen</span>
       </button>
+=======
+>>>>>>> e5d17192bbb52eaccfd19318987818c6abf58ea5
       <div class="topbar-clock">
         <div id="clockH" class="clock-h">--:--</div>
         <div id="clockD" class="clock-d"></div>
@@ -81,6 +72,7 @@
 
     <main class="views-wrap">
 
+<<<<<<< HEAD
       <!-- HOME -->
       <section class="view card" id="view-home">
 
@@ -493,10 +485,22 @@
         </section>
 
       </section>
+=======
+      
+
+      
+
+
+      {% include 'partials/login.html' %}
+      {% include 'partials/register.html' %}
+      {% include 'partials/register_admin.html' %}
+      {% include 'partials/admin.html' %}
+>>>>>>> e5d17192bbb52eaccfd19318987818c6abf58ea5
 
     </main>
   </div>
 
+<<<<<<< HEAD
   <!-- MODAL PRUEBA MODELO -->
   <div id="modelTestModal" class="model-test hidden" role="dialog" aria-modal="true" aria-labelledby="modelTestTitle">
     <div class="model-test__overlay" id="modelTestOverlay"></div>
@@ -591,6 +595,8 @@
     <span class="material-symbols-outlined">fullscreen_exit</span>
   </button>
 
+=======
+>>>>>>> e5d17192bbb52eaccfd19318987818c6abf58ea5
   <script src="{{ url_for('static', filename='js/app.js') }}"></script>
 </body>
 </html>

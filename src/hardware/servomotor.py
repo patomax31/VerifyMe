@@ -129,16 +129,54 @@ class ServoMotorController:
 
 _controller = ServoMotorController()
 
+_DEFAULT_HOLD_SECONDS = float(os.getenv("SERVO_HOLD_SECONDS", "10"))
+_ALWAYS_ACTIVE_DEFAULT = os.getenv("SERVO_ALWAYS_ACTIVE", "0").strip().lower() in {"1", "true", "yes", "on"}
+_hold_seconds = _DEFAULT_HOLD_SECONDS
+_always_active = _ALWAYS_ACTIVE_DEFAULT
 
-def access_successful(wait_seconds: float = 10.0, non_blocking: bool = True) -> None:
+
+def get_servo_settings() -> dict:
+    return {
+        "hold_seconds": float(_hold_seconds),
+        "always_active": bool(_always_active),
+    }
+
+
+def update_servo_settings(*, hold_seconds: float, always_active: bool) -> None:
+    global _hold_seconds, _always_active
+
+    _hold_seconds = max(0.0, float(hold_seconds))
+    _always_active = bool(always_active)
+
+    try:
+        _controller.setup()
+        if _always_active:
+            _controller.move_to_angle(_controller.unlock_angle)
+        else:
+            _controller.move_to_angle(_controller.lock_angle)
+    except Exception as exc:
+        print(f"[servo] Error al aplicar configuracion: {exc}")
+
+
+def access_successful(wait_seconds: float | None = None, non_blocking: bool = True) -> None:
     """Secuencia de torniquete para acceso concedido.
 
     Gira a posicion de apertura, espera y vuelve a bloqueo.
     """
 
+    if _always_active:
+        try:
+            _controller.setup()
+            _controller.move_to_angle(_controller.unlock_angle)
+        except Exception as exc:
+            print(f"[servo] Error al mantener activo: {exc}")
+        return
+
+    hold_seconds = _hold_seconds if wait_seconds is None else float(wait_seconds)
+
     def _job() -> None:
         try:
-            _controller.open_then_close(hold_seconds=wait_seconds)
+            _controller.open_then_close(hold_seconds=hold_seconds)
         except Exception as exc:
             print(f"[servo] Error en secuencia de acceso: {exc}")
 

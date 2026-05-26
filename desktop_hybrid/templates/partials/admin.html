@@ -1,0 +1,286 @@
+<!-- ADMIN -->
+<section class="view card hidden" id="view-admin">
+  <h2 data-i18n="nav_admin">Admin panel</h2>
+
+  <div class="tabs-inline" style="margin-top:12px">
+    <button class="tab-btn" data-admin-tab="home"><span>🏠</span><span data-i18n="tab_home">Inicio</span></button>
+    <button class="tab-btn" data-admin-tab="dashboard"><span>📊</span><span data-i18n="tab_dashboard">Dashboard</span></button>
+    <button class="tab-btn" data-admin-tab="model"><span>🎛</span><span data-i18n="tab_model">Modelo</span></button>
+    <button class="tab-btn" data-admin-tab="hardware"><span>🦾</span><span data-i18n="tab_hardware">Hardware</span></button>
+    <button class="tab-btn" data-admin-tab="admins"><span>🛡</span><span data-i18n="tab_admins">Admins</span></button>
+  </div>
+
+  <section id="admin-model" class="admin-tab hidden">
+    <div class="grid-3 form-grid">
+      <label>Scale     <input id="cfgScale"     type="number" min="0.05" max="1.0"  step="0.01"></label>
+      <label>Tolerance <input id="cfgTolerance" type="number" min="0.2"  max="1.0"  step="0.01"></label>
+      <label>Cooldown  <input id="cfgCooldown"  type="number" min="0"    max="120"  step="0.5"></label>
+    </div>
+    <div class="row">
+      <button id="cfgLoad"><span>⬇</span><span>Cargar</span></button>
+      <button id="cfgSave"><span>💾</span><span>Guardar</span></button>
+      <button id="cfgTest"><span>🧪</span><span>Probar modelo</span></button>
+    </div>
+    <p id="cfgMsg" class="feedback waiting">Configuración del modelo.</p>
+  </section>
+  
+<!-- VISTA: HOME -->
+      <section class="admin-tab" id="admin-home">
+        <p class="eyebrow" data-i18n="home_eyebrow">Bienvenido</p>
+        <h2 data-i18n="home_title">Panel principal</h2>
+        <p class="muted sm" data-i18n="home_sub">Dashboard escolar para acceso facial, registro biométrico y administración.</p>
+
+        <div class="grid-2" style="margin:14px 0 12px">
+          <div class="stat-tile">
+            <strong id="statTotal">---</strong>
+            <span data-i18n="stat_students">Estudiantes</span>
+          </div>
+          <div class="stat-tile">
+            <strong id="statActivos">---</strong>
+            <span data-i18n="stat_active">Activos</span>
+          </div>
+        </div>
+
+        <div class="system-status-box">
+          <div class="system-status-box__dot"></div>
+          <div>
+            <div class="system-status-box__title" data-i18n="status_online">Sistema en línea</div>
+            <div class="system-status-box__sub" id="homeStatusSub" data-i18n="status_sub">Cámara activa · Modelo listo</div>
+          </div>
+          <span class="system-status-box__badge" data-i18n="status_badge">Operando</span>
+        </div>
+
+        <div class="last-access-box">
+          <div class="last-access-box__head" data-i18n="last_access">Últimos accesos</div>
+          <div id="lastAccessList">
+            <div class="last-access-box__empty" data-i18n="no_records">Sin registros recientes</div>
+          </div>
+        </div>
+
+        <div class="quick-nav" style="margin-top:16px">
+          <button class="quick-nav-btn" data-goto="access">
+            <span>📷</span>
+            <span data-i18n="nav_access">Acceso facial</span>
+          </button>
+          <button class="quick-nav-btn" data-goto="register">
+            <span>➕</span>
+            <span data-i18n="qnav_register">Registrar alumno</span>
+          </button>
+          <button class="quick-nav-btn" data-goto="admin">
+            <span>⚙️</span>
+            <span data-i18n="nav_admin">Admin panel</span>
+          </button>
+        </div>
+      </section>
+
+  <section id="admin-admins" class="admin-tab hidden">
+    <div class="grid-2 form-grid">
+      <label>
+        No. empleado
+        <input id="adminNum" type="text" placeholder="No. empleado..." autocomplete="off">
+      </label>
+      <label>
+        Nombre
+        <input
+          id="adminNombre"
+          type="text"
+          minlength="3"
+          maxlength="20"
+          placeholder="Nombre completo..."
+          autocomplete="off"
+          oninput="adminValidateNombre(this)"
+        >
+        <span class="field-hint sm muted">3–20 caracteres, solo letras y espacios</span>
+        <span class="field-err sm" id="errAdminNombre" style="display:none;color:var(--color-danger,#c0392b)">
+          Solo letras y espacios (3–20 caracteres)
+        </span>
+      </label>
+
+      <label>
+        Correo electrónico
+        <input
+          id="adminCorreo"
+          type="email"
+          placeholder="correo@ejemplo.com"
+          autocomplete="off"
+          oninput="adminValidateCorreo(this)"
+        >
+        <span class="field-err sm" id="errAdminCorreo" style="display:none;color:var(--color-danger,#c0392b)">
+          Ingresa un correo válido
+        </span>
+      </label>
+
+      <label>
+        Contraseña
+        <input
+          id="adminPass"
+          type="password"
+          placeholder="Contraseña..."
+          autocomplete="new-password"
+          oninput="adminValidatePass(this)"
+        >
+        <span class="field-hint sm muted">Debe incluir al menos un número o carácter especial</span>
+        <span class="field-err sm" id="errAdminPass" style="display:none;color:var(--color-danger,#c0392b)">
+          Debe tener al menos un número o carácter especial (!@#$%...)
+        </span>
+      </label>
+    </div>
+
+    <div class="row">
+      <button id="adminCreate"><span>🛡</span><span>Registrar admin</span></button>
+      <button id="adminRefresh"><span>🔄</span><span>Refrescar</span></button>
+    </div>
+    <p id="adminMsg" class="feedback waiting">Registro de administradores.</p>
+  </section>
+
+  <section id="admin-dashboard" class="admin-tab hidden">
+    <div class="dashboard-grid">
+      <div class="dashboard-card">
+        <div class="dashboard-card__head">
+          <h3 data-i18n="dash_students">Estudiantes</h3>
+          <div class="row" style="margin:0">
+            <button id="dashRefreshStudents" class="btn-mini"><span>🔄</span><span data-i18n="dash_refresh">Refrescar</span></button>
+          </div>
+        </div>
+        <p id="dashStudentsMsg" class="feedback waiting" data-i18n="dash_students_hint">Estudiantes registrados.</p>
+        <div id="dashStudents" class="dash-list"></div>
+      </div>
+
+      <div class="dashboard-card">
+        <div class="dashboard-card__head">
+          <h3 data-i18n="dash_admins">Admins</h3>
+          <div class="row" style="margin:0">
+            <button id="dashRefreshAdmins" class="btn-mini"><span>🔄</span><span data-i18n="dash_refresh">Refrescar</span></button>
+          </div>
+        </div>
+        <p id="dashAdminsMsg" class="feedback waiting" data-i18n="dash_admins_hint">Administradores activos.</p>
+        <div id="dashAdmins" class="dash-list"></div>
+      </div>
+
+      <div class="dashboard-card dashboard-card--logs">
+        <div class="dashboard-card__head">
+          <h3 data-i18n="dash_access_logs">Registros de acceso</h3>
+          <button id="dashRefreshLogs" class="btn-mini"><span>🔄</span><span data-i18n="dash_refresh">Refrescar</span></button>
+        </div>
+        <p id="dashLogsMsg" class="feedback waiting" data-i18n="dash_logs_hint">Registros de la sesion activa.</p>
+        <div class="table-wrap">
+          <table id="accessLogsTable">
+            <thead>
+              <tr>
+                <th data-i18n="dash_log_time">Hora</th>
+                <th data-i18n="dash_log_user">Usuario</th>
+                <th data-i18n="dash_log_event">Evento</th>
+                <th data-i18n="dash_log_result">Resultado</th>
+              </tr>
+            </thead>
+            <tbody></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section id="admin-hardware" class="admin-tab hidden">
+    <div class="grid-2 form-grid">
+      <label><span data-i18n="servo_response">Tiempo de respuesta (s)</span>
+        <input id="servoHoldSeconds" type="number" min="0" max="120" step="0.5">
+      </label>
+      <label><span data-i18n="servo_always_active">Siempre activo</span>
+        <select id="servoAlwaysActive">
+          <option value="false" data-i18n="servo_off">No</option>
+          <option value="true" data-i18n="servo_on">Si</option>
+        </select>
+      </label>
+    </div>
+    <div class="row">
+      <button id="servoLoad"><span>⬇</span><span data-i18n="servo_load">Cargar</span></button>
+      <button id="servoSave"><span>💾</span><span data-i18n="servo_save">Guardar</span></button>
+    </div>
+    <p id="servoMsg" class="feedback waiting" data-i18n="servo_hint">Configura el tiempo de apertura del torniquete.</p>
+  </section>
+</section>
+
+<!-- MODAL: Foto estudiante -->
+<div id="dashPhotoModal" class="modal-overlay hidden" role="dialog" aria-modal="true" aria-labelledby="dashPhotoTitle">
+  <div class="modal-box">
+    <h3 id="dashPhotoTitle">Foto de estudiante</h3>
+    <div class="dash-photo">
+      <img id="dashPhotoImg" alt="Foto del estudiante">
+    </div>
+    <p id="dashPhotoMeta" class="muted sm"></p>
+    <p id="dashPhotoFallback" class="feedback denied hidden">Sin fotografia registrada.</p>
+    <div class="row">
+      <button id="dashPhotoClose" class="btn-back">Cerrar</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL: CRUD dashboard -->
+<div id="dashCrudModal" class="modal-overlay hidden" role="dialog" aria-modal="true" aria-labelledby="dashCrudTitle">
+  <div class="modal-box">
+    <h3 id="dashCrudTitle">Editar</h3>
+    <p id="dashCrudMsg" class="feedback waiting" style="display:none"></p>
+
+    <div id="dashCrudStudentFields" class="form-grid-2">
+      <label><span data-i18n="field_name">Nombre</span> <input id="dashStudentNombre" type="text" maxlength="60"></label>
+      <label><span data-i18n="field_grade">Grado</span> <select id="dashStudentGrado"><option>1</option><option>2</option><option>3</option></select></label>
+      <label><span data-i18n="field_group">Grupo</span> <input id="dashStudentGrupo" type="text" maxlength="1"></label>
+      <label><span data-i18n="field_shift">Turno</span> <select id="dashStudentTurno"><option>MATUTINO</option><option>VESPERTINO</option></select></label>
+      <label><span data-i18n="dash_status">Estado</span>
+        <select id="dashStudentActivo">
+          <option value="1" data-i18n="dash_active">Activo</option>
+          <option value="0" data-i18n="dash_inactive">Inactivo</option>
+        </select>
+      </label>
+    </div>
+
+    <div id="dashCrudAdminFields" class="form-grid-2 hidden">
+      <label><span data-i18n="dash_employee">No. empleado</span> <input id="dashAdminNum" type="text" inputmode="numeric" maxlength="12"></label>
+      <label><span data-i18n="dash_name">Nombre</span> <input id="dashAdminNombre" type="text" maxlength="40"></label>
+      <label><span data-i18n="dash_role">Rol</span> <input id="dashAdminRol" type="text" value="ADMIN" maxlength="20"></label>
+      <label><span data-i18n="dash_email">Correo</span> <input id="dashAdminCorreo" type="email" maxlength="80"></label>
+      <label><span data-i18n="dash_password">Password</span> <input id="dashAdminPass" type="password" minlength="6" maxlength="64"></label>
+    </div>
+
+    <div class="row">
+      <button id="dashCrudSave"><span>💾</span><span data-i18n="dash_save">Guardar</span></button>
+      <button id="dashCrudCancel" class="btn-back" data-i18n="dash_cancel">Cancelar</button>
+    </div>
+  </div>
+</div>
+
+
+
+<!-- MODAL: Registro biométrico -->
+<div id="biometricModal" class="modal-overlay hidden" role="dialog" aria-modal="true" aria-labelledby="bioModalTitle">
+  <div class="modal-box">
+    <h3 id="bioModalTitle">🫆 Registro biométrico</h3>
+    <p id="bioModalSubtitle" class="muted sm">
+      Admin registrado. Captura los datos biométricos para activar el acceso.
+    </p>
+    <div class="biometric-area" id="bioArea">
+      <div class="scan-ring" id="scanRing">
+        <span id="bioIcon" style="font-size:2.2rem">🫆</span>
+      </div>
+      <p id="bioStatus" class="sm muted">Presiona "Iniciar escaneo" y coloca tu huella</p>
+    </div>
+    <div class="row">
+      <button id="btnBioScan">🫆 Iniciar escaneo</button>
+      <button id="btnBioFinish" class="hidden">✅ Finalizar</button>
+      <button id="btnBioSkip" class="btn-ghost">Omitir por ahora</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL: Confirmar eliminación -->
+<div id="deleteAdminModal" class="modal-overlay hidden" role="dialog" aria-modal="true" aria-labelledby="delModalTitle">
+  <div class="modal-box">
+    <h3 id="delModalTitle">⚠️ Confirmar eliminación</h3>
+    <p id="deleteAdminMsg" class="muted sm">¿Eliminar a este administrador? Esta acción no se puede deshacer.</p>
+    <div class="row">
+      <button id="btnConfirmDeleteAdmin" class="btn-danger">🗑 Eliminar</button>
+      <button id="btnCancelDeleteAdmin" class="btn-ghost">Cancelar</button>
+    </div>
+  </div>
+</div>
+

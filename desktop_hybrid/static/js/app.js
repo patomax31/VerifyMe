@@ -2,6 +2,52 @@
    VerifyMe · app.js  — sin conflictos de merge
 ═══════════════════════════════════════════════════════════════════════ */
 
+// ════ GLOBALES DE CAMARA Y TIMERS ════
+let regStream = null;
+let regAdminStream = null;
+let loginStream = null;
+let loginInterval = null;
+
+const loginVideo = document.getElementById('loginVideo');
+const regVideo = document.getElementById('regVideo');
+const regAdminVideo = document.getElementById('regAdminVideo');
+
+const loginImage = document.getElementById('loginImage');
+const regImage = document.getElementById('regImage');
+let regAdminImage = regAdminVideo ? document.createElement('img') : null; // For mjpeg fallback
+
+if (regAdminImage && regAdminVideo && regAdminVideo.parentNode) {
+  regAdminImage.id = 'regAdminImage';
+  regAdminImage.style.display = 'none';
+  regAdminVideo.parentNode.insertBefore(regAdminImage, regAdminVideo);
+}
+
+// ════ ACCESO FACIAL DOM ════
+const camOverlay = document.getElementById('cameraOverlay');
+const loginStart = document.getElementById('loginStart');
+const loginStop = document.getElementById('loginStop');
+const loginMsg = document.getElementById('loginMessage');
+const loginMsgHelp = document.getElementById('loginMessageHelp');
+const loginHelpModal = document.getElementById('loginHelpModal');
+const loginHelpOverlay = document.getElementById('loginHelpOverlay');
+const loginHelpClose = document.getElementById('loginHelpClose');
+
+// ════ REGISTRO BIOMÉTRICO DOM ════
+let regStepIndex = 0;
+const regStart = document.getElementById('regStart');
+const regCapture = document.getElementById('regCapture');
+const regStop = document.getElementById('regStop');
+const regMsg = document.getElementById('regMessage');
+const regCamOv = document.getElementById('regCameraOverlay');
+
+// ════ REGISTRO ADMIN DOM ════
+let regAdminStepIndex = 0;
+const regAdminStart = document.getElementById('regAdminStart');
+const regAdminCapture = document.getElementById('regAdminCapture');
+const regAdminStop = document.getElementById('regAdminStop');
+const regAdminMsg = document.getElementById('regAdminMessage');
+const regAdminCamOv = document.getElementById('regAdminCameraOverlay');
+
 // ════ I18N ════
 const I18N = {
   es: {
@@ -17,6 +63,7 @@ const I18N = {
     access_sub:'Posiciona el rostro del alumno frente a la cámara.',
     liveness_init:'Inicia la cámara para comenzar la verificación.',
     cam_stopped:'Cámara detenida', btn_start_cam:'Iniciar cámara', btn_stop:'Detener',
+    scanning:'Escaneando...',
     waiting_face:'ESPERANDO ROSTRO...', result_title:'Resultado', btn_scan_another:'Escanear otro alumno',
     reg_title_data:'Datos del alumno', reg_sub_data:'Ingresa la información escolar.',
     field_name:'Nombre completo', field_grade:'Grado', field_group:'Grupo', field_shift:'Turno',
@@ -32,10 +79,23 @@ const I18N = {
     reg_success:'¡Alumno registrado exitosamente!', reg_error:'Error al registrar.', reg_conn_error:'Error de conexión.',
     admin_sub:'Gestión escolar, parámetros del modelo y administradores.',
     tab_students:'Estudiantes', tab_model:'Modelo', tab_admins:'Admins',
+    tab_dashboard:'Dashboard', tab_hardware:'Hardware',
     btn_create_student:'Crear', btn_refresh:'Refrescar',
     students_mgmt:'Gestión de estudiantes.',
     no_camera:'No se pudo acceder a la cámara.',
     clock_status:'SISTEMA EN LÍNEA · CÁMARA ACTIVA',
+    dash_students:'Estudiantes', dash_admins:'Admins', dash_access_logs:'Registros de acceso',
+    dash_refresh:'Refrescar', dash_create:'Crear', dash_students_hint:'Estudiantes registrados.',
+    dash_admins_hint:'Administradores activos.', dash_logs_hint:'Registros de la sesion activa.',
+    dash_log_time:'Hora', dash_log_user:'Usuario', dash_log_event:'Evento', dash_log_result:'Resultado',
+    dash_no_session:'No hay sesion activa.', dash_no_logs:'Sin registros.',
+    dash_status:'Estado', dash_active:'Activo', dash_inactive:'Inactivo',
+    dash_employee:'No. empleado', dash_name:'Nombre', dash_role:'Rol', dash_email:'Correo',
+    dash_password:'Password', dash_save:'Guardar', dash_cancel:'Cancelar',
+    dash_photo_title:'Foto de estudiante',
+    servo_response:'Tiempo de respuesta (s)', servo_always_active:'Siempre activo',
+    servo_on:'Si', servo_off:'No', servo_load:'Cargar', servo_save:'Guardar',
+    servo_hint:'Configura el tiempo de apertura del torniquete.',
   },
   en: {
     nav_home:'Home', nav_access:'Facial access', nav_register:'Facial register', nav_admin:'Admin panel',
@@ -50,6 +110,7 @@ const I18N = {
     access_sub:"Position the student's face in front of the camera.",
     liveness_init:'Start the camera to begin verification.',
     cam_stopped:'Camera stopped', btn_start_cam:'Start camera', btn_stop:'Stop',
+    scanning:'Scanning...',
     waiting_face:'WAITING FOR FACE...', result_title:'Result', btn_scan_another:'Scan another student',
     reg_title_data:'Student data', reg_sub_data:'Enter school information.',
     field_name:'Full name', field_grade:'Grade', field_group:'Group', field_shift:'Shift',
@@ -65,10 +126,23 @@ const I18N = {
     reg_success:'Student registered successfully!', reg_error:'Registration error.', reg_conn_error:'Connection error.',
     admin_sub:'School management, model settings and administrators.',
     tab_students:'Students', tab_model:'Model', tab_admins:'Admins',
+    tab_dashboard:'Dashboard', tab_hardware:'Hardware',
     btn_create_student:'Create', btn_refresh:'Refresh',
     students_mgmt:'Student management.',
     no_camera:'Could not access camera.',
     clock_status:'SYSTEM ONLINE · CAMERA ACTIVE',
+    dash_students:'Students', dash_admins:'Admins', dash_access_logs:'Access logs',
+    dash_refresh:'Refresh', dash_create:'Create', dash_students_hint:'Registered students.',
+    dash_admins_hint:'Active admins.', dash_logs_hint:'Active session logs.',
+    dash_log_time:'Time', dash_log_user:'User', dash_log_event:'Event', dash_log_result:'Result',
+    dash_no_session:'No active session.', dash_no_logs:'No records.',
+    dash_status:'Status', dash_active:'Active', dash_inactive:'Inactive',
+    dash_employee:'Employee no.', dash_name:'Name', dash_role:'Role', dash_email:'Email',
+    dash_password:'Password', dash_save:'Save', dash_cancel:'Cancel',
+    dash_photo_title:'Student photo',
+    servo_response:'Response time (s)', servo_always_active:'Always active',
+    servo_on:'Yes', servo_off:'No', servo_load:'Load', servo_save:'Save',
+    servo_hint:'Configure how long the turnstile stays open.',
   },
 };
 
@@ -125,6 +199,7 @@ const navBtns  = document.querySelectorAll('.nav-btn[data-view]');
 function showView(viewId) {
   if (viewId !== 'access')   stopLoginCamera();
   if (viewId !== 'register') stopRegCamera();
+  if (viewId !== 'register-admin') stopRegAdminCamera();
 
   // Animación de salida en la vista actual
   const current = document.querySelector('.view:not(.hidden)');
@@ -164,8 +239,10 @@ document.querySelectorAll('[data-goto]').forEach(b => {
 });
 
 const urlView = new URLSearchParams(window.location.search).get('view');
-if (urlView && ['home','access','register','admin'].includes(urlView)) {
+if (urlView && ['access','register','admin'].includes(urlView)) {
   showView(urlView);
+} else {
+  showView('access'); // Redirigir a login / acceso facial por defecto
 }
 
 // ════ RELOJ TOPBAR ════
@@ -392,6 +469,7 @@ document.getElementById('logoutBtn')?.addEventListener('click', async () => {
   window.location.href = '/';
 });
 
+<<<<<<< HEAD
 // ════ MODO KIOSCO / FULLSCREEN ════
 const kioskBtn        = document.getElementById('kioskBtn');
 const kioskIcon       = document.getElementById('kioskIcon');
@@ -400,6 +478,13 @@ const kioskPanelOverlay = document.getElementById('kioskPanelOverlay');
 const kioskConfirm    = document.getElementById('kioskConfirm');
 const kioskCancel     = document.getElementById('kioskCancel');
 const kioskExitFab    = document.getElementById('kioskExitFab');
+=======
+// ════ ON-SCREEN KEYBOARD (simple-keyboard) ════
+const keyboardInputs = 'input[type="text"], input[type="email"], input[type="password"], input[type="number"], input[type="adminValidateNombre"],input[type="adminValidateCorreo"],input[type="adminValidatePass"], textarea';
+let activeInput = null;
+let osk = null;
+let oskInteracting = false;
+>>>>>>> e5d17192bbb52eaccfd19318987818c6abf58ea5
 
 let kioskActive = false;
 
@@ -497,25 +582,33 @@ kioskExitFab?.addEventListener('click', exitFullscreen);
 // Tecla Escape ya la maneja el navegador de forma nativa para salir de fullscreen
 
 // ════ ACCESO FACIAL ════
-let loginStream      = null;
-let loginInterval    = null;
 let loginLivId       = null;
 let loginLivOk       = false;
 let loginDeniedCount = 0;
+let loginVerifyBusy  = false;
+let loginLivBusy     = false;
+let loginFaceDetector = null;
+let loginFaceTrackId = null;
+let loginFaceDetectBusy = false;
+let loginFaceLastTick = 0;
+let loginFaceLastSeen = 0;
+let loginFaceTrackerUsesBrowser = false;
 
-const loginVideo      = document.getElementById('loginVideo');
-const loginImage      = document.getElementById('loginImage');
 const loginCanvas     = document.getElementById('loginCanvas');
-const loginStart      = document.getElementById('loginStart');
-const loginStop       = document.getElementById('loginStop');
-const loginMsg        = document.getElementById('loginMessage');
-const loginMsgHelp    = document.getElementById('loginMessageHelp');
-const loginHelpModal  = document.getElementById('loginHelpModal');
-const loginHelpOverlay= document.getElementById('loginHelpOverlay');
-const loginHelpClose  = document.getElementById('loginHelpClose');
-const camOverlay      = document.getElementById('cameraOverlay');
 const livDot          = document.getElementById('loginLivenessDot');
 const livText         = document.getElementById('loginLivenessText');
+const loginScanOverlay = document.getElementById('loginScanOverlay');
+const loginScanFrame = loginScanOverlay?.querySelector('.face-scan-frame');
+
+function setLoginScanning(active, box) {
+  if (!loginScanOverlay) return;
+  loginScanOverlay.classList.toggle('is-visible', active);
+  if (!active || !loginScanFrame || !box) return;
+  loginScanFrame.style.setProperty('--scan-x', `${Math.round(box.x)}px`);
+  loginScanFrame.style.setProperty('--scan-y', `${Math.round(box.y)}px`);
+  loginScanFrame.style.setProperty('--scan-w', `${Math.round(box.w)}px`);
+  loginScanFrame.style.setProperty('--scan-h', `${Math.round(box.h)}px`);
+}
 
 function setLivUi(state, text) {
   if (livText) livText.textContent = text || '';
@@ -535,6 +628,126 @@ function _sourceDims(el) {
   const w = el?.videoWidth || el?.naturalWidth || el?.width || 0;
   const h = el?.videoHeight || el?.naturalHeight || el?.height || 0;
   return { w, h };
+}
+
+function _mapFaceBoxToCamera(source, faceBox) {
+  const cameraBox = source?.closest?.('.camera-box');
+  const rect = cameraBox?.getBoundingClientRect();
+  const dims = _sourceDims(source);
+  if (!rect || !dims.w || !dims.h || !faceBox) return null;
+
+  const scale = Math.max(rect.width / dims.w, rect.height / dims.h);
+  const renderedW = dims.w * scale;
+  const renderedH = dims.h * scale;
+  const offsetX = (rect.width - renderedW) / 2;
+  const offsetY = (rect.height - renderedH) / 2;
+
+  const rawX = faceBox.x * scale + offsetX;
+  const rawY = faceBox.y * scale + offsetY;
+  const rawW = faceBox.width * scale;
+  const rawH = faceBox.height * scale;
+  const padX = Math.max(24, rawW * 0.24);
+  const padY = Math.max(28, rawH * 0.30);
+
+  const x = Math.max(10, rawX - padX);
+  const y = Math.max(10, rawY - padY);
+  const w = Math.min(rect.width - x - 10, rawW + padX * 2);
+  const h = Math.min(rect.height - y - 10, rawH + padY * 2);
+  if (w < 80 || h < 80) return null;
+  return { x, y, w, h };
+}
+
+function _mapNormalizedFaceBoxToCamera(source, faceBox) {
+  const dims = _sourceDims(source);
+  if (!dims.w || !dims.h || !faceBox) return null;
+  return _mapFaceBoxToCamera(source, {
+    x: faceBox.x * dims.w,
+    y: faceBox.y * dims.h,
+    width: faceBox.width * dims.w,
+    height: faceBox.height * dims.h,
+  });
+}
+
+function updateLoginScanFromServer(faceBox) {
+  if (loginFaceTrackerUsesBrowser) return;
+  const source = _activeCameraSource(loginVideo, loginImage);
+  const box = _mapNormalizedFaceBoxToCamera(source, faceBox);
+  if (box) {
+    loginFaceLastSeen = performance.now();
+    setLoginScanning(true, box);
+    return;
+  }
+  if (!loginFaceLastSeen || performance.now() - loginFaceLastSeen > 900) {
+    setLoginScanning(false);
+  }
+}
+
+function _largestFace(faces) {
+  return faces.reduce((best, face) => {
+    if (!best) return face;
+    const a = face.boundingBox.width * face.boundingBox.height;
+    const b = best.boundingBox.width * best.boundingBox.height;
+    return a > b ? face : best;
+  }, null);
+}
+
+function startLoginFaceTracker() {
+  stopLoginFaceTracker();
+  loginFaceTrackerUsesBrowser = false;
+  if (!loginScanOverlay || !('FaceDetector' in window)) {
+    setLoginScanning(false);
+    return;
+  }
+  try {
+    loginFaceDetector = new FaceDetector({ fastMode: true, maxDetectedFaces: 1 });
+    loginFaceTrackerUsesBrowser = true;
+  } catch (_) {
+    loginFaceDetector = null;
+    loginFaceTrackerUsesBrowser = false;
+    setLoginScanning(false);
+    return;
+  }
+
+  const tick = now => {
+    if (!loginFaceDetector) return;
+    const source = _activeCameraSource(loginVideo, loginImage);
+    const dims = _sourceDims(source);
+    const ready = source && dims.w && dims.h && (source.tagName !== 'VIDEO' || source.readyState >= 2);
+
+    if (ready && !loginFaceDetectBusy && now - loginFaceLastTick >= 140) {
+      loginFaceLastTick = now;
+      loginFaceDetectBusy = true;
+      loginFaceDetector.detect(source)
+        .then(faces => {
+          const face = faces?.length ? _largestFace(faces) : null;
+          const box = face ? _mapFaceBoxToCamera(source, face.boundingBox) : null;
+          if (box) {
+            loginFaceLastSeen = performance.now();
+            setLoginScanning(true, box);
+          }
+        })
+        .catch(() => {})
+        .finally(() => { loginFaceDetectBusy = false; });
+    }
+
+    if (!ready || now - loginFaceLastSeen > 650) setLoginScanning(false);
+    loginFaceTrackId = requestAnimationFrame(tick);
+  };
+
+  loginFaceLastTick = 0;
+  loginFaceLastSeen = 0;
+  loginFaceTrackId = requestAnimationFrame(tick);
+}
+
+function stopLoginFaceTracker() {
+  if (loginFaceTrackId) cancelAnimationFrame(loginFaceTrackId);
+  loginFaceTrackId = null;
+  loginFaceDetector = null;
+  loginFaceTrackerUsesBrowser = false;
+  loginFaceDetectBusy = false;
+  loginFaceLastTick = 0;
+  loginFaceLastSeen = 0;
+  setLoginScanning(false);
 }
 
 function _useMjpeg(imgEl, videoEl) {
@@ -567,9 +780,14 @@ function stopLoginCamera() {
   if (loginImage)  { loginImage.src = ''; loginImage.classList.add('hidden'); }
   if (loginVideo)  loginVideo.classList.remove('hidden');
   if (camOverlay)  camOverlay.classList.remove('hidden');
+<<<<<<< HEAD
   if (loginStart)  loginStart.disabled  = false;
   if (loginStop)   loginStop.disabled   = true;
+=======
+  stopLoginFaceTracker();
+>>>>>>> e5d17192bbb52eaccfd19318987818c6abf58ea5
   loginLivId = null; loginLivOk = false;
+  loginVerifyBusy = false; loginLivBusy = false;
 }
 
 // Auto-start: se llama al navegar al view, sin clic manual
@@ -590,7 +808,15 @@ async function startLoginCameraAuto() {
     loginStream = await navigator.mediaDevices.getUserMedia({ video: true });
     _useGetUserMedia(loginVideo, loginImage, loginStream);
     if (camOverlay)  camOverlay.classList.add('hidden');
+<<<<<<< HEAD
     if (loginMsgHelp) { loginMsgHelp.classList.add('hidden'); loginMsgHelp.classList.remove('is-clickable'); }
+=======
+    startLoginFaceTracker();
+    if (loginMsgHelp) {
+      loginMsgHelp.classList.add('hidden');
+      loginMsgHelp.classList.remove('is-clickable');
+    }
+>>>>>>> e5d17192bbb52eaccfd19318987818c6abf58ea5
     loginDeniedCount = 0;
     if (loginMsg) { loginMsg.textContent = t('waiting_face'); loginMsg.className = 'feedback waiting'; }
     setLivUi('init', t('liveness_init'));
@@ -604,6 +830,7 @@ async function startLoginCameraAuto() {
       loginStream = { backend: 'mjpeg' };
       _useMjpeg(loginImage, loginVideo);
       if (camOverlay)  camOverlay.classList.add('hidden');
+      startLoginFaceTracker();
       loginDeniedCount = 0;
       loginInterval = setInterval(async () => {
         if (!loginLivOk) await pushLivFrame();
@@ -625,11 +852,13 @@ function showAccessStep(n) {
 }
 
 async function pushLivFrame() {
+  if (loginLivBusy) return;
   if (!loginCanvas || !loginLivId) return;
   const source = _activeCameraSource(loginVideo, loginImage);
   if (!source) return;
   const dims = _sourceDims(source);
   if (!dims.w || !dims.h) return;
+  loginLivBusy = true;
   loginCanvas.width  = dims.w;
   loginCanvas.height = dims.h;
   loginCanvas.getContext('2d').drawImage(source, 0, 0, dims.w, dims.h);
@@ -640,20 +869,26 @@ async function pushLivFrame() {
       body: JSON.stringify({ session_id: loginLivId, image }),
     });
     const data = await res.json();
+    updateLoginScanFromServer(data.face_box);
     setLivUi(data.state, data.message);
     if (data.state === 'ready') {
       loginLivOk = true;
       if (loginMsg) { loginMsg.textContent = 'Identificando…'; loginMsg.className = 'feedback waiting'; }
     }
-  } catch (_) {}
+  } catch (_) {
+  } finally {
+    loginLivBusy = false;
+  }
 }
 
 async function captureAndVerify() {
+  if (loginVerifyBusy) return;
   if (!loginCanvas) return;
   const source = _activeCameraSource(loginVideo, loginImage);
   if (!source) return;
   const dims = _sourceDims(source);
   if (!dims.w || !dims.h) return;
+  loginVerifyBusy = true;
   loginCanvas.width  = dims.w;
   loginCanvas.height = dims.h;
   loginCanvas.getContext('2d').drawImage(source, 0, 0, dims.w, dims.h);
@@ -664,6 +899,10 @@ async function captureAndVerify() {
       body: JSON.stringify({ image, liveness_session_id: loginLivId }),
     });
     const data = await res.json();
+    updateLoginScanFromServer(data.face_box);
+    if (data.state === 'granted' || data.state === 'denied') {
+      stopLoginFaceTracker();
+    }
     if (loginMsg) { loginMsg.textContent = data.message||''; loginMsg.className = 'feedback '+(data.state||''); }
     if (data.state === 'granted') {
       stopLoginCamera();
@@ -679,7 +918,10 @@ async function captureAndVerify() {
         if (loginDeniedCount >= 3) loginMsgHelp.classList.add('is-clickable');
       }
     }
-  } catch (_) {}
+  } catch (_) {
+  } finally {
+    loginVerifyBusy = false;
+  }
 }
 
 loginStart?.addEventListener('click', async () => {
@@ -698,8 +940,14 @@ loginStart?.addEventListener('click', async () => {
     loginStream = await navigator.mediaDevices.getUserMedia({ video: true });
     _useGetUserMedia(loginVideo, loginImage, loginStream);
     if (camOverlay)  camOverlay.classList.add('hidden');
+<<<<<<< HEAD
     if (loginStart)  loginStart.disabled  = true;
     if (loginStop)   loginStop.disabled   = false;
+=======
+    startLoginFaceTracker();
+    if (loginStart)  loginStart.disabled   = true;
+    if (loginStop)   loginStop.disabled    = false;
+>>>>>>> e5d17192bbb52eaccfd19318987818c6abf58ea5
     if (loginMsgHelp) { loginMsgHelp.classList.add('hidden'); loginMsgHelp.classList.remove('is-clickable'); }
     loginDeniedCount = 0;
 
@@ -732,6 +980,7 @@ loginStop?.addEventListener('click', () => {
   if (loginMsgHelp) { loginMsgHelp.classList.add('hidden'); loginMsgHelp.classList.remove('is-clickable'); }
   loginDeniedCount = 0;
 });
+<<<<<<< HEAD
 
 function renderAccessResult(data) {
   const cont = document.getElementById('accessResult');
@@ -776,6 +1025,8 @@ function resetAccessStep() {
 }
 
 document.getElementById('btnScanAnother')?.addEventListener('click', resetAccessStep);
+=======
+>>>>>>> e5d17192bbb52eaccfd19318987818c6abf58ea5
 
 function openLoginHelpModal()  { loginHelpModal?.classList.remove('hidden'); }
 function closeLoginHelpModal() { loginHelpModal?.classList.add('hidden'); }
@@ -784,19 +1035,10 @@ loginHelpOverlay?.addEventListener('click', closeLoginHelpModal);
 loginHelpClose?.addEventListener('click', closeLoginHelpModal);
 
 // ════ REGISTRO BIOMÉTRICO ════
-let regStream    = null;
-let regStepIndex = 0;
 let regImages    = { image_front: null, image_left: null, image_right: null };
 let regDatos     = { nombre:'', grado:'1', letra:'', turno:'MATUTINO' };
 
-const regVideo   = document.getElementById('regVideo');
-const regImage   = document.getElementById('regImage');
 const regCanvas  = document.getElementById('regCanvas');
-const regStart   = document.getElementById('regStart');
-const regCapture = document.getElementById('regCapture');
-const regStop    = document.getElementById('regStop');
-const regMsg     = document.getElementById('regMessage');
-const regCamOv   = document.getElementById('regCameraOverlay');
 
 const regNombreInput = document.getElementById('regNombre');
 regNombreInput?.addEventListener('input', () => {
@@ -807,9 +1049,9 @@ regNombreInput?.addEventListener('input', () => {
 });
 
 const REG_ANGLES = [
-  { key:'image_front', get label(){ return t('btn_capture_front'); }, get hint(){ return t('angle_hint_front'); } },
-  { key:'image_left',  get label(){ return t('btn_capture_left');  }, get hint(){ return t('angle_hint_left');  } },
-  { key:'image_right', get label(){ return t('btn_save_student');  }, get hint(){ return t('angle_hint_right'); } },
+  { key:'image_front', guide:'perfilHead_frente.png', get label(){ return t('btn_capture_front'); }, get hint(){ return t('angle_hint_front'); } },
+  { key:'image_left',  guide:'perfilHead_izquierdo.png', get label(){ return t('btn_capture_left');  }, get hint(){ return t('angle_hint_left');  } },
+  { key:'image_right', guide:'perfilHead_derecho.png', get label(){ return t('btn_save_student');  }, get hint(){ return t('angle_hint_right'); } },
 ];
 
 function updateRegAngleUi() {
@@ -822,9 +1064,11 @@ function updateRegAngleUi() {
   });
   const hint  = document.getElementById('regAngleHint');
   const label = document.getElementById('regCaptureLabel');
+  const guide = document.getElementById('regAngleGuideImg');
   const angle = REG_ANGLES[regStepIndex];
   if (hint  && angle) hint.textContent  = angle.hint;
   if (label && angle) label.textContent = angle.label;
+<<<<<<< HEAD
 
   // Cambiar SVG de guía de ángulo
   const svgIds = ['angleSvgFront', 'angleSvgLeft', 'angleSvgRight'];
@@ -840,6 +1084,9 @@ function updateRegAngleUi() {
       svg.classList.add('hidden');
     }
   });
+=======
+  if (guide && angle) guide.src = `/static/img/guides/${angle.guide}`;
+>>>>>>> e5d17192bbb52eaccfd19318987818c6abf58ea5
 }
 
 function stopRegCamera() {
@@ -862,8 +1109,31 @@ document.getElementById('regGoToCamera')?.addEventListener('click', () => {
   const turno  = document.getElementById('regTurno')?.value;
   const msg1   = document.getElementById('regStep1Msg');
 
+<<<<<<< HEAD
   if (!nombre) { if (msg1) { msg1.textContent = 'Ingresa el nombre.'; msg1.className='feedback denied'; } return; }
   if (!letra)  { if (msg1) { msg1.textContent = 'Ingresa el grupo.';  msg1.className='feedback denied'; } return; }
+=======
+  if (!nombre || !letra) {
+    if (msg1) {
+      msg1.textContent = 'Completa los campos faltantes para continuar.';
+      msg1.className='feedback denied';
+    }
+    return;
+  }
+
+  if (nombre.length < 3 || nombre.length > 20) {
+    if (msg1) {
+      msg1.textContent = 'El nombre debe tener entre 3 y 20 caracteres.';
+      msg1.className='feedback denied';
+    }
+    return;
+  }
+
+  if (nombre !== nombreRaw.trim()) {
+    const input = document.getElementById('regNombre');
+    if (input) input.value = nombre;
+  }
+>>>>>>> e5d17192bbb52eaccfd19318987818c6abf58ea5
 
   regDatos = { nombre, grado, letra, turno };
   regStepIndex = 0;
@@ -957,6 +1227,176 @@ regCapture?.addEventListener('click', async () => {
 regStop?.addEventListener('click', stopRegCamera);
 updateRegAngleUi();
 
+// ════ CAMBIO A REGISTRO DE ADMIN ════
+document.getElementById('btnSwitchToAdminReg')?.addEventListener('click', () => {
+  const pass = prompt('Ingresa la contraseña de administrador para continuar:');
+  if (pass === '1234') {
+    showView('register-admin');
+  } else if (pass !== null) {
+    alert('Contraseña incorrecta');
+  }
+});
+
+// ════ REGISTRO ADMIN ════
+let regAdminDatos = {};
+let regAdminImages = { image_front:null, image_left:null, image_right:null };
+
+const regAdminCanvas = document.getElementById('regAdminCanvas');
+
+function updateRegAdminAngleUi() {
+  document.querySelectorAll('#regAdminStepper .angle-step').forEach((el, i) => {
+    el.classList.remove('angle-step--active','angle-step--done');
+    const numEl = el.querySelector('.angle-step__num');
+    if (i < regAdminStepIndex)        { el.classList.add('angle-step--done');   if (numEl) numEl.textContent = '✓'; }
+    else if (i === regAdminStepIndex) { el.classList.add('angle-step--active'); if (numEl) numEl.textContent = i+1; }
+    else                         { if (numEl) numEl.textContent = i+1; }
+  });
+  const hint  = document.getElementById('regAdminAngleHint');
+  const label = document.getElementById('regAdminCaptureLabel');
+  const angle = REG_ANGLES[regAdminStepIndex];
+  if (hint  && angle) hint.textContent  = angle.hint;
+  if (label && angle) label.textContent = angle.label;
+}
+
+function stopRegAdminCamera() {
+  if (regAdminStream && regAdminStream.getTracks) regAdminStream.getTracks().forEach(t => t.stop());
+  regAdminStream = null;
+  if (regAdminVideo)   regAdminVideo.srcObject  = null;
+  if (regAdminImage)   { regAdminImage.src = ''; regAdminImage.classList.add('hidden'); }
+  if (regAdminVideo)   regAdminVideo.classList.remove('hidden');
+  if (regAdminStart)   regAdminStart.disabled   = false;
+  if (regAdminCapture) regAdminCapture.disabled = true;
+  if (regAdminStop)    regAdminStop.disabled    = true;
+  if (regAdminCamOv)   regAdminCamOv.classList.remove('hidden');
+}
+
+document.getElementById('regAdminGoToCamera')?.addEventListener('click', () => {
+  const num_empleado = document.getElementById('regAdminNum')?.value || '';
+  const nombreRaw = document.getElementById('regAdminNombre')?.value || '';
+  const nombre = nombreRaw.trim().replace(/[^A-Za-zÁÉÍÓÚÑáéíóúñ\s]/g, '');
+  const rol = document.getElementById('regAdminRol')?.value || 'ADMIN';
+  const correo = document.getElementById('regAdminCorreo')?.value.trim().toLowerCase() || '';
+  const password = document.getElementById('regAdminPass')?.value || '';
+  const msg1 = document.getElementById('regAdminStep1Msg');
+
+  if (!num_empleado || !nombre || !correo || !password) {
+    if (msg1) {
+      msg1.textContent = 'Completa los campos faltantes para continuar.';
+      msg1.className='feedback denied';
+    }
+    return;
+  }
+
+  if (nombre.length < 3 || nombre.length > 20) {
+    if (msg1) {
+      msg1.textContent = 'El nombre debe tener entre 3 y 20 caracteres.';
+      msg1.className='feedback denied';
+    }
+    return;
+  }
+
+  if (!_isEmail(correo)) {
+    if (msg1) { msg1.textContent='Correo invalido.'; msg1.className='feedback denied'; }
+    return;
+  }
+
+  regAdminDatos = { num_empleado, nombre, rol, correo, password };
+  regAdminStepIndex = 0;
+  regAdminImages    = { image_front:null, image_left:null, image_right:null };
+
+  document.getElementById('reg-admin-step1')?.classList.add('hidden');
+  document.getElementById('reg-admin-step2')?.classList.remove('hidden');
+  updateRegAdminAngleUi();
+});
+
+document.getElementById('btnBackToAdminStep1')?.addEventListener('click', () => {
+  stopRegAdminCamera();
+  document.getElementById('reg-admin-step2')?.classList.add('hidden');
+  document.getElementById('reg-admin-step1')?.classList.remove('hidden');
+});
+
+document.getElementById('regAdminCancel')?.addEventListener('click', () => {
+  showView('register');
+});
+
+regAdminStart?.addEventListener('click', async () => {
+  try {
+    if (!navigator.mediaDevices?.getUserMedia) {
+      throw new Error('getUserMedia not available');
+    }
+    regAdminStream = await navigator.mediaDevices.getUserMedia({ video: true });
+    _useGetUserMedia(regAdminVideo, regAdminImage, regAdminStream);
+    if (regAdminCamOv)   regAdminCamOv.classList.add('hidden');
+    if (regAdminStart)   regAdminStart.disabled   = true;
+    if (regAdminCapture) regAdminCapture.disabled = false;
+    if (regAdminStop)    regAdminStop.disabled    = false;
+    if (regAdminMsg)     { regAdminMsg.textContent = t('reg_cam_ready'); regAdminMsg.className = 'feedback waiting'; }
+  } catch (_) {
+    try {
+      regAdminStream = { backend: 'mjpeg' };
+      _useMjpeg(regAdminImage, regAdminVideo);
+      if (regAdminCamOv)   regAdminCamOv.classList.add('hidden');
+      if (regAdminStart)   regAdminStart.disabled   = true;
+      if (regAdminCapture) regAdminCapture.disabled = false;
+      if (regAdminStop)    regAdminStop.disabled    = false;
+      if (regAdminMsg)     { regAdminMsg.textContent = t('reg_cam_ready'); regAdminMsg.className = 'feedback waiting'; }
+    } catch (_) {
+      if (regAdminMsg) { regAdminMsg.textContent = t('no_camera'); regAdminMsg.className = 'feedback denied'; }
+    }
+  }
+});
+
+regAdminCapture?.addEventListener('click', async () => {
+  if (!regAdminCanvas) return;
+  const source = _activeCameraSource(regAdminVideo, regAdminImage);
+  if (!source) return;
+  const dims = _sourceDims(source);
+  if (!dims.w || !dims.h) return;
+  regAdminCanvas.width  = dims.w;
+  regAdminCanvas.height = dims.h;
+  regAdminCanvas.getContext('2d').drawImage(source, 0, 0, dims.w, dims.h);
+  const image = regAdminCanvas.toDataURL('image/jpeg', 0.88);
+  const angle = REG_ANGLES[regAdminStepIndex];
+  regAdminImages[angle.key] = image;
+
+  if (regAdminStepIndex < 2) {
+    regAdminStepIndex++;
+    updateRegAdminAngleUi();
+    if (regAdminMsg) { regAdminMsg.textContent = t('reg_saved_angle'); regAdminMsg.className = 'feedback waiting'; }
+    return;
+  }
+
+  if (regAdminMsg) { regAdminMsg.textContent = 'Enviando…'; regAdminMsg.className = 'feedback waiting'; }
+  try {
+    const res  = await fetch('/api/registro-admin', {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({ ...regAdminDatos, ...regAdminImages }),
+    });
+    const data = await res.json();
+    if (regAdminMsg) { regAdminMsg.textContent = data.message || (data.ok ? t('reg_success') : t('reg_error')); regAdminMsg.className = 'feedback '+(data.ok?'granted':'denied'); }
+    if (data.ok) {
+      stopRegAdminCamera();
+      setTimeout(() => {
+        regAdminStepIndex = 0;
+        regAdminImages    = { image_front:null, image_left:null, image_right:null };
+        document.getElementById('reg-admin-step2')?.classList.add('hidden');
+        document.getElementById('reg-admin-step1')?.classList.remove('hidden');
+        document.getElementById('regAdminNum').value = '';
+        document.getElementById('regAdminNombre').value = '';
+        document.getElementById('regAdminCorreo').value = '';
+        document.getElementById('regAdminPass').value = '';
+        const m = document.getElementById('regAdminStep1Msg');
+        if (m) { m.textContent = '¡Administrador Registrado!'; m.className = 'feedback granted'; }
+      }, 2000);
+    }
+  } catch (_) {
+    if (regAdminMsg) { regAdminMsg.textContent = t('reg_conn_error'); regAdminMsg.className = 'feedback denied'; }
+  }
+});
+
+regAdminStop?.addEventListener('click', stopRegAdminCamera);
+
+
 // ════ ADMIN TABS ════
 document.querySelectorAll('.tab-btn[data-admin-tab]').forEach(btn => {
   btn.addEventListener('click', () => {
@@ -964,8 +1404,466 @@ document.querySelectorAll('.tab-btn[data-admin-tab]').forEach(btn => {
     document.querySelectorAll('.admin-tab').forEach(t => t.classList.add('hidden'));
     btn.classList.add('active');
     document.getElementById('admin-' + btn.dataset.adminTab)?.classList.remove('hidden');
+
+    const tab = btn.dataset.adminTab;
+    if (tab === 'students') loadStudents();
+    if (tab === 'admins') loadAdmins();
+    if (tab === 'dashboard') loadDashboard();
+    if (tab === 'hardware') loadServoSettings();
   });
 });
+
+// Click por defecto en el primer tab de admin ('home') al abrir app, o al abrir view admin
+const btnAdminHome = document.querySelector('.tab-btn[data-admin-tab="home"]');
+if (btnAdminHome) btnAdminHome.classList.add('active');
+const adminHomeTab = document.getElementById('admin-home');
+if (adminHomeTab) adminHomeTab.classList.remove('hidden');
+
+function _dashInitials(value) {
+  const raw = String(value || '').trim();
+  if (!raw) return '--';
+  const parts = raw.split(/\s+/).filter(Boolean);
+  const letters = parts.slice(0, 2).map(p => p[0]?.toUpperCase() || '');
+  return letters.join('') || '--';
+}
+
+function _renderDashList(container, items) {
+  if (!container) return;
+  container.innerHTML = items.join('');
+}
+
+function _sanitizeName(raw) {
+  const cleaned = String(raw || '').replace(/[^A-Za-zÁÉÍÓÚÑáéíóúñ\s]/g, '').replace(/\s{2,}/g, ' ');
+  return cleaned.trim();
+}
+
+function _sanitizeGroup(raw) {
+  const cleaned = String(raw || '').replace(/[^A-Za-z]/g, '').toUpperCase();
+  return cleaned.slice(0, 1);
+}
+
+function _sanitizeEmployee(raw) {
+  return String(raw || '').replace(/\D/g, '').slice(0, 12);
+}
+
+function _sanitizeRole(raw) {
+  return String(raw || '').replace(/[^A-Za-z_]/g, '').toUpperCase().slice(0, 20);
+}
+
+function _isEmail(value) {
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(value || '').trim());
+}
+
+const dashStudentsCache = new Map();
+const dashAdminsCache = new Map();
+
+async function loadDashboardStudents() {
+  const listEl = document.getElementById('dashStudents');
+  const msgEl = document.getElementById('dashStudentsMsg');
+  if (!listEl) return;
+  try {
+    const res = await fetch('/api/admin/students');
+    const data = await res.json();
+    const list = (data.students || []).filter(s => s.estado_activo !== 0);
+    dashStudentsCache.clear();
+    list.forEach(s => dashStudentsCache.set(Number(s.id), s));
+    const items = list.map(s => {
+      const name = s.nombre || '---';
+      const grupo = s.grupo || s.letra || '---';
+      const turno = s.turno || '---';
+      const grado = s.grado || '---';
+      const initials = _dashInitials(name);
+      const img = `/api/credencial/${s.id}?t=${Date.now()}`;
+      return `
+        <div class="dash-person" data-type="student" data-id="${s.id}">
+          <div class="dash-person__photo">
+            <img src="${img}" alt="${name}" onload="this.nextElementSibling?.classList.add('hidden')" onerror="this.remove()">
+            <span class="dash-person__initials">${initials}</span>
+          </div>
+          <div class="dash-person__meta">
+            <div class="dash-person__name">${name}</div>
+            <div class="dash-person__sub">${grado}${grupo} · ${turno}</div>
+          </div>
+          <div class="dash-actions">
+            <button class="dash-action-btn" data-action="photo">Foto</button>
+            <button class="dash-action-btn" data-action="edit">Editar</button>
+            <button class="dash-action-btn dash-action-btn--danger" data-action="delete">Eliminar</button>
+          </div>
+        </div>`;
+    });
+    _renderDashList(listEl, items);
+    if (msgEl) { msgEl.textContent = `${list.length} ${t('dash_students').toLowerCase()}.`; msgEl.className = 'feedback waiting'; }
+  } catch (_) {
+    if (msgEl) { msgEl.textContent = 'Error al cargar.'; msgEl.className = 'feedback denied'; }
+  }
+}
+
+async function loadDashboardAdmins() {
+  const listEl = document.getElementById('dashAdmins');
+  const msgEl = document.getElementById('dashAdminsMsg');
+  if (!listEl) return;
+  try {
+    const res = await fetch('/api/admin/admins');
+    const data = await res.json();
+    const list = (data.admins || []).filter(a => a.estado_activo !== 0);
+    dashAdminsCache.clear();
+    list.forEach(a => dashAdminsCache.set(Number(a.id), a));
+    const items = list.map(a => {
+      const name = a.nombre_completo || a.nombre || '---';
+      const rol = a.rol || 'ADMIN';
+      const correo = a.correo || '---';
+      const initials = _dashInitials(name);
+      return `
+        <div class="dash-person" data-type="admin" data-id="${a.id}">
+          <div class="dash-person__photo">
+            <span class="dash-person__initials">${initials}</span>
+          </div>
+          <div class="dash-person__meta">
+            <div class="dash-person__name">${name}</div>
+            <div class="dash-person__sub">${rol} · ${correo}</div>
+          </div>
+          <div class="dash-actions">
+            <button class="dash-action-btn" data-action="edit">Editar</button>
+            <button class="dash-action-btn dash-action-btn--danger" data-action="delete">Eliminar</button>
+          </div>
+        </div>`;
+    });
+    _renderDashList(listEl, items);
+    if (msgEl) { msgEl.textContent = `${list.length} ${t('dash_admins').toLowerCase()}.`; msgEl.className = 'feedback waiting'; }
+  } catch (_) {
+    if (msgEl) { msgEl.textContent = 'Error al cargar.'; msgEl.className = 'feedback denied'; }
+  }
+}
+
+async function loadDashboardLogs() {
+  const tbody = document.querySelector('#accessLogsTable tbody');
+  const msgEl = document.getElementById('dashLogsMsg');
+  if (!tbody) return;
+  try {
+    const sessionRes = await fetch('/api/admin/access-session');
+    const sessionData = await sessionRes.json();
+    if (!sessionData.active) {
+      tbody.innerHTML = '';
+      if (msgEl) { msgEl.textContent = t('dash_no_session'); msgEl.className = 'feedback denied'; }
+      return;
+    }
+
+    const res = await fetch('/api/admin/access-logs/active-session?limit=50');
+    const data = await res.json();
+    const list = data.logs || [];
+    const filtered = list.filter(l => (l.tipo_usuario || 'ESTUDIANTE') === 'ESTUDIANTE');
+    tbody.innerHTML = filtered.map(l => {
+      const time = l.fecha_hora || '--';
+      const name = l.nombre_usuario || '--';
+      const event = l.tipo_evento || '--';
+      const result = l.acceso_concedido ? 'OK' : 'DENEGADO';
+      return `<tr><td>${time}</td><td>${name}</td><td>${event}</td><td>${result}</td></tr>`;
+    }).join('');
+
+    if (msgEl) {
+      msgEl.textContent = filtered.length ? `${filtered.length} ${t('dash_access_logs').toLowerCase()}.` : t('dash_no_logs');
+      msgEl.className = 'feedback waiting';
+    }
+  } catch (_) {
+    if (msgEl) { msgEl.textContent = 'Error al cargar.'; msgEl.className = 'feedback denied'; }
+  }
+}
+
+function loadDashboard() {
+  loadDashboardStudents();
+  loadDashboardAdmins();
+  loadDashboardLogs();
+}
+
+document.getElementById('dashRefreshStudents')?.addEventListener('click', loadDashboardStudents);
+document.getElementById('dashRefreshAdmins')?.addEventListener('click', loadDashboardAdmins);
+document.getElementById('dashRefreshLogs')?.addEventListener('click', loadDashboardLogs);
+
+const dashPhotoModal = document.getElementById('dashPhotoModal');
+const dashPhotoTitle = document.getElementById('dashPhotoTitle');
+const dashPhotoImg = document.getElementById('dashPhotoImg');
+const dashPhotoMeta = document.getElementById('dashPhotoMeta');
+const dashPhotoFallback = document.getElementById('dashPhotoFallback');
+
+function openDashPhotoModal(student) {
+  if (!dashPhotoModal || !dashPhotoImg) return;
+  const name = student?.nombre || '---';
+  const grupo = student?.grupo || student?.letra || '---';
+  const turno = student?.turno || '---';
+  const grado = student?.grado || '---';
+  if (dashPhotoTitle) dashPhotoTitle.textContent = t('dash_photo_title');
+  if (dashPhotoMeta) dashPhotoMeta.textContent = `${name} · ${grado}${grupo} · ${turno}`;
+  if (dashPhotoFallback) dashPhotoFallback.classList.add('hidden');
+  dashPhotoImg.src = `/api/credencial/${student.id}?t=${Date.now()}`;
+  dashPhotoImg.onerror = () => {
+    if (dashPhotoFallback) dashPhotoFallback.classList.remove('hidden');
+  };
+  dashPhotoModal.classList.remove('hidden');
+}
+
+function closeDashPhotoModal() {
+  dashPhotoModal?.classList.add('hidden');
+  if (dashPhotoImg) dashPhotoImg.src = '';
+}
+
+document.getElementById('dashPhotoClose')?.addEventListener('click', closeDashPhotoModal);
+dashPhotoModal?.addEventListener('click', e => { if (e.target === dashPhotoModal) closeDashPhotoModal(); });
+
+const dashCrudModal = document.getElementById('dashCrudModal');
+const dashCrudTitle = document.getElementById('dashCrudTitle');
+const dashCrudMsg = document.getElementById('dashCrudMsg');
+const dashCrudStudentFields = document.getElementById('dashCrudStudentFields');
+const dashCrudAdminFields = document.getElementById('dashCrudAdminFields');
+
+let dashCrudState = { type: 'student', mode: 'create', id: null };
+
+document.getElementById('dashStudentNombre')?.addEventListener('input', e => {
+  e.target.value = _sanitizeName(e.target.value).slice(0, 60);
+});
+document.getElementById('dashStudentGrupo')?.addEventListener('input', e => {
+  e.target.value = _sanitizeGroup(e.target.value);
+});
+document.getElementById('dashAdminNum')?.addEventListener('input', e => {
+  e.target.value = _sanitizeEmployee(e.target.value);
+});
+document.getElementById('dashAdminNombre')?.addEventListener('input', e => {
+  e.target.value = _sanitizeName(e.target.value).slice(0, 40);
+});
+document.getElementById('dashAdminRol')?.addEventListener('input', e => {
+  e.target.value = _sanitizeRole(e.target.value);
+});
+
+function openDashCrudModal(type, mode, data) {
+  dashCrudState = { type, mode, id: data?.id || null };
+  if (!dashCrudModal || !dashCrudTitle) return;
+  dashCrudTitle.textContent = mode === 'create' ? `${t('dash_create')} ${type === 'student' ? t('dash_students') : t('dash_admins')}` : `Editar ${type === 'student' ? t('dash_students') : t('dash_admins')}`;
+  if (dashCrudMsg) dashCrudMsg.style.display = 'none';
+
+  if (dashCrudStudentFields && dashCrudAdminFields) {
+    dashCrudStudentFields.classList.toggle('hidden', type !== 'student');
+    dashCrudAdminFields.classList.toggle('hidden', type !== 'admin');
+  }
+
+  if (type === 'student') {
+    document.getElementById('dashStudentNombre').value = data?.nombre || '';
+    document.getElementById('dashStudentGrado').value = data?.grado || '1';
+    document.getElementById('dashStudentGrupo').value = data?.grupo || data?.letra || '';
+    document.getElementById('dashStudentTurno').value = data?.turno || 'MATUTINO';
+    document.getElementById('dashStudentActivo').value = data?.estado_activo != null ? String(data.estado_activo) : '1';
+  }
+
+  if (type === 'admin') {
+    document.getElementById('dashAdminNum').value = data?.numero_empleado || data?.num_empleado || '';
+    document.getElementById('dashAdminNombre').value = data?.nombre_completo || data?.nombre || '';
+    document.getElementById('dashAdminRol').value = data?.rol || 'ADMIN';
+    document.getElementById('dashAdminCorreo').value = data?.correo || '';
+    document.getElementById('dashAdminPass').value = '';
+    document.getElementById('dashAdminActivo').value = data?.estado_activo != null ? String(data.estado_activo) : '1';
+  }
+
+  dashCrudModal.classList.remove('hidden');
+}
+
+function closeDashCrudModal() {
+  dashCrudModal?.classList.add('hidden');
+}
+
+document.getElementById('dashCrudCancel')?.addEventListener('click', e => {
+  e.preventDefault();
+  closeDashCrudModal();
+});
+
+dashCrudModal?.addEventListener('click', e => { if (e.target === dashCrudModal) closeDashCrudModal(); });
+
+async function saveDashCrud() {
+  if (!dashCrudMsg) return;
+  dashCrudMsg.style.display = '';
+  dashCrudMsg.textContent = 'Guardando...';
+  dashCrudMsg.className = 'feedback waiting';
+
+  try {
+    if (dashCrudState.type === 'student') {
+      const payload = {
+        nombre: _sanitizeName(document.getElementById('dashStudentNombre').value),
+        grado: document.getElementById('dashStudentGrado').value,
+        grupo: _sanitizeGroup(document.getElementById('dashStudentGrupo').value),
+        turno: document.getElementById('dashStudentTurno').value,
+        estado_activo: parseInt(document.getElementById('dashStudentActivo').value, 10),
+      };
+      if (!payload.nombre || payload.nombre.length < 3) throw new Error('Nombre invalido.');
+      if (!payload.grupo) throw new Error('Grupo invalido.');
+
+      if (dashCrudState.mode === 'create') {
+        const res = await fetch('/api/admin/students', {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload),
+        });
+        const data = await res.json();
+        if (!data.ok) throw new Error(data.message || 'Error');
+      } else {
+        const res = await fetch(`/api/admin/students/${dashCrudState.id}`, {
+          method: 'PUT', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload),
+        });
+        const data = await res.json();
+        if (!data.ok) throw new Error(data.message || 'Error');
+      }
+
+      await loadDashboardStudents();
+      closeDashCrudModal();
+      return;
+    }
+
+    if (dashCrudState.type === 'admin') {
+      const payload = {
+        numero_empleado: _sanitizeEmployee(document.getElementById('dashAdminNum').value),
+        nombre: _sanitizeName(document.getElementById('dashAdminNombre').value),
+        rol: _sanitizeRole(document.getElementById('dashAdminRol').value),
+        correo: document.getElementById('dashAdminCorreo').value.trim().toLowerCase(),
+        password: document.getElementById('dashAdminPass').value,
+        estado_activo: parseInt(document.getElementById('dashAdminActivo').value, 10),
+      };
+      if (!payload.numero_empleado) throw new Error('No. empleado invalido.');
+      if (!payload.nombre || payload.nombre.length < 3) throw new Error('Nombre invalido.');
+      if (!_isEmail(payload.correo)) throw new Error('Correo invalido.');
+
+      if (dashCrudState.mode === 'create') {
+        if (!payload.password || payload.password.length < 6) throw new Error('Password invalido.');
+        const res = await fetch('/api/admin/admins', {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload),
+        });
+        const data = await res.json();
+        if (!data.ok) throw new Error(data.message || 'Error');
+      } else {
+        if (!payload.password) delete payload.password;
+        const res = await fetch(`/api/admin/admins/${dashCrudState.id}`, {
+          method: 'PUT', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload),
+        });
+        const data = await res.json();
+        if (!data.ok) throw new Error(data.message || 'Error');
+      }
+
+      await loadDashboardAdmins();
+      closeDashCrudModal();
+      return;
+    }
+  } catch (err) {
+    dashCrudMsg.textContent = err?.message || 'Error.';
+    dashCrudMsg.className = 'feedback denied';
+  }
+}
+
+document.getElementById('dashCrudSave')?.addEventListener('click', e => {
+  e.preventDefault();
+  saveDashCrud();
+});
+
+document.getElementById('dashCreateStudent')?.addEventListener('click', () => openDashCrudModal('student', 'create'));
+document.getElementById('dashCreateAdmin')?.addEventListener('click', () => openDashCrudModal('admin', 'create'));
+
+document.getElementById('dashStudents')?.addEventListener('click', e => {
+  const actionBtn = e.target.closest('[data-action]');
+  const card = e.target.closest('.dash-person');
+  if (!card) return;
+  const id = Number(card.dataset.id);
+  const student = dashStudentsCache.get(id);
+  if (!student) return;
+
+  if (actionBtn) {
+    const action = actionBtn.dataset.action;
+    if (action === 'photo') openDashPhotoModal(student);
+    if (action === 'edit') openDashCrudModal('student', 'edit', student);
+    if (action === 'delete') deleteDashStudent(id);
+    return;
+  }
+
+  openDashPhotoModal(student);
+});
+
+document.getElementById('dashAdmins')?.addEventListener('click', e => {
+  const actionBtn = e.target.closest('[data-action]');
+  const card = e.target.closest('.dash-person');
+  if (!card) return;
+  const id = Number(card.dataset.id);
+  const admin = dashAdminsCache.get(id);
+  if (!admin) return;
+
+  if (actionBtn) {
+    const action = actionBtn.dataset.action;
+    if (action === 'edit') openDashCrudModal('admin', 'edit', admin);
+    if (action === 'delete') deleteDashAdmin(id);
+    return;
+  }
+
+  openDashCrudModal('admin', 'edit', admin);
+});
+
+async function deleteDashStudent(id) {
+  if (!confirm(`¿Eliminar estudiante #${id}?`)) return;
+  try {
+    const res = await fetch(`/api/admin/students/${id}`, { method: 'DELETE' });
+    const data = await res.json();
+    if (!data.ok) throw new Error(data.message || 'Error');
+    loadDashboardStudents();
+  } catch (err) {
+    const msgEl = document.getElementById('dashStudentsMsg');
+    if (msgEl) { msgEl.textContent = err?.message || 'Error al eliminar.'; msgEl.className = 'feedback denied'; }
+  }
+}
+
+async function deleteDashAdmin(id) {
+  if (!confirm(`¿Eliminar administrador #${id}?`)) return;
+  try {
+    const res = await fetch(`/api/admin/admins/${id}`, { method: 'DELETE' });
+    const data = await res.json();
+    if (!data.ok) throw new Error(data.message || 'Error');
+    loadDashboardAdmins();
+  } catch (err) {
+    const msgEl = document.getElementById('dashAdminsMsg');
+    if (msgEl) { msgEl.textContent = err?.message || 'Error al eliminar.'; msgEl.className = 'feedback denied'; }
+  }
+}
+
+const servoHoldInput = document.getElementById('servoHoldSeconds');
+const servoAlwaysInput = document.getElementById('servoAlwaysActive');
+const servoMsg = document.getElementById('servoMsg');
+
+async function loadServoSettings() {
+  if (!servoHoldInput || !servoAlwaysInput) return;
+  try {
+    const res = await fetch('/api/admin/servo-settings');
+    const data = await res.json();
+    const cfg = data.config || {};
+    if (cfg.hold_seconds != null) servoHoldInput.value = cfg.hold_seconds;
+    servoAlwaysInput.value = cfg.always_active ? 'true' : 'false';
+    if (servoMsg) { servoMsg.textContent = 'Configuracion cargada.'; servoMsg.className = 'feedback granted'; }
+  } catch (_) {
+    if (servoMsg) { servoMsg.textContent = 'Error al cargar.'; servoMsg.className = 'feedback denied'; }
+  }
+}
+
+async function saveServoSettings() {
+  if (!servoHoldInput || !servoAlwaysInput) return;
+  try {
+    const res = await fetch('/api/admin/servo-settings', {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        hold_seconds: parseFloat(servoHoldInput.value),
+        always_active: servoAlwaysInput.value === 'true',
+      }),
+    });
+    const data = await res.json();
+    if (servoMsg) { servoMsg.textContent = data.message || (data.ok ? 'Guardado.' : 'Error'); servoMsg.className = 'feedback ' + (data.ok ? 'granted' : 'denied'); }
+  } catch (_) {
+    if (servoMsg) { servoMsg.textContent = 'Error al guardar.'; servoMsg.className = 'feedback denied'; }
+  }
+}
+
+document.getElementById('servoLoad')?.addEventListener('click', loadServoSettings);
+document.getElementById('servoSave')?.addEventListener('click', saveServoSettings);
 
 // ════ ADMIN: ESTUDIANTES ════
 async function loadStudents() {
@@ -980,7 +1878,7 @@ async function loadStudents() {
       <tr>
         <td>${s.id}</td><td>${s.nombre}</td><td>${s.grado}</td>
         <td>${s.letra||s.grupo||'---'}</td><td>${s.turno}</td>
-        <td style="text-align:center">${s.activo !== false ? '&#10003;':'&#10007;'}</td>
+        <td style="text-align:center">${s.estado_activo !== 0 ? '&#10003;':'&#10007;'}</td>
         <td><button style="padding:4px 9px;font-size:.72rem;box-shadow:none;background:#B91C1C"
           onclick="deleteStudent(${s.id})">Eliminar</button></td>
       </tr>`).join('');
@@ -990,22 +1888,31 @@ async function loadStudents() {
 
 window.deleteStudent = async id => {
   if (!confirm(`¿Eliminar estudiante #${id}?`)) return;
-  try { await fetch(`/api/admin/students/${id}`, { method:'DELETE' }); loadStudents(); } catch (_) {}
+  const msg = document.getElementById('admStudentsMsg');
+  try {
+    const res = await fetch(`/api/admin/students/${id}`, { method:'DELETE' });
+    const data = await res.json();
+    if (!data.ok) throw new Error(data.message || 'Error');
+    loadStudents();
+  } catch (err) {
+    if (msg) { msg.textContent = err?.message || 'Error al eliminar.'; msg.className = 'feedback denied'; }
+  }
 };
 
 document.getElementById('admRefresh')?.addEventListener('click', loadStudents);
 
 document.getElementById('admCreate')?.addEventListener('click', async () => {
   const msg    = document.getElementById('admStudentsMsg');
-  const nombre = document.getElementById('admNombre')?.value.trim();
+  const nombre = _sanitizeName(document.getElementById('admNombre')?.value);
   const grado  = document.getElementById('admGrado')?.value;
-  const letra  = document.getElementById('admGrupo')?.value.trim().toUpperCase();
+  const grupo  = _sanitizeGroup(document.getElementById('admGrupo')?.value);
   const turno  = document.getElementById('admTurno')?.value;
-  if (!nombre || !letra) { if (msg) { msg.textContent='Completa nombre y grupo.'; msg.className='feedback denied'; } return; }
+  if (!nombre || nombre.length < 3) { if (msg) { msg.textContent='Nombre invalido.'; msg.className='feedback denied'; } return; }
+  if (!grupo) { if (msg) { msg.textContent='Grupo invalido.'; msg.className='feedback denied'; } return; }
   try {
     const res  = await fetch('/api/admin/students', {
       method:'POST', headers:{'Content-Type':'application/json'},
-      body: JSON.stringify({ nombre, grado, letra, turno }),
+      body: JSON.stringify({ nombre, grado, grupo, turno }),
     });
     const data = await res.json();
     if (msg) { msg.textContent = data.message||(data.ok?'Creado.':'Error'); msg.className='feedback '+(data.ok?'granted':'denied'); }
@@ -1156,9 +2063,9 @@ async function loadAdmins() {
     const list = data.admins || data || [];
     tbody.innerHTML = list.map(a => `
       <tr>
-        <td>${a.id}</td><td>${a.numero_empleado}</td><td>${a.nombre}</td>
-        <td>${a.rol}</td><td>${a.correo||'---'}</td>
-        <td style="text-align:center">${a.activo !== false ? '&#10003;':'&#10007;'}</td>
+        <td>${a.id}</td><td>${a.numero_empleado || a.num_empleado || '---'}</td><td>${a.nombre || a.nombre_completo || '---'}</td>
+        <td>${a.rol || 'ADMIN'}</td><td>${a.correo||'---'}</td>
+        <td style="text-align:center">${a.estado_activo !== 0 ? '&#10003;':'&#10007;'}</td>
       </tr>`).join('');
     if (msg) { msg.textContent=`${list.length} administradores.`; msg.className='feedback waiting'; }
   } catch (_) {}
@@ -1169,14 +2076,18 @@ document.getElementById('adminRefresh')?.addEventListener('click', loadAdmins);
 document.getElementById('adminCreate')?.addEventListener('click', async () => {
   const msg  = document.getElementById('adminMsg');
   const body = {
-    numero_empleado: document.getElementById('adminNum')?.value.trim(),
-    nombre:          document.getElementById('adminNombre')?.value.trim(),
-    rol:             document.getElementById('adminRol')?.value.trim(),
-    correo:          document.getElementById('adminCorreo')?.value.trim(),
+    numero_empleado: _sanitizeEmployee(document.getElementById('adminNum')?.value),
+    nombre:          _sanitizeName(document.getElementById('adminNombre')?.value),
+    rol:             _sanitizeRole(document.getElementById('adminRol')?.value),
+    correo:          document.getElementById('adminCorreo')?.value.trim().toLowerCase(),
     password:        document.getElementById('adminPass')?.value,
   };
   if (!body.numero_empleado || !body.nombre || !body.password) {
     if (msg) { msg.textContent='Completa los campos obligatorios.'; msg.className='feedback denied'; }
+    return;
+  }
+  if (!_isEmail(body.correo)) {
+    if (msg) { msg.textContent='Correo invalido.'; msg.className='feedback denied'; }
     return;
   }
   try {
@@ -1192,4 +2103,7 @@ document.getElementById('adminCreate')?.addEventListener('click', async () => {
 
 // ════ INIT ════
 applyLang(currentLang);
+<<<<<<< HEAD
 resetInactivityTimer();
+=======
+>>>>>>> e5d17192bbb52eaccfd19318987818c6abf58ea5
