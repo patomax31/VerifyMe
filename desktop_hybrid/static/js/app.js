@@ -63,6 +63,7 @@ const I18N = {
     access_sub:'Posiciona el rostro del alumno frente a la cámara.',
     liveness_init:'Inicia la cámara para comenzar la verificación.',
     cam_stopped:'Cámara detenida', btn_start_cam:'Iniciar cámara', btn_stop:'Detener',
+    scanning:'Escaneando...',
     waiting_face:'ESPERANDO ROSTRO...', result_title:'Resultado', btn_scan_another:'Escanear otro alumno',
     reg_title_data:'Datos del alumno', reg_sub_data:'Ingresa la información escolar.',
     field_name:'Nombre completo', field_grade:'Grado', field_group:'Grupo', field_shift:'Turno',
@@ -109,6 +110,7 @@ const I18N = {
     access_sub:"Position the student's face in front of the camera.",
     liveness_init:'Start the camera to begin verification.',
     cam_stopped:'Camera stopped', btn_start_cam:'Start camera', btn_stop:'Stop',
+    scanning:'Scanning...',
     waiting_face:'WAITING FOR FACE...', result_title:'Result', btn_scan_another:'Scan another student',
     reg_title_data:'Student data', reg_sub_data:'Enter school information.',
     field_name:'Full name', field_grade:'Grade', field_group:'Group', field_shift:'Shift',
@@ -535,10 +537,30 @@ document.addEventListener('focusout', e => {
 let loginLivId       = null;
 let loginLivOk       = false;
 let loginDeniedCount = 0;
+let loginVerifyBusy  = false;
+let loginLivBusy     = false;
+let loginFaceDetector = null;
+let loginFaceTrackId = null;
+let loginFaceDetectBusy = false;
+let loginFaceLastTick = 0;
+let loginFaceLastSeen = 0;
+let loginFaceTrackerUsesBrowser = false;
 
 const loginCanvas     = document.getElementById('loginCanvas');
 const livDot          = document.getElementById('loginLivenessDot');
 const livText         = document.getElementById('loginLivenessText');
+const loginScanOverlay = document.getElementById('loginScanOverlay');
+const loginScanFrame = loginScanOverlay?.querySelector('.face-scan-frame');
+
+function setLoginScanning(active, box) {
+  if (!loginScanOverlay) return;
+  loginScanOverlay.classList.toggle('is-visible', active);
+  if (!active || !loginScanFrame || !box) return;
+  loginScanFrame.style.setProperty('--scan-x', `${Math.round(box.x)}px`);
+  loginScanFrame.style.setProperty('--scan-y', `${Math.round(box.y)}px`);
+  loginScanFrame.style.setProperty('--scan-w', `${Math.round(box.w)}px`);
+  loginScanFrame.style.setProperty('--scan-h', `${Math.round(box.h)}px`);
+}
 
 function setLivUi(state, text) {
   if (livText) livText.textContent = text || '';
@@ -558,6 +580,126 @@ function _sourceDims(el) {
   const w = el?.videoWidth || el?.naturalWidth || el?.width || 0;
   const h = el?.videoHeight || el?.naturalHeight || el?.height || 0;
   return { w, h };
+}
+
+function _mapFaceBoxToCamera(source, faceBox) {
+  const cameraBox = source?.closest?.('.camera-box');
+  const rect = cameraBox?.getBoundingClientRect();
+  const dims = _sourceDims(source);
+  if (!rect || !dims.w || !dims.h || !faceBox) return null;
+
+  const scale = Math.max(rect.width / dims.w, rect.height / dims.h);
+  const renderedW = dims.w * scale;
+  const renderedH = dims.h * scale;
+  const offsetX = (rect.width - renderedW) / 2;
+  const offsetY = (rect.height - renderedH) / 2;
+
+  const rawX = faceBox.x * scale + offsetX;
+  const rawY = faceBox.y * scale + offsetY;
+  const rawW = faceBox.width * scale;
+  const rawH = faceBox.height * scale;
+  const padX = Math.max(24, rawW * 0.24);
+  const padY = Math.max(28, rawH * 0.30);
+
+  const x = Math.max(10, rawX - padX);
+  const y = Math.max(10, rawY - padY);
+  const w = Math.min(rect.width - x - 10, rawW + padX * 2);
+  const h = Math.min(rect.height - y - 10, rawH + padY * 2);
+  if (w < 80 || h < 80) return null;
+  return { x, y, w, h };
+}
+
+function _mapNormalizedFaceBoxToCamera(source, faceBox) {
+  const dims = _sourceDims(source);
+  if (!dims.w || !dims.h || !faceBox) return null;
+  return _mapFaceBoxToCamera(source, {
+    x: faceBox.x * dims.w,
+    y: faceBox.y * dims.h,
+    width: faceBox.width * dims.w,
+    height: faceBox.height * dims.h,
+  });
+}
+
+function updateLoginScanFromServer(faceBox) {
+  if (loginFaceTrackerUsesBrowser) return;
+  const source = _activeCameraSource(loginVideo, loginImage);
+  const box = _mapNormalizedFaceBoxToCamera(source, faceBox);
+  if (box) {
+    loginFaceLastSeen = performance.now();
+    setLoginScanning(true, box);
+    return;
+  }
+  if (!loginFaceLastSeen || performance.now() - loginFaceLastSeen > 900) {
+    setLoginScanning(false);
+  }
+}
+
+function _largestFace(faces) {
+  return faces.reduce((best, face) => {
+    if (!best) return face;
+    const a = face.boundingBox.width * face.boundingBox.height;
+    const b = best.boundingBox.width * best.boundingBox.height;
+    return a > b ? face : best;
+  }, null);
+}
+
+function startLoginFaceTracker() {
+  stopLoginFaceTracker();
+  loginFaceTrackerUsesBrowser = false;
+  if (!loginScanOverlay || !('FaceDetector' in window)) {
+    setLoginScanning(false);
+    return;
+  }
+  try {
+    loginFaceDetector = new FaceDetector({ fastMode: true, maxDetectedFaces: 1 });
+    loginFaceTrackerUsesBrowser = true;
+  } catch (_) {
+    loginFaceDetector = null;
+    loginFaceTrackerUsesBrowser = false;
+    setLoginScanning(false);
+    return;
+  }
+
+  const tick = now => {
+    if (!loginFaceDetector) return;
+    const source = _activeCameraSource(loginVideo, loginImage);
+    const dims = _sourceDims(source);
+    const ready = source && dims.w && dims.h && (source.tagName !== 'VIDEO' || source.readyState >= 2);
+
+    if (ready && !loginFaceDetectBusy && now - loginFaceLastTick >= 140) {
+      loginFaceLastTick = now;
+      loginFaceDetectBusy = true;
+      loginFaceDetector.detect(source)
+        .then(faces => {
+          const face = faces?.length ? _largestFace(faces) : null;
+          const box = face ? _mapFaceBoxToCamera(source, face.boundingBox) : null;
+          if (box) {
+            loginFaceLastSeen = performance.now();
+            setLoginScanning(true, box);
+          }
+        })
+        .catch(() => {})
+        .finally(() => { loginFaceDetectBusy = false; });
+    }
+
+    if (!ready || now - loginFaceLastSeen > 650) setLoginScanning(false);
+    loginFaceTrackId = requestAnimationFrame(tick);
+  };
+
+  loginFaceLastTick = 0;
+  loginFaceLastSeen = 0;
+  loginFaceTrackId = requestAnimationFrame(tick);
+}
+
+function stopLoginFaceTracker() {
+  if (loginFaceTrackId) cancelAnimationFrame(loginFaceTrackId);
+  loginFaceTrackId = null;
+  loginFaceDetector = null;
+  loginFaceTrackerUsesBrowser = false;
+  loginFaceDetectBusy = false;
+  loginFaceLastTick = 0;
+  loginFaceLastSeen = 0;
+  setLoginScanning(false);
 }
 
 function _useMjpeg(imgEl, videoEl) {
@@ -590,7 +732,9 @@ function stopLoginCamera() {
   if (loginImage)  { loginImage.src = ''; loginImage.classList.add('hidden'); }
   if (loginVideo)  loginVideo.classList.remove('hidden');
   if (camOverlay)  camOverlay.classList.remove('hidden');
+  stopLoginFaceTracker();
   loginLivId = null; loginLivOk = false;
+  loginVerifyBusy = false; loginLivBusy = false;
 }
 
 function showAccessStep(n) {
@@ -623,6 +767,7 @@ async function startLoginCamera() {
     loginStream = await navigator.mediaDevices.getUserMedia({ video: true });
     _useGetUserMedia(loginVideo, loginImage, loginStream);
     if (camOverlay)  camOverlay.classList.add('hidden');
+    startLoginFaceTracker();
     if (loginMsgHelp) {
       loginMsgHelp.classList.add('hidden');
       loginMsgHelp.classList.remove('is-clickable');
@@ -638,6 +783,7 @@ async function startLoginCamera() {
       loginStream = { backend: 'mjpeg' };
       _useMjpeg(loginImage, loginVideo);
       if (camOverlay)  camOverlay.classList.add('hidden');
+      startLoginFaceTracker();
       loginDeniedCount = 0;
       loginInterval = setInterval(async () => {
         if (!loginLivOk) await pushLivFrame();
@@ -694,11 +840,13 @@ function resetAccessStep() {
 document.getElementById('btnScanAnother')?.addEventListener('click', resetAccessStep);
 
 async function pushLivFrame() {
+  if (loginLivBusy) return;
   if (!loginCanvas || !loginLivId) return;
   const source = _activeCameraSource(loginVideo, loginImage);
   if (!source) return;
   const dims = _sourceDims(source);
   if (!dims.w || !dims.h) return;
+  loginLivBusy = true;
   loginCanvas.width  = dims.w;
   loginCanvas.height = dims.h;
   loginCanvas.getContext('2d').drawImage(source, 0, 0, dims.w, dims.h);
@@ -709,20 +857,26 @@ async function pushLivFrame() {
       body: JSON.stringify({ session_id: loginLivId, image }),
     });
     const data = await res.json();
+    updateLoginScanFromServer(data.face_box);
     setLivUi(data.state, data.message);
     if (data.state === 'ready') {
       loginLivOk = true;
       if (loginMsg) { loginMsg.textContent = 'Identificando…'; loginMsg.className = 'feedback waiting'; }
     }
-  } catch (_) {}
+  } catch (_) {
+  } finally {
+    loginLivBusy = false;
+  }
 }
 
 async function captureAndVerify() {
+  if (loginVerifyBusy) return;
   if (!loginCanvas) return;
   const source = _activeCameraSource(loginVideo, loginImage);
   if (!source) return;
   const dims = _sourceDims(source);
   if (!dims.w || !dims.h) return;
+  loginVerifyBusy = true;
   loginCanvas.width  = dims.w;
   loginCanvas.height = dims.h;
   loginCanvas.getContext('2d').drawImage(source, 0, 0, dims.w, dims.h);
@@ -733,6 +887,10 @@ async function captureAndVerify() {
       body: JSON.stringify({ image, liveness_session_id: loginLivId }),
     });
     const data = await res.json();
+    updateLoginScanFromServer(data.face_box);
+    if (data.state === 'granted' || data.state === 'denied') {
+      stopLoginFaceTracker();
+    }
     if (loginMsg) { loginMsg.textContent = data.message||''; loginMsg.className = 'feedback '+(data.state||''); }
     if (data.state === 'granted') {
       stopLoginCamera();
@@ -748,7 +906,10 @@ async function captureAndVerify() {
         if (loginDeniedCount >= 3) loginMsgHelp.classList.add('is-clickable');
       }
     }
-  } catch (_) {}
+  } catch (_) {
+  } finally {
+    loginVerifyBusy = false;
+  }
 }
 
 loginStart?.addEventListener('click', async () => {
@@ -766,6 +927,7 @@ loginStart?.addEventListener('click', async () => {
     loginStream = await navigator.mediaDevices.getUserMedia({ video: true });
     if (loginVideo)  loginVideo.srcObject  = loginStream;
     if (camOverlay)  camOverlay.classList.add('hidden');
+    startLoginFaceTracker();
     if (loginStart)  loginStart.disabled   = true;
     if (loginStop)   loginStop.disabled    = false;
     if (loginMsgHelp) { loginMsgHelp.classList.add('hidden'); loginMsgHelp.classList.remove('is-clickable'); }
@@ -809,9 +971,9 @@ regNombreInput?.addEventListener('input', () => {
 });
 
 const REG_ANGLES = [
-  { key:'image_front', get label(){ return t('btn_capture_front'); }, get hint(){ return t('angle_hint_front'); } },
-  { key:'image_left',  get label(){ return t('btn_capture_left');  }, get hint(){ return t('angle_hint_left');  } },
-  { key:'image_right', get label(){ return t('btn_save_student');  }, get hint(){ return t('angle_hint_right'); } },
+  { key:'image_front', guide:'perfilHead_frente.png', get label(){ return t('btn_capture_front'); }, get hint(){ return t('angle_hint_front'); } },
+  { key:'image_left',  guide:'perfilHead_izquierdo.png', get label(){ return t('btn_capture_left');  }, get hint(){ return t('angle_hint_left');  } },
+  { key:'image_right', guide:'perfilHead_derecho.png', get label(){ return t('btn_save_student');  }, get hint(){ return t('angle_hint_right'); } },
 ];
 
 function updateRegAngleUi() {
@@ -824,9 +986,11 @@ function updateRegAngleUi() {
   });
   const hint  = document.getElementById('regAngleHint');
   const label = document.getElementById('regCaptureLabel');
+  const guide = document.getElementById('regAngleGuideImg');
   const angle = REG_ANGLES[regStepIndex];
   if (hint  && angle) hint.textContent  = angle.hint;
   if (label && angle) label.textContent = angle.label;
+  if (guide && angle) guide.src = `/static/img/guides/${angle.guide}`;
 }
 
 function stopRegCamera() {

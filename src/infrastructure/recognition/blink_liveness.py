@@ -45,17 +45,35 @@ def _resize_long_edge(frame_bgr: Any, max_side: int = 720) -> Any:
     return cv2.resize(frame_bgr, (int(w * s), int(h * s)), interpolation=cv2.INTER_AREA)
 
 
+def _normalized_face_box(loc: Tuple[int, int, int, int], width: int, height: int) -> Dict[str, float]:
+    top, right, bottom, left = loc
+    return {
+        "x": max(0.0, min(1.0, left / float(width))),
+        "y": max(0.0, min(1.0, top / float(height))),
+        "width": max(0.0, min(1.0, (right - left) / float(width))),
+        "height": max(0.0, min(1.0, (bottom - top) / float(height))),
+    }
+
+
 def ear_from_frame_bgr(frame_bgr: Any) -> Optional[float]:
     """EAR promedio con un solo rostro; redimensiona para fluidez y usa upsample HOG."""
+    ear, _ = ear_and_face_box_from_frame_bgr(frame_bgr)
+    return ear
+
+
+def ear_and_face_box_from_frame_bgr(frame_bgr: Any) -> Tuple[Optional[float], Optional[Dict[str, float]]]:
+    """EAR promedio y caja normalizada de un solo rostro."""
     small = _resize_long_edge(frame_bgr, 720)
+    h, w = small.shape[:2]
     rgb = cv2.cvtColor(small, cv2.COLOR_BGR2RGB)
     locs = face_recognition.face_locations(rgb, number_of_times_to_upsample=1, model="hog")
     if len(locs) != 1:
-        return None
+        return None, None
+    face_box = _normalized_face_box(locs[0], w, h)
     marks = face_recognition.face_landmarks(rgb, locs)
     if not marks:
-        return None
-    return mean_ear_from_landmarks(marks[0])
+        return None, face_box
+    return mean_ear_from_landmarks(marks[0]), face_box
 
 
 @dataclass
@@ -141,7 +159,7 @@ def start_liveness_session() -> str:
     return sid
 
 
-def push_liveness_frame(session_id: str, frame_bgr: Any) -> Tuple[str, str]:
+def push_liveness_frame(session_id: str, frame_bgr: Any) -> Tuple[str, str, Optional[Dict[str, float]]]:
     """
     Procesa un frame. Devuelve (estado, mensaje_ui).
     estado: no_face | tracking | need_blink | ready
@@ -149,19 +167,19 @@ def push_liveness_frame(session_id: str, frame_bgr: Any) -> Tuple[str, str]:
     cleanup_liveness_sessions()
     st = _LIVENESS.get(session_id)
     if st is None:
-        return "error", "Sesión de liveness inválida. Reinicia la cámara."
+        return "error", "Sesión de liveness inválida. Reinicia la cámara.", None
 
-    ear = ear_from_frame_bgr(frame_bgr)
+    ear, face_box = ear_and_face_box_from_frame_bgr(frame_bgr)
     state = st.push_ear(ear)
     if state == "no_face":
-        return "no_face", "Coloca un solo rostro frente a la cámara."
+        return "no_face", "Coloca un solo rostro frente a la cámara.", face_box
     if state == "tracking":
-        return "tracking", "Mantén los ojos abiertos un momento (mirando a la cámara)…"
+        return "tracking", "Mantén los ojos abiertos un momento (mirando a la cámara)…", face_box
     if state == "need_blink":
-        return "need_blink", "Parpadea una vez de forma natural (sin taparte la cara)."
+        return "need_blink", "Parpadea una vez de forma natural (sin taparte la cara).", face_box
     if state == "ready":
-        return "ready", "Listo. Identificando…"
-    return "need_blink", "Parpadea una vez de forma natural (sin taparte la cara)."
+        return "ready", "Listo. Identificando…", face_box
+    return "need_blink", "Parpadea una vez de forma natural (sin taparte la cara).", face_box
 
 
 def liveness_session_ready(session_id: str) -> bool:

@@ -153,6 +153,39 @@ def _decode_image_data_uri(image_data: str):
     return cv2.imdecode(nparr, cv2.IMREAD_COLOR)
 
 
+def _normalized_login_face_box(frame) -> Optional[Dict[str, float]]:
+    if cv2 is None or frame is None:
+        return None
+    try:
+        import face_recognition
+    except Exception:
+        return None
+
+    h, w = frame.shape[:2]
+    if h <= 0 or w <= 0:
+        return None
+
+    max_side = 720
+    scale = min(1.0, max_side / float(max(h, w)))
+    if scale < 1.0:
+        small = cv2.resize(frame, (int(w * scale), int(h * scale)), interpolation=cv2.INTER_AREA)
+    else:
+        small = frame
+
+    sh, sw = small.shape[:2]
+    rgb = cv2.cvtColor(small, cv2.COLOR_BGR2RGB)
+    locs = face_recognition.face_locations(rgb, number_of_times_to_upsample=1, model="hog")
+    if len(locs) != 1:
+        return None
+    top, right, bottom, left = locs[0]
+    return {
+        "x": max(0.0, min(1.0, left / float(sw))),
+        "y": max(0.0, min(1.0, top / float(sh))),
+        "width": max(0.0, min(1.0, (right - left) / float(sw))),
+        "height": max(0.0, min(1.0, (bottom - top) / float(sh))),
+    }
+
+
 def _credential_jpeg_path(student_id: int) -> Optional[Path]:
     path = PROJECT_DIR / "data" / "credentials" / f"est_{student_id}.jpg"
     return path if path.is_file() else None
@@ -575,8 +608,8 @@ def create_app() -> Flask:
         if frame is None:
             return jsonify({"ok": True, "state": "no_face", "message": "Imagen invalida"})
 
-        state, message = push_liveness_frame(session_id, frame)
-        return jsonify({"ok": True, "state": state, "message": message})
+        state, message, face_box = push_liveness_frame(session_id, frame)
+        return jsonify({"ok": True, "state": state, "message": message, "face_box": face_box})
 
     @app.post("/api/login/verify")
     def verify_face():
@@ -591,6 +624,7 @@ def create_app() -> Flask:
         if frame is None:
             return jsonify({"ok": False, "state": "error", "message": "Imagen invalida"}), 400
 
+        face_box = _normalized_login_face_box(frame)
         liveness_sid = str(payload.get("liveness_session_id") or payload.get("liveness_session") or "").strip()
         if not liveness_sid or liveness_session_ready is None or not liveness_session_ready(liveness_sid):
             return jsonify(
@@ -599,6 +633,7 @@ def create_app() -> Flask:
                     "state": "liveness_required",
                     "message": "Primero completa la verificación: parpadea cuando el sistema te lo pida.",
                     "user": None,
+                    "face_box": face_box,
                 }
             )
 
@@ -609,6 +644,7 @@ def create_app() -> Flask:
                     "ok": False,
                     "state": "error",
                     "message": "ERROR: No hay usuarios registrados",
+                    "face_box": face_box,
                 }
             ), 400
 
@@ -627,6 +663,7 @@ def create_app() -> Flask:
                         "state": "positioning",
                         "message": "CENTRA TU ROSTRO",
                         "user": None,
+                        "face_box": None,
                     }
                 )
             enc_live = enc_list[0] if len(enc_list) == 1 else None
@@ -638,6 +675,7 @@ def create_app() -> Flask:
                     "state": "waiting",
                     "message": "ESPERANDO ROSTRO...",
                     "user": None,
+                    "face_box": None,
                 }
             )
 
@@ -669,6 +707,7 @@ def create_app() -> Flask:
                     "state": "granted",
                     "message": result.message,
                     "user": user_data,
+                    "face_box": face_box,
                 }
             )
 
@@ -678,6 +717,7 @@ def create_app() -> Flask:
                 "state": "denied",
                 "message": result.message,
                 "user": None,
+                "face_box": face_box,
             }
         )
 
