@@ -1,5 +1,5 @@
 /* ═══════════════════════════════════════════════════════════════════════
-   VerifyMe · app.js
+   VerifyMe · app.js  — sin conflictos de merge
 ═══════════════════════════════════════════════════════════════════════ */
 
 // ════ GLOBALES DE CAMARA Y TIMERS ════
@@ -201,26 +201,40 @@ function showView(viewId) {
   if (viewId !== 'register') stopRegCamera();
   if (viewId !== 'register-admin') stopRegAdminCamera();
 
-  allViews.forEach(v => v.classList.add('hidden'));
-  navBtns.forEach(b => b.classList.remove('active'));
+  // Animación de salida en la vista actual
+  const current = document.querySelector('.view:not(.hidden)');
+  if (current) current.classList.add('view-exit');
 
-  const target = document.getElementById('view-' + viewId);
-  if (target) target.classList.remove('hidden');
+  setTimeout(() => {
+    allViews.forEach(v => { v.classList.add('hidden'); v.classList.remove('view-exit', 'view-enter'); });
+    navBtns.forEach(b => b.classList.remove('active'));
 
-  const btn = document.querySelector('.nav-btn[data-view="' + viewId + '"]');
-  if (btn) btn.classList.add('active');
+    const target = document.getElementById('view-' + viewId);
+    if (target) {
+      target.classList.remove('hidden');
+      target.classList.add('view-enter');
+      requestAnimationFrame(() => requestAnimationFrame(() => target.classList.remove('view-enter')));
+    }
 
-  const titleEl = document.getElementById('topbarTitle');
-  if (titleEl) titleEl.textContent = t('title_' + viewId) || viewId;
+    const btn = document.querySelector('.nav-btn[data-view="' + viewId + '"]');
+    if (btn) btn.classList.add('active');
 
-  closeDrawer();
+    const titleEl = document.getElementById('topbarTitle');
+    if (titleEl) titleEl.textContent = t('title_' + viewId) || viewId;
 
-  if (viewId === 'access') startLoginCamera();
+    closeDrawer();
+
+    // Auto-iniciar cámara al entrar a acceso facial
+    if (viewId === 'access') {
+      showAccessStep(1);
+      setTimeout(startLoginCameraAuto, 300);
+    }
+  }, 180);
 }
 
 navBtns.forEach(b => b.addEventListener('click', () => showView(b.dataset.view)));
 
-document.querySelectorAll('.quick-nav-btn[data-goto]').forEach(b => {
+document.querySelectorAll('[data-goto]').forEach(b => {
   b.addEventListener('click', () => showView(b.dataset.goto));
 });
 
@@ -252,18 +266,14 @@ let inactivityTimer = null;
 let countdownTimer  = null;
 let countdownInterval = null;
 
-// ── Tiempos configurables ──
-const INACTIVITY_MS  = 60000; // 60s inactivo → inicia cuenta regresiva
-const COUNTDOWN_SECS = 10;    // 10s de cuenta regresiva visible
+const INACTIVITY_MS  = 60000;
+const COUNTDOWN_SECS = 10;
 
-// ── Toast elementos ──
 const clockToast    = document.getElementById('clockToast');
 const toastNum      = document.getElementById('toastNum');
 const toastProgress = document.getElementById('toastProgress');
 const toastCancel   = document.getElementById('toastCancel');
-const toastMsg      = document.getElementById('toastMsg');
 
-// Circunferencia del SVG circle r=13 → 2π×13 ≈ 81.68 ≈ 82
 const CIRC = 82;
 
 const DAYS_ES   = ['Domingo','Lunes','Martes','Miércoles','Jueves','Viernes','Sábado'];
@@ -298,14 +308,12 @@ function tickClockOverlay() {
   if (covS)  covS.textContent  = String(s).padStart(2,'0') + 's';
 }
 
-// ── Mostrar overlay con transición suave ──
 function openClockOverlay() {
   if (!clockOverlay) return;
   stopCountdown();
   stopInactivityTimer();
   hideToast();
   clockOverlay.classList.remove('hidden');
-  // Forzar reflow para que la transición CSS funcione
   clockOverlay.getBoundingClientRect();
   clockOverlay.classList.add('visible');
   document.body.style.overflow = 'hidden';
@@ -319,7 +327,6 @@ function closeClockOverlay() {
   document.body.style.overflow = '';
   clearInterval(clockInterval);
   clockInterval = null;
-  // Esperar a que termine la transición antes de ocultar
   setTimeout(() => {
     if (!clockOverlay.classList.contains('visible')) {
       clockOverlay.classList.add('hidden');
@@ -328,19 +335,16 @@ function closeClockOverlay() {
   resetInactivityTimer();
 }
 
-// ── Toast cuenta regresiva ──
 function showToast() {
   if (!clockToast) return;
   let secs = COUNTDOWN_SECS;
-  toastNum.textContent = secs;
-  // Barra arranca llena y va vaciando
-  toastProgress.style.strokeDashoffset = 0;
+  if (toastNum) toastNum.textContent = secs;
+  if (toastProgress) toastProgress.style.strokeDashoffset = 0;
   clockToast.classList.add('visible');
 
   countdownInterval = setInterval(() => {
     secs--;
     if (toastNum) toastNum.textContent = secs;
-    // Progreso: va de 0 a CIRC conforme bajan los segundos
     const offset = CIRC * (1 - secs / COUNTDOWN_SECS);
     if (toastProgress) toastProgress.style.strokeDashoffset = offset;
     if (secs <= 0) {
@@ -368,7 +372,6 @@ function resetInactivityTimer() {
   clearTimeout(inactivityTimer);
   stopCountdown();
   inactivityTimer = setTimeout(() => {
-    // Primero muestra el toast con cuenta regresiva
     showToast();
   }, INACTIVITY_MS);
 }
@@ -379,18 +382,15 @@ function stopInactivityTimer() {
   stopCountdown();
 }
 
-// Cancelar con el botón del toast
 toastCancel?.addEventListener('click', e => {
   e.stopPropagation();
   stopCountdown();
   resetInactivityTimer();
 });
 
-// Reiniciar timer con cualquier actividad (solo cuando overlay está oculto)
 ['click','touchstart','mousemove','keydown','scroll','pointerdown'].forEach(ev => {
   document.addEventListener(ev, () => {
     if (!clockOverlay?.classList.contains('visible')) {
-      // Si el toast está visible, ocultarlo y reiniciar
       if (clockToast?.classList.contains('visible')) {
         stopCountdown();
         resetInactivityTimer();
@@ -401,19 +401,32 @@ toastCancel?.addEventListener('click', e => {
   }, { passive: true });
 });
 
-// Tocar cualquier parte del overlay lo cierra
-clockOverlay?.addEventListener('click', closeClockOverlay);
+clockOverlay?.addEventListener('click', () => {
+  closeClockOverlay();
+  showView('access');
+});
 
-// Botón reloj en topbar
 document.getElementById('clockModeBtn')?.addEventListener('click', e => {
   e.stopPropagation();
   openClockOverlay();
 });
 
-// Arrancar en modo reloj al cargar (sin cuenta regresiva, directo)
 openClockOverlay();
 
 // ════ HOME STATS ════
+function animateCount(el, target, duration = 900) {
+  if (!el) return;
+  const start = performance.now();
+  const from  = parseInt(el.textContent) || 0;
+  const step  = ts => {
+    const progress = Math.min((ts - start) / duration, 1);
+    const ease = 1 - Math.pow(1 - progress, 3);
+    el.textContent = Math.round(from + (target - from) * ease);
+    if (progress < 1) requestAnimationFrame(step);
+  };
+  requestAnimationFrame(step);
+}
+
 async function fetchHomeStats() {
   try {
     const res  = await fetch('/api/admin/students');
@@ -421,9 +434,32 @@ async function fetchHomeStats() {
     const list = data.students || data || [];
     const tot  = document.getElementById('statTotal');
     const act  = document.getElementById('statActivos');
-    if (tot) tot.textContent = list.length;
-    if (act) act.textContent = list.filter(s => s.activo !== false).length;
+    animateCount(tot, list.length);
+    animateCount(act, list.filter(s => s.activo !== false).length);
+
+    // Últimos accesos (mock si no hay endpoint)
+    renderLastAccess(list.slice(-4).reverse());
   } catch (_) {}
+}
+
+function renderLastAccess(list) {
+  const container = document.getElementById('lastAccessList');
+  if (!container) return;
+  if (!list.length) return;
+  container.innerHTML = list.map(s => {
+    const initials = (s.nombre||'??').split(' ').map(w => w[0]).join('').slice(0,2).toUpperCase();
+    const colors   = ['#006B28','#008A34','#004D1C','#1E5530'];
+    const color    = colors[(s.id || 0) % colors.length];
+    return `
+      <div class="access-item" style="--accent:${color}">
+        <div class="access-item__avatar" style="background:${color}">${initials}</div>
+        <div class="access-item__info">
+          <span class="access-item__name">${s.nombre}</span>
+          <span class="access-item__meta">${s.grado}° ${s.letra||''} · ${s.turno||''}</span>
+        </div>
+        <span class="access-item__badge">&#10003;</span>
+      </div>`;
+  }).join('');
 }
 fetchHomeStats();
 
@@ -433,105 +469,114 @@ document.getElementById('logoutBtn')?.addEventListener('click', async () => {
   window.location.href = '/';
 });
 
+// ════ MODO KIOSCO / FULLSCREEN ════
+const kioskBtn        = document.getElementById('kioskBtn');
+const kioskIcon       = document.getElementById('kioskIcon');
+const kioskPanel      = document.getElementById('kioskPanel');
+const kioskPanelOverlay = document.getElementById('kioskPanelOverlay');
+const kioskConfirm    = document.getElementById('kioskConfirm');
+const kioskCancel     = document.getElementById('kioskCancel');
+const kioskExitFab    = document.getElementById('kioskExitFab');
 // ════ ON-SCREEN KEYBOARD (simple-keyboard) ════
 const keyboardInputs = 'input[type="text"], input[type="email"], input[type="password"], input[type="number"], input[type="adminValidateNombre"],input[type="adminValidateCorreo"],input[type="adminValidatePass"], textarea';
 let activeInput = null;
 let osk = null;
 let oskInteracting = false;
 
-function showOsk() {
-  const el = document.getElementById('osk');
-  if (!el) return;
-  el.classList.remove('hidden');
-  el.setAttribute('aria-hidden', 'false');
+let kioskActive = false;
+
+// ── Detectar si ya estamos en fullscreen (p.ej. al recargar) ──
+function isFullscreen() {
+  return !!(
+    document.fullscreenElement ||
+    document.webkitFullscreenElement ||
+    document.mozFullScreenElement ||
+    document.msFullscreenElement
+  );
 }
 
-function hideOsk() {
-  const el = document.getElementById('osk');
-  if (!el) return;
-  el.classList.add('hidden');
-  el.setAttribute('aria-hidden', 'true');
+// ── Entrar a fullscreen ──
+async function enterFullscreen() {
+  const el = document.documentElement;
+  try {
+    if      (el.requestFullscreen)          await el.requestFullscreen({ navigationUI: 'hide' });
+    else if (el.webkitRequestFullscreen)   el.webkitRequestFullscreen();
+    else if (el.mozRequestFullScreen)      el.mozRequestFullScreen();
+    else if (el.msRequestFullscreen)       el.msRequestFullscreen();
+  } catch (e) {
+    console.warn('Fullscreen error:', e);
+  }
 }
 
-function initOsk() {
-  if (osk || !window.SimpleKeyboard) return;
-  const oskRoot = document.getElementById('osk');
-  oskRoot?.addEventListener('pointerdown', e => {
-    oskInteracting = true;
-    e.preventDefault();
-  });
-  oskRoot?.addEventListener('pointerup', () => {
-    setTimeout(() => { oskInteracting = false; }, 0);
-  });
-  osk = new window.SimpleKeyboard.default({
-    onChange: input => {
-      if (!activeInput) return;
-      activeInput.value = input;
-      activeInput.dispatchEvent(new Event('input', { bubbles: true }));
-    },
-    onKeyPress: button => {
-      if (button === '{enter}') {
-        activeInput?.blur();
-        hideOsk();
-      }
-      if (button === '{shift}' || button === '{lock}') handleShift();
-    },
-    layout: {
-      default: [
-        'q w e r t y u i o p',
-        'a s d f g h j k l',
-        '{shift} z x c v b n m {bksp}',
-        '{space} {enter}'
-      ],
-      shift: [
-        'Q W E R T Y U I O P',
-        'A S D F G H J K L',
-        '{shift} Z X C V B N M {bksp}',
-        '{space} {enter}'
-      ]
-    },
-    display: {
-      '{bksp}': '⌫',
-      '{enter}': '↵',
-      '{space}': 'espacio',
-      '{shift}': '⇧',
-      '{lock}': '⇪'
+// ── Salir de fullscreen ──
+async function exitFullscreen() {
+  try {
+    if      (document.exitFullscreen)          await document.exitFullscreen();
+    else if (document.webkitExitFullscreen)   document.webkitExitFullscreen();
+    else if (document.mozCancelFullScreen)    document.mozCancelFullScreen();
+    else if (document.msExitFullscreen)       document.msExitFullscreen();
+  } catch (e) {}
+}
+
+// ── Actualizar UI según estado fullscreen ──
+function onFullscreenChange() {
+  kioskActive = isFullscreen();
+
+  // Ícono del botón topbar
+  if (kioskIcon) kioskIcon.textContent = kioskActive ? 'fullscreen_exit' : 'fullscreen';
+
+  // FAB de salida: visible solo en fullscreen
+  if (kioskExitFab) {
+    if (kioskActive) {
+      kioskExitFab.classList.remove('hidden');
+      kioskExitFab.classList.add('visible');
+    } else {
+      kioskExitFab.classList.remove('visible');
+      setTimeout(() => kioskExitFab.classList.add('hidden'), 400);
     }
-  });
+  }
+
+  // Badge en topbar
+  document.body.classList.toggle('kiosk-mode', kioskActive);
 }
 
-function handleShift() {
-  if (!osk) return;
-  const current = osk.options.layoutName || 'default';
-  const next = current === 'default' ? 'shift' : 'default';
-  osk.setOptions({ layoutName: next });
+// ── Eventos de cambio fullscreen (cross-browser) ──
+document.addEventListener('fullscreenchange',       onFullscreenChange);
+document.addEventListener('webkitfullscreenchange', onFullscreenChange);
+document.addEventListener('mozfullscreenchange',    onFullscreenChange);
+document.addEventListener('MSFullscreenChange',     onFullscreenChange);
+
+// ── Abrir panel de confirmación ──
+function openKioskPanel() {
+  kioskPanel?.classList.remove('hidden');
+  requestAnimationFrame(() => kioskPanel?.classList.add('open'));
 }
 
-document.addEventListener('focusin', e => {
-  const target = e.target;
-  if (target && target.matches && target.matches(keyboardInputs)) {
-    initOsk();
-    activeInput = target;
-    osk?.setInput(target.value || '');
-    showOsk();
-  }
+function closeKioskPanel() {
+  kioskPanel?.classList.remove('open');
+  setTimeout(() => kioskPanel?.classList.add('hidden'), 280);
+}
+
+// Botón topbar → abrir panel (si no está en fullscreen) o salir (si ya está)
+kioskBtn?.addEventListener('click', () => {
+  if (isFullscreen()) exitFullscreen();
+  else                openKioskPanel();
 });
 
-document.addEventListener('focusout', e => {
-  const target = e.target;
-  if (target && target.matches && target.matches(keyboardInputs)) {
-    setTimeout(() => {
-      if (oskInteracting) {
-        activeInput?.focus();
-        return;
-      }
-      const focused = document.activeElement;
-      if (focused && focused.matches && focused.matches(keyboardInputs)) return;
-      activeInput = null;
-      hideOsk();
-    }, 0);
-  }
+// Confirmar → entrar a fullscreen (DEBE ser gesto directo del usuario)
+kioskConfirm?.addEventListener('click', async () => {
+  closeKioskPanel();
+  await new Promise(r => setTimeout(r, 300)); // esperar que cierre el panel
+  await enterFullscreen();
 });
+
+kioskCancel?.addEventListener('click',        closeKioskPanel);
+kioskPanelOverlay?.addEventListener('click',  closeKioskPanel);
+
+// FAB flotante de salida
+kioskExitFab?.addEventListener('click', exitFullscreen);
+
+// Tecla Escape ya la maneja el navegador de forma nativa para salir de fullscreen
 
 // ════ ACCESO FACIAL ════
 let loginLivId       = null;
@@ -732,47 +777,40 @@ function stopLoginCamera() {
   if (loginImage)  { loginImage.src = ''; loginImage.classList.add('hidden'); }
   if (loginVideo)  loginVideo.classList.remove('hidden');
   if (camOverlay)  camOverlay.classList.remove('hidden');
+  if (loginStart)  loginStart.disabled  = false;
+  if (loginStop)   loginStop.disabled   = true;
   stopLoginFaceTracker();
   loginLivId = null; loginLivOk = false;
   loginVerifyBusy = false; loginLivBusy = false;
 }
 
-function showAccessStep(n) {
-  const s1 = document.getElementById('access-step1');
-  const s2 = document.getElementById('access-step2');
-  if (n === 1) { s1?.classList.remove('hidden'); s2?.classList.add('hidden'); }
-  else         { s1?.classList.add('hidden');    s2?.classList.remove('hidden'); }
-}
-
-async function startLoginCamera() {
+// Auto-start: se llama al navegar al view, sin clic manual
+async function startLoginCameraAuto() {
   if (loginStream || loginInterval) return;
+  if (loginStart) loginStart.disabled = true;
+  if (loginStop)  loginStop.disabled  = false;
+  setLivUi('init', 'Conectando cámara…');
   try {
-    showAccessStep(1);
     loginLivOk = false; loginLivId = null;
-    setLivUi('init', t('liveness_init'));
-
     try {
       const ls = await fetch('/api/login/liveness/start', { method:'POST' });
       const lj = await ls.json();
-      if (lj.ok && lj.session_id) {
-        loginLivId = lj.session_id;
-      } else {
-        loginLivOk = true;
-      }
+      if (lj.ok && lj.session_id) loginLivId = lj.session_id;
+      else loginLivOk = true;
     } catch (_) { loginLivOk = true; }
 
-    if (!navigator.mediaDevices?.getUserMedia) {
-      throw new Error('getUserMedia not available');
-    }
     loginStream = await navigator.mediaDevices.getUserMedia({ video: true });
     _useGetUserMedia(loginVideo, loginImage, loginStream);
     if (camOverlay)  camOverlay.classList.add('hidden');
+    if (loginMsgHelp) { loginMsgHelp.classList.add('hidden'); loginMsgHelp.classList.remove('is-clickable'); }
     startLoginFaceTracker();
     if (loginMsgHelp) {
       loginMsgHelp.classList.add('hidden');
       loginMsgHelp.classList.remove('is-clickable');
     }
     loginDeniedCount = 0;
+    if (loginMsg) { loginMsg.textContent = t('waiting_face'); loginMsg.className = 'feedback waiting'; }
+    setLivUi('init', t('liveness_init'));
 
     loginInterval = setInterval(async () => {
       if (!loginLivOk) await pushLivFrame();
@@ -791,53 +829,18 @@ async function startLoginCamera() {
       }, 700);
     } catch (_) {
       if (loginMsg) { loginMsg.textContent = t('no_camera'); loginMsg.className = 'feedback denied'; }
+      if (loginStart) loginStart.disabled = false;
+      if (loginStop)  loginStop.disabled  = true;
     }
   }
 }
 
-function renderAccessResult(data) {
-  const cont = document.getElementById('accessResult');
-  if (!cont) return;
-  const granted = data.state === 'granted';
-  const now     = new Date().toLocaleTimeString('es-MX', { hour:'2-digit', minute:'2-digit', second:'2-digit', hour12:true });
-  const u       = data.user || {};
-  cont.innerHTML = `
-    <div class="result-banner result-banner--${granted ? 'granted':'denied'}">
-      <span class="result-banner__icon material-symbols-outlined">${granted ? 'check_circle':'cancel'}</span>
-      <div>
-        <div>${granted ? 'Acceso concedido' : 'Acceso denegado'}</div>
-        <div class="result-banner__time">Registro: ${now}</div>
-      </div>
-    </div>
-    ${granted ? `
-    <div class="credential-card">
-      <div class="credential-card__photo">
-        ${u.foto_url
-          ? `<img class="credential-card__img" src="${u.foto_url}?t=${Date.now()}" alt="Foto">`
-          : `<div class="credential-card__ph">Sin foto</div>`}
-      </div>
-      <div class="credential-card__meta">
-        <div class="credential-card__title">Credencial</div>
-        <p><strong>Nombre</strong> ${u.nombre||'---'}</p>
-        <p><strong>Grado</strong>  ${u.grado||u.salon||'---'}</p>
-        <p><strong>Grupo</strong>  ${u.letra||u.grupo||'---'}</p>
-        <p><strong>Turno</strong>  ${u.turno||'---'}</p>
-        <p><strong>ID</strong>     ${u.id != null ? '#'+u.id : '---'}</p>
-      </div>
-    </div>` : `
-    <div class="feedback denied">${data.message || 'Rostro no reconocido.'}</div>`}`;
+function showAccessStep(n) {
+  const s1 = document.getElementById('access-step1');
+  const s2 = document.getElementById('access-step2');
+  if (n === 1) { s1?.classList.remove('hidden'); s2?.classList.add('hidden'); }
+  else         { s1?.classList.add('hidden');    s2?.classList.remove('hidden'); }
 }
-
-function resetAccessStep() {
-  showAccessStep(1);
-  stopLoginCamera();
-  setLivUi('init', t('liveness_init'));
-  if (loginMsg) { loginMsg.textContent = t('waiting_face'); loginMsg.className = 'feedback waiting'; }
-  if (loginMsgHelp) { loginMsgHelp.classList.add('hidden'); loginMsgHelp.classList.remove('is-clickable'); }
-  loginDeniedCount = 0;
-}
-
-document.getElementById('btnScanAnother')?.addEventListener('click', resetAccessStep);
 
 async function pushLivFrame() {
   if (loginLivBusy) return;
@@ -917,6 +920,7 @@ loginStart?.addEventListener('click', async () => {
     showAccessStep(1);
     loginLivOk = false; loginLivId = null;
     setLivUi('init', 'Conectando…');
+
     try {
       const ls = await fetch('/api/login/liveness/start', { method:'POST' });
       const lj = await ls.json();
@@ -925,8 +929,10 @@ loginStart?.addEventListener('click', async () => {
     } catch (_) { loginLivOk = true; }
 
     loginStream = await navigator.mediaDevices.getUserMedia({ video: true });
-    if (loginVideo)  loginVideo.srcObject  = loginStream;
+    _useGetUserMedia(loginVideo, loginImage, loginStream);
     if (camOverlay)  camOverlay.classList.add('hidden');
+    if (loginStart)  loginStart.disabled  = true;
+    if (loginStop)   loginStop.disabled   = false;
     startLoginFaceTracker();
     if (loginStart)  loginStart.disabled   = true;
     if (loginStop)   loginStop.disabled    = false;
@@ -938,7 +944,20 @@ loginStart?.addEventListener('click', async () => {
       else             await captureAndVerify();
     }, 700);
   } catch (_) {
-    if (loginMsg) { loginMsg.textContent = t('no_camera'); loginMsg.className = 'feedback denied'; }
+    try {
+      loginStream = { backend: 'mjpeg' };
+      _useMjpeg(loginImage, loginVideo);
+      if (camOverlay)  camOverlay.classList.add('hidden');
+      if (loginStart)  loginStart.disabled  = true;
+      if (loginStop)   loginStop.disabled   = false;
+      loginDeniedCount = 0;
+      loginInterval = setInterval(async () => {
+        if (!loginLivOk) await pushLivFrame();
+        else             await captureAndVerify();
+      }, 700);
+    } catch (_) {
+      if (loginMsg) { loginMsg.textContent = t('no_camera'); loginMsg.className = 'feedback denied'; }
+    }
   }
 });
 
@@ -949,6 +968,50 @@ loginStop?.addEventListener('click', () => {
   if (loginMsgHelp) { loginMsgHelp.classList.add('hidden'); loginMsgHelp.classList.remove('is-clickable'); }
   loginDeniedCount = 0;
 });
+
+function renderAccessResult(data) {
+  const cont = document.getElementById('accessResult');
+  if (!cont) return;
+  const granted = data.state === 'granted';
+  const now     = new Date().toLocaleTimeString('es-MX', { hour:'2-digit', minute:'2-digit', second:'2-digit', hour12:true });
+  const u       = data.user || {};
+  cont.innerHTML = `
+    <div class="result-banner result-banner--${granted ? 'granted':'denied'}">
+      <span class="result-banner__icon material-symbols-outlined">${granted ? 'check_circle':'cancel'}</span>
+      <div>
+        <div>${granted ? 'Acceso concedido' : 'Acceso denegado'}</div>
+        <div class="result-banner__time">Registro: ${now}</div>
+      </div>
+    </div>
+    ${granted ? `
+    <div class="credential-card">
+      <div class="credential-card__photo">
+        ${u.foto_url
+          ? `<img class="credential-card__img" src="${u.foto_url}?t=${Date.now()}" alt="Foto">`
+          : `<div class="credential-card__ph">Sin foto</div>`}
+      </div>
+      <div class="credential-card__meta">
+        <div class="credential-card__title">Credencial</div>
+        <p><strong>Nombre</strong> ${u.nombre||'---'}</p>
+        <p><strong>Grado</strong>  ${u.grado||u.salon||'---'}</p>
+        <p><strong>Grupo</strong>  ${u.letra||u.grupo||'---'}</p>
+        <p><strong>Turno</strong>  ${u.turno||'---'}</p>
+        <p><strong>ID</strong>     ${u.id != null ? '#'+u.id : '---'}</p>
+      </div>
+    </div>` : `
+    <div class="feedback denied">${data.message || 'Rostro no reconocido.'}</div>`}`;
+}
+
+function resetAccessStep() {
+  showAccessStep(1);
+  stopLoginCamera();
+  setLivUi('init', t('liveness_init'));
+  if (loginMsg) { loginMsg.textContent = t('waiting_face'); loginMsg.className = 'feedback waiting'; }
+  if (loginMsgHelp) { loginMsgHelp.classList.add('hidden'); loginMsgHelp.classList.remove('is-clickable'); }
+  loginDeniedCount = 0;
+}
+
+document.getElementById('btnScanAnother')?.addEventListener('click', resetAccessStep);
 
 function openLoginHelpModal()  { loginHelpModal?.classList.remove('hidden'); }
 function closeLoginHelpModal() { loginHelpModal?.classList.add('hidden'); }
@@ -966,7 +1029,7 @@ const regNombreInput = document.getElementById('regNombre');
 regNombreInput?.addEventListener('input', () => {
   const raw = regNombreInput.value;
   const cleaned = raw.replace(/[^A-Za-zÁÉÍÓÚÑáéíóúñ\s]/g, '').replace(/\s{2,}/g, ' ');
-  const limited = cleaned.slice(0, 20);
+  const limited = cleaned.slice(0, 80);
   if (limited !== raw) regNombreInput.value = limited;
 });
 
@@ -990,6 +1053,21 @@ function updateRegAngleUi() {
   const angle = REG_ANGLES[regStepIndex];
   if (hint  && angle) hint.textContent  = angle.hint;
   if (label && angle) label.textContent = angle.label;
+
+  // Cambiar SVG de guía de ángulo
+  const svgIds = ['angleSvgFront', 'angleSvgLeft', 'angleSvgRight'];
+  svgIds.forEach((id, i) => {
+    const svg = document.getElementById(id);
+    if (!svg) return;
+    if (i === regStepIndex) {
+      svg.classList.remove('hidden');
+      svg.classList.remove('animate-in');
+      void svg.offsetWidth; // reflow para reiniciar la animación
+      svg.classList.add('animate-in');
+    } else {
+      svg.classList.add('hidden');
+    }
+  });
   if (guide && angle) guide.src = `/static/img/guides/${angle.guide}`;
 }
 
@@ -1013,6 +1091,8 @@ document.getElementById('regGoToCamera')?.addEventListener('click', () => {
   const turno  = document.getElementById('regTurno')?.value;
   const msg1   = document.getElementById('regStep1Msg');
 
+  if (!nombre) { if (msg1) { msg1.textContent = 'Ingresa el nombre.'; msg1.className='feedback denied'; } return; }
+  if (!letra)  { if (msg1) { msg1.textContent = 'Ingresa el grupo.';  msg1.className='feedback denied'; } return; }
   if (!nombre || !letra) {
     if (msg1) {
       msg1.textContent = 'Completa los campos faltantes para continuar.';
@@ -1053,9 +1133,7 @@ document.getElementById('btnBackToStep1')?.addEventListener('click', () => {
 
 regStart?.addEventListener('click', async () => {
   try {
-    if (!navigator.mediaDevices?.getUserMedia) {
-      throw new Error('getUserMedia not available');
-    }
+    if (!navigator.mediaDevices?.getUserMedia) throw new Error('getUserMedia not available');
     regStream = await navigator.mediaDevices.getUserMedia({ video: true });
     _useGetUserMedia(regVideo, regImage, regStream);
     if (regCamOv)   regCamOv.classList.add('hidden');
@@ -1828,9 +1906,9 @@ document.getElementById('cfgLoad')?.addEventListener('click', async () => {
     const res  = await fetch('/api/admin/model-config');
     const data = await res.json();
     const cfg = data.config || {};
-    if (cfg.scale != null)     document.getElementById('cfgScale').value     = cfg.scale;
-    if (cfg.tolerance != null) document.getElementById('cfgTolerance').value = cfg.tolerance;
-    if (cfg.cooldown_seconds != null)  document.getElementById('cfgCooldown').value  = cfg.cooldown_seconds;
+    if (cfg.scale != null)               document.getElementById('cfgScale').value     = cfg.scale;
+    if (cfg.tolerance != null)           document.getElementById('cfgTolerance').value = cfg.tolerance;
+    if (cfg.cooldown_seconds != null)    document.getElementById('cfgCooldown').value  = cfg.cooldown_seconds;
     if (msg) { msg.textContent='Configuración cargada.'; msg.className='feedback granted'; }
     updateModelTestValues();
   } catch (_) {}
@@ -1842,9 +1920,9 @@ document.getElementById('cfgSave')?.addEventListener('click', async () => {
     const res  = await fetch('/api/admin/model-config', {
       method:'PUT', headers:{'Content-Type':'application/json'},
       body: JSON.stringify({
-        scale:     parseFloat(document.getElementById('cfgScale')?.value),
-        tolerance: parseFloat(document.getElementById('cfgTolerance')?.value),
-        cooldown_seconds:  parseFloat(document.getElementById('cfgCooldown')?.value),
+        scale:            parseFloat(document.getElementById('cfgScale')?.value),
+        tolerance:        parseFloat(document.getElementById('cfgTolerance')?.value),
+        cooldown_seconds: parseFloat(document.getElementById('cfgCooldown')?.value),
       }),
     });
     const data = await res.json();
@@ -1854,29 +1932,29 @@ document.getElementById('cfgSave')?.addEventListener('click', async () => {
 });
 
 // ════ ADMIN: PRUEBA MODELO ════
-let modelTestStream = null;
-const modelTestModal = document.getElementById('modelTestModal');
+let modelTestStream  = null;
+const modelTestModal   = document.getElementById('modelTestModal');
 const modelTestOverlay = document.getElementById('modelTestOverlay');
-const modelTestClose = document.getElementById('modelTestClose');
-const modelTestVideo = document.getElementById('modelTestVideo');
-const modelTestCanvas = document.getElementById('modelTestCanvas');
-const modelTestFps = document.getElementById('modelTestFps');
-const modelTestFaces = document.getElementById('modelTestFaces');
-const modelTestScale = document.getElementById('modelTestScale');
-const modelTestTolerance = document.getElementById('modelTestTolerance');
-const modelTestCooldown = document.getElementById('modelTestCooldown');
-let modelTestDetector = null;
-let modelTestAnimId = null;
-let modelTestFrames = 0;
-let modelTestLastTick = 0;
+const modelTestClose   = document.getElementById('modelTestClose');
+const modelTestVideo   = document.getElementById('modelTestVideo');
+const modelTestCanvas  = document.getElementById('modelTestCanvas');
+const modelTestFps     = document.getElementById('modelTestFps');
+const modelTestFaces   = document.getElementById('modelTestFaces');
+const modelTestScale   = document.getElementById('modelTestScale');
+const modelTestTol     = document.getElementById('modelTestTolerance');
+const modelTestCool    = document.getElementById('modelTestCooldown');
+let modelTestDetector  = null;
+let modelTestAnimId    = null;
+let modelTestFrames    = 0;
+let modelTestLastTick  = 0;
 
 function updateModelTestValues() {
-  const scale = document.getElementById('cfgScale')?.value;
+  const scale     = document.getElementById('cfgScale')?.value;
   const tolerance = document.getElementById('cfgTolerance')?.value;
-  const cooldown = document.getElementById('cfgCooldown')?.value;
-  if (modelTestScale) modelTestScale.textContent = scale || '--';
-  if (modelTestTolerance) modelTestTolerance.textContent = tolerance || '--';
-  if (modelTestCooldown) modelTestCooldown.textContent = cooldown || '--';
+  const cooldown  = document.getElementById('cfgCooldown')?.value;
+  if (modelTestScale) modelTestScale.textContent = scale     || '--';
+  if (modelTestTol)   modelTestTol.textContent   = tolerance || '--';
+  if (modelTestCool)  modelTestCool.textContent  = cooldown  || '--';
 }
 
 async function openModelTest() {
@@ -1886,12 +1964,10 @@ async function openModelTest() {
   try {
     modelTestStream = await navigator.mediaDevices.getUserMedia({ video: true });
     if (modelTestVideo) modelTestVideo.srcObject = modelTestStream;
-    if ('FaceDetector' in window) {
-      modelTestDetector = new FaceDetector({ fastMode: true, maxDetectedFaces: 3 });
-    } else {
-      modelTestDetector = null;
-    }
-    modelTestFrames = 0;
+    modelTestDetector = ('FaceDetector' in window)
+      ? new FaceDetector({ fastMode: true, maxDetectedFaces: 3 })
+      : null;
+    modelTestFrames   = 0;
     modelTestLastTick = performance.now();
     startModelTestLoop();
   } catch (_) {}
@@ -1904,11 +1980,8 @@ function closeModelTest() {
   if (modelTestStream) modelTestStream.getTracks().forEach(t => t.stop());
   modelTestStream = null;
   if (modelTestVideo) modelTestVideo.srcObject = null;
-  if (modelTestCanvas) {
-    const ctx = modelTestCanvas.getContext('2d');
-    ctx?.clearRect(0, 0, modelTestCanvas.width, modelTestCanvas.height);
-  }
-  if (modelTestFps) modelTestFps.textContent = '--';
+  if (modelTestCanvas) modelTestCanvas.getContext('2d')?.clearRect(0, 0, modelTestCanvas.width, modelTestCanvas.height);
+  if (modelTestFps)   modelTestFps.textContent   = '--';
   if (modelTestFaces) modelTestFaces.textContent = '--';
 }
 
@@ -1917,12 +1990,9 @@ async function startModelTestLoop() {
   const ctx = modelTestCanvas.getContext('2d');
   const loop = async () => {
     if (!modelTestModal || modelTestModal.classList.contains('hidden')) return;
-    if (modelTestVideo.readyState < 2) {
-      modelTestAnimId = requestAnimationFrame(loop);
-      return;
-    }
+    if (modelTestVideo.readyState < 2) { modelTestAnimId = requestAnimationFrame(loop); return; }
 
-    modelTestCanvas.width = modelTestVideo.videoWidth;
+    modelTestCanvas.width  = modelTestVideo.videoWidth;
     modelTestCanvas.height = modelTestVideo.videoHeight;
     ctx?.clearRect(0, 0, modelTestCanvas.width, modelTestCanvas.height);
 
@@ -1932,29 +2002,26 @@ async function startModelTestLoop() {
         const faces = await modelTestDetector.detect(modelTestVideo);
         facesCount = faces.length;
         ctx.lineWidth = 3;
-        ctx.strokeStyle = 'rgba(0, 255, 140, 0.9)';
-        ctx.fillStyle = 'rgba(0, 255, 140, 0.12)';
+        ctx.strokeStyle = 'rgba(0,255,140,.9)';
+        ctx.fillStyle   = 'rgba(0,255,140,.12)';
         faces.forEach(face => {
-          const box = face.boundingBox;
-          ctx.strokeRect(box.x, box.y, box.width, box.height);
-          ctx.fillRect(box.x, box.y, box.width, box.height);
+          const b = face.boundingBox;
+          ctx.strokeRect(b.x, b.y, b.width, b.height);
+          ctx.fillRect(b.x, b.y, b.width, b.height);
         });
-      } catch (_) {
-        facesCount = 0;
-      }
+      } catch (_) { facesCount = 0; }
     }
 
     modelTestFrames += 1;
-    const now = performance.now();
+    const now     = performance.now();
     const elapsed = now - modelTestLastTick;
     if (elapsed >= 500) {
       const fps = Math.round((modelTestFrames / elapsed) * 1000);
-      if (modelTestFps) modelTestFps.textContent = String(fps);
+      if (modelTestFps)   modelTestFps.textContent   = String(fps);
       if (modelTestFaces) modelTestFaces.textContent = String(facesCount);
-      modelTestFrames = 0;
+      modelTestFrames   = 0;
       modelTestLastTick = now;
     }
-
     modelTestAnimId = requestAnimationFrame(loop);
   };
   modelTestAnimId = requestAnimationFrame(loop);
@@ -1962,7 +2029,7 @@ async function startModelTestLoop() {
 
 document.getElementById('cfgTest')?.addEventListener('click', openModelTest);
 modelTestOverlay?.addEventListener('click', closeModelTest);
-modelTestClose?.addEventListener('click', closeModelTest);
+modelTestClose?.addEventListener('click',   closeModelTest);
 
 // ════ ADMIN: ADMINS ════
 async function loadAdmins() {
