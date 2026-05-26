@@ -1169,7 +1169,6 @@ tr:hover td { background: #EAF7EE; }
 @media (max-width: 360px) {
   .grid-4, .grid-3, .grid-2 { grid-template-columns: 1fr; }
   .form-row-2 { grid-template-columns: 1fr; }
-<<<<<<< HEAD
   .quick-nav  { flex-direction: column; }
 }
 @media (min-width: 1280px) {
@@ -1229,7 +1228,6 @@ tr:hover td { background: #EAF7EE; }
 }
 .clock-overlay.visible {
   opacity: 1;
-=======
 }
 
 /* ════ ÚLTIMOS ACCESOS — items con avatar ════ */
@@ -1424,5 +1422,4 @@ kbd {
 }
 .osk .hg-button.hg-activeButton {
   background: #2a4735;
->>>>>>> ad2090cf3f0414a8585b98d0e147810ff4dff5a5
 }

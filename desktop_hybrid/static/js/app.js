@@ -469,7 +469,6 @@ document.getElementById('logoutBtn')?.addEventListener('click', async () => {
   window.location.href = '/';
 });
 
-<<<<<<< HEAD
 // ════ MODO KIOSCO / FULLSCREEN ════
 const kioskBtn        = document.getElementById('kioskBtn');
 const kioskIcon       = document.getElementById('kioskIcon');
@@ -478,13 +477,11 @@ const kioskPanelOverlay = document.getElementById('kioskPanelOverlay');
 const kioskConfirm    = document.getElementById('kioskConfirm');
 const kioskCancel     = document.getElementById('kioskCancel');
 const kioskExitFab    = document.getElementById('kioskExitFab');
-=======
 // ════ ON-SCREEN KEYBOARD (simple-keyboard) ════
 const keyboardInputs = 'input[type="text"], input[type="email"], input[type="password"], input[type="number"], input[type="adminValidateNombre"],input[type="adminValidateCorreo"],input[type="adminValidatePass"], textarea';
 let activeInput = null;
 let osk = null;
 let oskInteracting = false;
->>>>>>> e5d17192bbb52eaccfd19318987818c6abf58ea5
 
 let kioskActive = false;
 
@@ -780,12 +777,9 @@ function stopLoginCamera() {
   if (loginImage)  { loginImage.src = ''; loginImage.classList.add('hidden'); }
   if (loginVideo)  loginVideo.classList.remove('hidden');
   if (camOverlay)  camOverlay.classList.remove('hidden');
-<<<<<<< HEAD
   if (loginStart)  loginStart.disabled  = false;
   if (loginStop)   loginStop.disabled   = true;
-=======
   stopLoginFaceTracker();
->>>>>>> e5d17192bbb52eaccfd19318987818c6abf58ea5
   loginLivId = null; loginLivOk = false;
   loginVerifyBusy = false; loginLivBusy = false;
 }
@@ -808,15 +802,12 @@ async function startLoginCameraAuto() {
     loginStream = await navigator.mediaDevices.getUserMedia({ video: true });
     _useGetUserMedia(loginVideo, loginImage, loginStream);
     if (camOverlay)  camOverlay.classList.add('hidden');
-<<<<<<< HEAD
     if (loginMsgHelp) { loginMsgHelp.classList.add('hidden'); loginMsgHelp.classList.remove('is-clickable'); }
-=======
     startLoginFaceTracker();
     if (loginMsgHelp) {
       loginMsgHelp.classList.add('hidden');
       loginMsgHelp.classList.remove('is-clickable');
     }
->>>>>>> e5d17192bbb52eaccfd19318987818c6abf58ea5
     loginDeniedCount = 0;
     if (loginMsg) { loginMsg.textContent = t('waiting_face'); loginMsg.className = 'feedback waiting'; }
     setLivUi('init', t('liveness_init'));
@@ -940,14 +931,11 @@ loginStart?.addEventListener('click', async () => {
     loginStream = await navigator.mediaDevices.getUserMedia({ video: true });
     _useGetUserMedia(loginVideo, loginImage, loginStream);
     if (camOverlay)  camOverlay.classList.add('hidden');
-<<<<<<< HEAD
     if (loginStart)  loginStart.disabled  = true;
     if (loginStop)   loginStop.disabled   = false;
-=======
     startLoginFaceTracker();
     if (loginStart)  loginStart.disabled   = true;
     if (loginStop)   loginStop.disabled    = false;
->>>>>>> e5d17192bbb52eaccfd19318987818c6abf58ea5
     if (loginMsgHelp) { loginMsgHelp.classList.add('hidden'); loginMsgHelp.classList.remove('is-clickable'); }
     loginDeniedCount = 0;
 
@@ -980,7 +968,6 @@ loginStop?.addEventListener('click', () => {
   if (loginMsgHelp) { loginMsgHelp.classList.add('hidden'); loginMsgHelp.classList.remove('is-clickable'); }
   loginDeniedCount = 0;
 });
-<<<<<<< HEAD
 
 function renderAccessResult(data) {
   const cont = document.getElementById('accessResult');
@@ -1025,8 +1012,6 @@ function resetAccessStep() {
 }
 
 document.getElementById('btnScanAnother')?.addEventListener('click', resetAccessStep);
-=======
->>>>>>> e5d17192bbb52eaccfd19318987818c6abf58ea5
 
 function openLoginHelpModal()  { loginHelpModal?.classList.remove('hidden'); }
 function closeLoginHelpModal() { loginHelpModal?.classList.add('hidden'); }
@@ -1068,7 +1053,6 @@ function updateRegAngleUi() {
   const angle = REG_ANGLES[regStepIndex];
   if (hint  && angle) hint.textContent  = angle.hint;
   if (label && angle) label.textContent = angle.label;
-<<<<<<< HEAD
 
   // Cambiar SVG de guía de ángulo
   const svgIds = ['angleSvgFront', 'angleSvgLeft', 'angleSvgRight'];
@@ -1084,9 +1068,7 @@ function updateRegAngleUi() {
       svg.classList.add('hidden');
     }
   });
-=======
   if (guide && angle) guide.src = `/static/img/guides/${angle.guide}`;
->>>>>>> e5d17192bbb52eaccfd19318987818c6abf58ea5
 }
 
 function stopRegCamera() {
@@ -1109,10 +1091,8 @@ document.getElementById('regGoToCamera')?.addEventListener('click', () => {
   const turno  = document.getElementById('regTurno')?.value;
   const msg1   = document.getElementById('regStep1Msg');
 
-<<<<<<< HEAD
   if (!nombre) { if (msg1) { msg1.textContent = 'Ingresa el nombre.'; msg1.className='feedback denied'; } return; }
   if (!letra)  { if (msg1) { msg1.textContent = 'Ingresa el grupo.';  msg1.className='feedback denied'; } return; }
-=======
   if (!nombre || !letra) {
     if (msg1) {
       msg1.textContent = 'Completa los campos faltantes para continuar.';
@@ -1133,7 +1113,6 @@ document.getElementById('regGoToCamera')?.addEventListener('click', () => {
     const input = document.getElementById('regNombre');
     if (input) input.value = nombre;
   }
->>>>>>> e5d17192bbb52eaccfd19318987818c6abf58ea5
 
   regDatos = { nombre, grado, letra, turno };
   regStepIndex = 0;
@@ -2103,7 +2082,3 @@ document.getElementById('adminCreate')?.addEventListener('click', async () => {
 
 // ════ INIT ════
 applyLang(currentLang);
-<<<<<<< HEAD
-resetInactivityTimer();
-=======
->>>>>>> e5d17192bbb52eaccfd19318987818c6abf58ea5
