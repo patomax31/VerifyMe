@@ -70,6 +70,9 @@
       <button id="clockModeBtn" class="clock-mode-btn" aria-label="Modo reloj" title="Modo reloj">
         <span class="material-symbols-outlined">schedule</span>
       </button>
+      <button id="kioskBtn" class="clock-mode-btn" aria-label="Pantalla completa" title="Modo kiosco">
+        <span class="material-symbols-outlined" id="kioskIcon">fullscreen</span>
+      </button>
       <div class="topbar-clock">
         <div id="clockH" class="clock-h">--:--</div>
         <div id="clockD" class="clock-d"></div>
@@ -80,21 +83,40 @@
 
       <!-- HOME -->
       <section class="view card" id="view-home">
-        <p class="eyebrow" data-i18n="home_eyebrow">Bienvenido</p>
-        <h2 data-i18n="home_title">Panel principal</h2>
-        <p class="muted sm" data-i18n="home_sub">Dashboard escolar para acceso facial, registro biométrico y administración.</p>
 
-        <div class="grid-2" style="margin:14px 0 12px">
+        <!-- Hero de acceso rápido -->
+        <div class="home-hero">
+          <div class="home-hero__bg">
+            <div class="home-hero__ring home-hero__ring--1"></div>
+            <div class="home-hero__ring home-hero__ring--2"></div>
+            <div class="home-hero__ring home-hero__ring--3"></div>
+          </div>
+          <div class="home-hero__icon">
+            <span class="material-symbols-outlined">face</span>
+          </div>
+          <p class="home-hero__label" data-i18n="home_eyebrow">Bienvenido</p>
+          <h2 class="home-hero__title" data-i18n="home_title">Panel principal</h2>
+          <p class="home-hero__sub" data-i18n="home_sub">Sistema biométrico escolar de acceso facial.</p>
+          <button class="home-hero__cta" data-goto="access">
+            <span class="material-symbols-outlined">photo_camera</span>
+            <span data-i18n="nav_access">Iniciar acceso facial</span>
+            <span class="home-hero__cta-arrow material-symbols-outlined">arrow_forward</span>
+          </button>
+        </div>
+
+        <!-- Stats -->
+        <div class="grid-2" style="margin:0 0 12px">
           <div class="stat-tile">
-            <strong id="statTotal">---</strong>
+            <strong id="statTotal">0</strong>
             <span data-i18n="stat_students">Estudiantes</span>
           </div>
           <div class="stat-tile">
-            <strong id="statActivos">---</strong>
+            <strong id="statActivos">0</strong>
             <span data-i18n="stat_active">Activos</span>
           </div>
         </div>
 
+        <!-- Status -->
         <div class="system-status-box">
           <div class="system-status-box__dot"></div>
           <div>
@@ -104,6 +126,7 @@
           <span class="system-status-box__badge" data-i18n="status_badge">Operando</span>
         </div>
 
+        <!-- Últimos accesos -->
         <div class="last-access-box">
           <div class="last-access-box__head" data-i18n="last_access">Últimos accesos</div>
           <div id="lastAccessList">
@@ -111,11 +134,8 @@
           </div>
         </div>
 
-        <div class="quick-nav" style="margin-top:16px">
-          <button class="quick-nav-btn" data-goto="access">
-            <span class="material-symbols-outlined">photo_camera</span>
-            <span data-i18n="nav_access">Acceso facial</span>
-          </button>
+        <!-- Quick nav secundario -->
+        <div class="quick-nav" style="margin-top:14px">
           <button class="quick-nav-btn" data-goto="register">
             <span class="material-symbols-outlined">person_add</span>
             <span data-i18n="qnav_register">Registrar alumno</span>
@@ -136,10 +156,13 @@
             <video id="loginVideo" autoplay playsinline muted></video>
             <img id="loginImage" class="camera-mjpeg hidden" alt="Camera stream">
             <canvas id="loginCanvas" class="hidden"></canvas>
+
+            <!-- Overlay cámara apagada -->
             <div class="camera-overlay" id="cameraOverlay">
               <div class="camera-reticle"></div>
               <p class="camera-overlay__txt" data-i18n="cam_stopped">Cámara detenida</p>
             </div>
+
             <div class="camera-hud">
               <div class="camera-hud__top">
                 <div class="camera-pill" data-i18n="step1of2">Paso 1 de 2</div>
@@ -257,6 +280,8 @@
                 <div class="camera-pill" data-i18n="step2of2">Paso 2 de 2</div>
                 <h2 data-i18n="reg_title_cam">Captura biométrica</h2>
                 <p class="camera-sub" data-i18n="reg_sub_cam">Captura 3 ángulos: frente, perfil izquierdo y perfil derecho.</p>
+
+                <!-- Stepper numérico -->
                 <div class="angle-stepper">
                   <div class="angle-step angle-step--active" data-angle="0">
                     <div class="angle-step__num">1</div>
@@ -273,6 +298,50 @@
                     <div class="angle-step__label" data-i18n="angle_right">Derecha</div>
                   </div>
                 </div>
+
+                <!-- Guía visual SVG de ángulo (cambia según el paso) -->
+                <div class="angle-guide" id="angleGuide">
+                  <!-- SVG frente -->
+                  <svg class="angle-guide__svg" id="angleSvgFront" viewBox="0 0 90 110" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <ellipse cx="45" cy="38" rx="24" ry="30" fill="#e0ede6" stroke="#006B28" stroke-width="2"/>
+                    <ellipse cx="45" cy="35" rx="16" ry="19" fill="#c8e6d0"/>
+                    <line x1="45" y1="68" x2="45" y2="90" stroke="#006B28" stroke-width="2"/>
+                    <ellipse cx="45" cy="94" rx="22" ry="8" fill="#c8e6d0" stroke="#006B28" stroke-width="1.5"/>
+                    <circle cx="37" cy="35" r="3" fill="#006B28" opacity=".6"/>
+                    <circle cx="53" cy="35" r="3" fill="#006B28" opacity=".6"/>
+                    <path d="M40 47 Q45 51 50 47" stroke="#006B28" stroke-width="1.5" stroke-linecap="round" fill="none"/>
+                    <text x="45" y="108" text-anchor="middle" font-size="8" fill="#fff" font-family="Sora,sans-serif" font-weight="700">FRENTE</text>
+                  </svg>
+                  <!-- SVG izquierda -->
+                  <svg class="angle-guide__svg hidden" id="angleSvgLeft" viewBox="0 0 90 110" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <ellipse cx="48" cy="38" rx="20" ry="30" fill="#e0ede6" stroke="#006B28" stroke-width="2"/>
+                    <ellipse cx="44" cy="35" rx="13" ry="19" fill="#c8e6d0"/>
+                    <path d="M28 32 Q24 36 28 40" stroke="#006B28" stroke-width="2" stroke-linecap="round" fill="none"/>
+                    <circle cx="36" cy="35" r="3" fill="#006B28" opacity=".6"/>
+                    <path d="M34 47 Q40 51 46 47" stroke="#006B28" stroke-width="1.5" stroke-linecap="round" fill="none"/>
+                    <line x1="46" y1="68" x2="45" y2="90" stroke="#006B28" stroke-width="2"/>
+                    <ellipse cx="45" cy="94" rx="22" ry="8" fill="#c8e6d0" stroke="#006B28" stroke-width="1.5"/>
+                    <!-- Flecha indicando giro izquierda -->
+                    <path d="M20 55 Q10 55 10 45 Q10 35 20 35" stroke="#fff" stroke-width="2.5" stroke-linecap="round" fill="none" opacity=".9"/>
+                    <polyline points="14,31 20,35 14,39" stroke="#fff" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" fill="none" opacity=".9"/>
+                    <text x="45" y="108" text-anchor="middle" font-size="8" fill="#fff" font-family="Sora,sans-serif" font-weight="700">IZQUIERDA</text>
+                  </svg>
+                  <!-- SVG derecha -->
+                  <svg class="angle-guide__svg hidden" id="angleSvgRight" viewBox="0 0 90 110" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <ellipse cx="42" cy="38" rx="20" ry="30" fill="#e0ede6" stroke="#006B28" stroke-width="2"/>
+                    <ellipse cx="46" cy="35" rx="13" ry="19" fill="#c8e6d0"/>
+                    <path d="M62 32 Q66 36 62 40" stroke="#006B28" stroke-width="2" stroke-linecap="round" fill="none"/>
+                    <circle cx="54" cy="35" r="3" fill="#006B28" opacity=".6"/>
+                    <path d="M44 47 Q50 51 56 47" stroke="#006B28" stroke-width="1.5" stroke-linecap="round" fill="none"/>
+                    <line x1="44" y1="68" x2="45" y2="90" stroke="#006B28" stroke-width="2"/>
+                    <ellipse cx="45" cy="94" rx="22" ry="8" fill="#c8e6d0" stroke="#006B28" stroke-width="1.5"/>
+                    <!-- Flecha indicando giro derecha -->
+                    <path d="M70 55 Q80 55 80 45 Q80 35 70 35" stroke="#fff" stroke-width="2.5" stroke-linecap="round" fill="none" opacity=".9"/>
+                    <polyline points="76,31 70,35 76,39" stroke="#fff" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" fill="none" opacity=".9"/>
+                    <text x="45" y="108" text-anchor="middle" font-size="8" fill="#fff" font-family="Sora,sans-serif" font-weight="700">DERECHA</text>
+                  </svg>
+                </div>
+
                 <p id="regAngleHint" class="angle-hint" data-i18n="angle_hint_front">Mira de frente a la cámara.</p>
               </div>
               <div class="camera-hud__bottom">
@@ -493,6 +562,34 @@
     <span id="toastMsg">Activando modo reloj...</span>
     <button class="clock-toast__cancel" id="toastCancel">Cancelar</button>
   </div>
+
+  <!-- ══ KIOSCO PANEL ══ -->
+  <div id="kioskPanel" class="kiosk-panel hidden" role="dialog" aria-modal="true" aria-label="Modo kiosco">
+    <div class="kiosk-panel__overlay" id="kioskPanelOverlay"></div>
+    <div class="kiosk-panel__card">
+      <div class="kiosk-panel__icon">
+        <span class="material-symbols-outlined">fit_screen</span>
+      </div>
+      <h3 class="kiosk-panel__title">Modo kiosco</h3>
+      <p class="kiosk-panel__desc">La pantalla se pondrá en pantalla completa y ocultará la barra del navegador y del sistema operativo.</p>
+      <div class="kiosk-panel__tips">
+        <div class="kiosk-panel__tip"><span class="material-symbols-outlined">keyboard</span> Presiona <kbd>Esc</kbd> para salir en cualquier momento</div>
+        <div class="kiosk-panel__tip"><span class="material-symbols-outlined">touch_app</span> O toca el botón <strong>Salir</strong> en la barra superior</div>
+      </div>
+      <div class="kiosk-panel__actions">
+        <button id="kioskConfirm" class="kiosk-panel__btn-primary">
+          <span class="material-symbols-outlined">fullscreen</span>
+          Activar pantalla completa
+        </button>
+        <button id="kioskCancel" class="kiosk-panel__btn-secondary">Cancelar</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══ KIOSCO EXIT FAB — visible solo en fullscreen ══ -->
+  <button id="kioskExitFab" class="kiosk-exit-fab hidden" aria-label="Salir de pantalla completa" title="Salir de pantalla completa">
+    <span class="material-symbols-outlined">fullscreen_exit</span>
+  </button>
 
   <script src="{{ url_for('static', filename='js/app.js') }}"></script>
 </body>

@@ -126,24 +126,40 @@ function showView(viewId) {
   if (viewId !== 'access')   stopLoginCamera();
   if (viewId !== 'register') stopRegCamera();
 
-  allViews.forEach(v => v.classList.add('hidden'));
-  navBtns.forEach(b => b.classList.remove('active'));
+  // Animación de salida en la vista actual
+  const current = document.querySelector('.view:not(.hidden)');
+  if (current) current.classList.add('view-exit');
 
-  const target = document.getElementById('view-' + viewId);
-  if (target) target.classList.remove('hidden');
+  setTimeout(() => {
+    allViews.forEach(v => { v.classList.add('hidden'); v.classList.remove('view-exit', 'view-enter'); });
+    navBtns.forEach(b => b.classList.remove('active'));
 
-  const btn = document.querySelector('.nav-btn[data-view="' + viewId + '"]');
-  if (btn) btn.classList.add('active');
+    const target = document.getElementById('view-' + viewId);
+    if (target) {
+      target.classList.remove('hidden');
+      target.classList.add('view-enter');
+      requestAnimationFrame(() => requestAnimationFrame(() => target.classList.remove('view-enter')));
+    }
 
-  const titleEl = document.getElementById('topbarTitle');
-  if (titleEl) titleEl.textContent = t('title_' + viewId) || viewId;
+    const btn = document.querySelector('.nav-btn[data-view="' + viewId + '"]');
+    if (btn) btn.classList.add('active');
 
-  closeDrawer();
+    const titleEl = document.getElementById('topbarTitle');
+    if (titleEl) titleEl.textContent = t('title_' + viewId) || viewId;
+
+    closeDrawer();
+
+    // Auto-iniciar cámara al entrar a acceso facial
+    if (viewId === 'access') {
+      showAccessStep(1);
+      setTimeout(startLoginCameraAuto, 300);
+    }
+  }, 180);
 }
 
 navBtns.forEach(b => b.addEventListener('click', () => showView(b.dataset.view)));
 
-document.querySelectorAll('.quick-nav-btn[data-goto]').forEach(b => {
+document.querySelectorAll('[data-goto]').forEach(b => {
   b.addEventListener('click', () => showView(b.dataset.goto));
 });
 
@@ -308,7 +324,10 @@ toastCancel?.addEventListener('click', e => {
   }, { passive: true });
 });
 
-clockOverlay?.addEventListener('click', closeClockOverlay);
+clockOverlay?.addEventListener('click', () => {
+  closeClockOverlay();
+  showView('access');
+});
 
 document.getElementById('clockModeBtn')?.addEventListener('click', e => {
   e.stopPropagation();
@@ -318,6 +337,19 @@ document.getElementById('clockModeBtn')?.addEventListener('click', e => {
 openClockOverlay();
 
 // ════ HOME STATS ════
+function animateCount(el, target, duration = 900) {
+  if (!el) return;
+  const start = performance.now();
+  const from  = parseInt(el.textContent) || 0;
+  const step  = ts => {
+    const progress = Math.min((ts - start) / duration, 1);
+    const ease = 1 - Math.pow(1 - progress, 3);
+    el.textContent = Math.round(from + (target - from) * ease);
+    if (progress < 1) requestAnimationFrame(step);
+  };
+  requestAnimationFrame(step);
+}
+
 async function fetchHomeStats() {
   try {
     const res  = await fetch('/api/admin/students');
@@ -325,9 +357,32 @@ async function fetchHomeStats() {
     const list = data.students || data || [];
     const tot  = document.getElementById('statTotal');
     const act  = document.getElementById('statActivos');
-    if (tot) tot.textContent = list.length;
-    if (act) act.textContent = list.filter(s => s.activo !== false).length;
+    animateCount(tot, list.length);
+    animateCount(act, list.filter(s => s.activo !== false).length);
+
+    // Últimos accesos (mock si no hay endpoint)
+    renderLastAccess(list.slice(-4).reverse());
   } catch (_) {}
+}
+
+function renderLastAccess(list) {
+  const container = document.getElementById('lastAccessList');
+  if (!container) return;
+  if (!list.length) return;
+  container.innerHTML = list.map(s => {
+    const initials = (s.nombre||'??').split(' ').map(w => w[0]).join('').slice(0,2).toUpperCase();
+    const colors   = ['#006B28','#008A34','#004D1C','#1E5530'];
+    const color    = colors[(s.id || 0) % colors.length];
+    return `
+      <div class="access-item" style="--accent:${color}">
+        <div class="access-item__avatar" style="background:${color}">${initials}</div>
+        <div class="access-item__info">
+          <span class="access-item__name">${s.nombre}</span>
+          <span class="access-item__meta">${s.grado}° ${s.letra||''} · ${s.turno||''}</span>
+        </div>
+        <span class="access-item__badge">&#10003;</span>
+      </div>`;
+  }).join('');
 }
 fetchHomeStats();
 
@@ -336,6 +391,110 @@ document.getElementById('logoutBtn')?.addEventListener('click', async () => {
   try { await fetch('/api/admin/logout', { method:'POST' }); } catch (_) {}
   window.location.href = '/';
 });
+
+// ════ MODO KIOSCO / FULLSCREEN ════
+const kioskBtn        = document.getElementById('kioskBtn');
+const kioskIcon       = document.getElementById('kioskIcon');
+const kioskPanel      = document.getElementById('kioskPanel');
+const kioskPanelOverlay = document.getElementById('kioskPanelOverlay');
+const kioskConfirm    = document.getElementById('kioskConfirm');
+const kioskCancel     = document.getElementById('kioskCancel');
+const kioskExitFab    = document.getElementById('kioskExitFab');
+
+let kioskActive = false;
+
+// ── Detectar si ya estamos en fullscreen (p.ej. al recargar) ──
+function isFullscreen() {
+  return !!(
+    document.fullscreenElement ||
+    document.webkitFullscreenElement ||
+    document.mozFullScreenElement ||
+    document.msFullscreenElement
+  );
+}
+
+// ── Entrar a fullscreen ──
+async function enterFullscreen() {
+  const el = document.documentElement;
+  try {
+    if      (el.requestFullscreen)          await el.requestFullscreen({ navigationUI: 'hide' });
+    else if (el.webkitRequestFullscreen)   el.webkitRequestFullscreen();
+    else if (el.mozRequestFullScreen)      el.mozRequestFullScreen();
+    else if (el.msRequestFullscreen)       el.msRequestFullscreen();
+  } catch (e) {
+    console.warn('Fullscreen error:', e);
+  }
+}
+
+// ── Salir de fullscreen ──
+async function exitFullscreen() {
+  try {
+    if      (document.exitFullscreen)          await document.exitFullscreen();
+    else if (document.webkitExitFullscreen)   document.webkitExitFullscreen();
+    else if (document.mozCancelFullScreen)    document.mozCancelFullScreen();
+    else if (document.msExitFullscreen)       document.msExitFullscreen();
+  } catch (e) {}
+}
+
+// ── Actualizar UI según estado fullscreen ──
+function onFullscreenChange() {
+  kioskActive = isFullscreen();
+
+  // Ícono del botón topbar
+  if (kioskIcon) kioskIcon.textContent = kioskActive ? 'fullscreen_exit' : 'fullscreen';
+
+  // FAB de salida: visible solo en fullscreen
+  if (kioskExitFab) {
+    if (kioskActive) {
+      kioskExitFab.classList.remove('hidden');
+      kioskExitFab.classList.add('visible');
+    } else {
+      kioskExitFab.classList.remove('visible');
+      setTimeout(() => kioskExitFab.classList.add('hidden'), 400);
+    }
+  }
+
+  // Badge en topbar
+  document.body.classList.toggle('kiosk-mode', kioskActive);
+}
+
+// ── Eventos de cambio fullscreen (cross-browser) ──
+document.addEventListener('fullscreenchange',       onFullscreenChange);
+document.addEventListener('webkitfullscreenchange', onFullscreenChange);
+document.addEventListener('mozfullscreenchange',    onFullscreenChange);
+document.addEventListener('MSFullscreenChange',     onFullscreenChange);
+
+// ── Abrir panel de confirmación ──
+function openKioskPanel() {
+  kioskPanel?.classList.remove('hidden');
+  requestAnimationFrame(() => kioskPanel?.classList.add('open'));
+}
+
+function closeKioskPanel() {
+  kioskPanel?.classList.remove('open');
+  setTimeout(() => kioskPanel?.classList.add('hidden'), 280);
+}
+
+// Botón topbar → abrir panel (si no está en fullscreen) o salir (si ya está)
+kioskBtn?.addEventListener('click', () => {
+  if (isFullscreen()) exitFullscreen();
+  else                openKioskPanel();
+});
+
+// Confirmar → entrar a fullscreen (DEBE ser gesto directo del usuario)
+kioskConfirm?.addEventListener('click', async () => {
+  closeKioskPanel();
+  await new Promise(r => setTimeout(r, 300)); // esperar que cierre el panel
+  await enterFullscreen();
+});
+
+kioskCancel?.addEventListener('click',        closeKioskPanel);
+kioskPanelOverlay?.addEventListener('click',  closeKioskPanel);
+
+// FAB flotante de salida
+kioskExitFab?.addEventListener('click', exitFullscreen);
+
+// Tecla Escape ya la maneja el navegador de forma nativa para salir de fullscreen
 
 // ════ ACCESO FACIAL ════
 let loginStream      = null;
@@ -411,6 +570,51 @@ function stopLoginCamera() {
   if (loginStart)  loginStart.disabled  = false;
   if (loginStop)   loginStop.disabled   = true;
   loginLivId = null; loginLivOk = false;
+}
+
+// Auto-start: se llama al navegar al view, sin clic manual
+async function startLoginCameraAuto() {
+  if (loginStream || loginInterval) return;
+  if (loginStart) loginStart.disabled = true;
+  if (loginStop)  loginStop.disabled  = false;
+  setLivUi('init', 'Conectando cámara…');
+  try {
+    loginLivOk = false; loginLivId = null;
+    try {
+      const ls = await fetch('/api/login/liveness/start', { method:'POST' });
+      const lj = await ls.json();
+      if (lj.ok && lj.session_id) loginLivId = lj.session_id;
+      else loginLivOk = true;
+    } catch (_) { loginLivOk = true; }
+
+    loginStream = await navigator.mediaDevices.getUserMedia({ video: true });
+    _useGetUserMedia(loginVideo, loginImage, loginStream);
+    if (camOverlay)  camOverlay.classList.add('hidden');
+    if (loginMsgHelp) { loginMsgHelp.classList.add('hidden'); loginMsgHelp.classList.remove('is-clickable'); }
+    loginDeniedCount = 0;
+    if (loginMsg) { loginMsg.textContent = t('waiting_face'); loginMsg.className = 'feedback waiting'; }
+    setLivUi('init', t('liveness_init'));
+
+    loginInterval = setInterval(async () => {
+      if (!loginLivOk) await pushLivFrame();
+      else             await captureAndVerify();
+    }, 700);
+  } catch (_) {
+    try {
+      loginStream = { backend: 'mjpeg' };
+      _useMjpeg(loginImage, loginVideo);
+      if (camOverlay)  camOverlay.classList.add('hidden');
+      loginDeniedCount = 0;
+      loginInterval = setInterval(async () => {
+        if (!loginLivOk) await pushLivFrame();
+        else             await captureAndVerify();
+      }, 700);
+    } catch (_) {
+      if (loginMsg) { loginMsg.textContent = t('no_camera'); loginMsg.className = 'feedback denied'; }
+      if (loginStart) loginStart.disabled = false;
+      if (loginStop)  loginStop.disabled  = true;
+    }
+  }
 }
 
 function showAccessStep(n) {
@@ -621,6 +825,21 @@ function updateRegAngleUi() {
   const angle = REG_ANGLES[regStepIndex];
   if (hint  && angle) hint.textContent  = angle.hint;
   if (label && angle) label.textContent = angle.label;
+
+  // Cambiar SVG de guía de ángulo
+  const svgIds = ['angleSvgFront', 'angleSvgLeft', 'angleSvgRight'];
+  svgIds.forEach((id, i) => {
+    const svg = document.getElementById(id);
+    if (!svg) return;
+    if (i === regStepIndex) {
+      svg.classList.remove('hidden');
+      svg.classList.remove('animate-in');
+      void svg.offsetWidth; // reflow para reiniciar la animación
+      svg.classList.add('animate-in');
+    } else {
+      svg.classList.add('hidden');
+    }
+  });
 }
 
 function stopRegCamera() {
