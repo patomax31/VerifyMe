@@ -5,12 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>VerifyMe</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
-<<<<<<< HEAD
   <link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Sora:wght@400;600;800&family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@24,400,0,0&display=swap" rel="stylesheet">
-=======
-  <link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Sora:wght@400;600;800&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="https://unpkg.com/simple-keyboard@3.7.95/build/css/index.css">
->>>>>>> ad2090cf3f0414a8585b98d0e147810ff4dff5a5
   <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
 </head>
 <body>
@@ -157,8 +152,7 @@
               </div>
               <div class="camera-hud__bottom">
                 <p id="loginMessage" class="feedback waiting" data-i18n="waiting_face">ESPERANDO ROSTRO...</p>
-                <p id="loginMessageHelp" class="feedback-help hidden">¿Aun no estas registrado? Pide ayuda a el encargado en direccion.</p>
-<<<<<<< HEAD
+                <p id="loginMessageHelp" class="feedback-help hidden">¿Aún no estás registrado? Pide ayuda al encargado en dirección.</p>
                 <div class="row camera-actions">
                   <button id="loginStart" class="btn-full">
                     <span class="material-symbols-outlined">play_arrow</span>
@@ -169,8 +163,6 @@
                     <span data-i18n="btn_stop">Detener</span>
                   </button>
                 </div>
-=======
->>>>>>> ad2090cf3f0414a8585b98d0e147810ff4dff5a5
               </div>
             </div>
           </div>
@@ -196,19 +188,19 @@
         <div class="help-modal__overlay" id="loginHelpOverlay"></div>
         <div class="help-modal__card">
           <div class="help-modal__head">
-            <h3 id="loginHelpTitle">Guia rapida de colocacion</h3>
+            <h3 id="loginHelpTitle">Guía rápida de colocación</h3>
             <button id="loginHelpClose" class="icon-btn" aria-label="Cerrar" style="background:var(--err-bg);border-color:var(--err-border);color:var(--err-text);">
               <span class="material-symbols-outlined">close</span>
             </button>
           </div>
           <div class="help-modal__body">
             <ul>
-              <li>Coloca el rostro centrado dentro del circulo.</li>
-              <li>Mantente a 30-40 cm de la camara.</li>
-              <li>Evita sombras fuertes y quitate gorras o lentes oscuros.</li>
+              <li>Coloca el rostro centrado dentro del círculo.</li>
+              <li>Mantente a 30-40 cm de la cámara.</li>
+              <li>Evita sombras fuertes y quítate gorras o lentes oscuros.</li>
               <li>Mira al frente y no te muevas por 2 segundos.</li>
             </ul>
-            <p class="help-modal__note">Si aun falla, pide apoyo en direccion.</p>
+            <p class="help-modal__note">Si aún falla, pide apoyo en dirección.</p>
           </div>
         </div>
       </div>
@@ -223,34 +215,18 @@
           <p class="muted sm" data-i18n="reg_sub_data">Ingresa la información del estudiante antes de capturar su rostro.</p>
 
           <div class="form-grid-2" style="margin-top:14px">
-<<<<<<< HEAD
             <label>
               <span data-i18n="field_name">Nombre completo</span>
               <input id="regNombre" type="text" maxlength="80" placeholder="Ej. Ana Gómez">
-=======
-            <label><span data-i18n="field_name">Nombre completo</span>
-              <input id="regNombre" type="text" maxlength="20" placeholder="Ej. Ana Gómez">
->>>>>>> ad2090cf3f0414a8585b98d0e147810ff4dff5a5
             </label>
             <div class="form-row-2">
               <label>
                 <span data-i18n="field_grade">Grado</span>
                 <select id="regGrado"><option>1</option><option>2</option><option>3</option></select>
               </label>
-<<<<<<< HEAD
               <label>
                 <span data-i18n="field_group">Grupo</span>
                 <input id="regLetra" type="text" maxlength="1" placeholder="A">
-=======
-              <label><span data-i18n="field_group">Grupo</span>
-                <select id="regLetra">
-                  <option>A</option>
-                  <option>B</option>
-                  <option>C</option>
-                  <option>D</option>
-                  <option>E</option>
-                  <option>F</option></select>
->>>>>>> ad2090cf3f0414a8585b98d0e147810ff4dff5a5
               </label>
             </div>
             <label>
@@ -398,7 +374,6 @@
             <label>Cooldown  <input id="cfgCooldown"  type="number" min="0"    max="120"  step="0.5"></label>
           </div>
           <div class="row">
-<<<<<<< HEAD
             <button id="cfgLoad" style="background:var(--muted);box-shadow:none">
               <span class="material-symbols-outlined">download</span>
               <span>Cargar</span>
@@ -407,11 +382,10 @@
               <span class="material-symbols-outlined">save</span>
               <span>Guardar</span>
             </button>
-=======
-            <button id="cfgLoad"><span>⬇</span><span>Cargar</span></button>
-            <button id="cfgSave"><span>💾</span><span>Guardar</span></button>
-            <button id="cfgTest"><span>🧪</span><span>Probar modelo</span></button>
->>>>>>> ad2090cf3f0414a8585b98d0e147810ff4dff5a5
+            <button id="cfgTest">
+              <span class="material-symbols-outlined">science</span>
+              <span>Probar modelo</span>
+            </button>
           </div>
           <p id="cfgMsg" class="feedback waiting">Configuración del modelo.</p>
         </section>
@@ -460,33 +434,32 @@
     <div class="model-test__panel">
       <div class="model-test__head">
         <h3 id="modelTestTitle">Prueba del modelo</h3>
-        <button id="modelTestClose" class="icon-btn" aria-label="Cerrar">✕</button>
+        <button id="modelTestClose" class="icon-btn" aria-label="Cerrar">
+          <span class="material-symbols-outlined">close</span>
+        </button>
       </div>
       <div class="model-test__body">
         <div class="model-test__video">
           <video id="modelTestVideo" autoplay playsinline muted></video>
           <img id="modelTestImage" class="camera-mjpeg hidden" alt="Camera stream">
-              <canvas id="modelTestCanvas" class="model-test__canvas"></canvas>
+          <canvas id="modelTestCanvas" class="model-test__canvas"></canvas>
         </div>
-            <div class="model-test__stats">
-              <div class="model-test__stat"><span>FPS</span><strong id="modelTestFps">--</strong></div>
-              <div class="model-test__stat"><span>Rostros</span><strong id="modelTestFaces">--</strong></div>
-            </div>
+        <div class="model-test__stats">
+          <div class="model-test__stat"><span>FPS</span><strong id="modelTestFps">--</strong></div>
+          <div class="model-test__stat"><span>Rostros</span><strong id="modelTestFaces">--</strong></div>
+        </div>
         <div class="model-test__info">
           <div><strong>Scale:</strong> <span id="modelTestScale">--</span></div>
           <div><strong>Tolerance:</strong> <span id="modelTestTolerance">--</span></div>
           <div><strong>Cooldown:</strong> <span id="modelTestCooldown">--</span> s</div>
         </div>
-        <p class="model-test__note">Estas variables son las ultimas ajustadas y guardadas.</p>
+        <p class="model-test__note">Estas variables son las últimas ajustadas y guardadas.</p>
       </div>
     </div>
   </div>
 
-  <!-- ══════════════════════════════════════════════════
-       CLOCK OVERLAY
-       ══════════════════════════════════════════════════ -->
+  <!-- CLOCK OVERLAY -->
   <div id="clockOverlay" class="clock-overlay hidden">
-
     <div class="clock-overlay__grid"></div>
     <div class="clock-overlay__glow"></div>
 
@@ -503,13 +476,11 @@
       <div class="clock-overlay__divider"></div>
       <div class="clock-overlay__status">
         <div class="clock-overlay__dot"></div>
-        <span id="covStatusTxt">SISTEMA EN LINEA · CAMARA ACTIVA</span>
+        <span id="covStatusTxt">SISTEMA EN LÍNEA · CÁMARA ACTIVA</span>
       </div>
     </div>
-
   </div>
 
-<<<<<<< HEAD
   <!-- CLOCK COUNTDOWN TOAST -->
   <div id="clockToast" class="clock-toast" role="status" aria-live="polite">
     <div class="clock-toast__ring">
@@ -521,13 +492,8 @@
     </div>
     <span id="toastMsg">Activando modo reloj...</span>
     <button class="clock-toast__cancel" id="toastCancel">Cancelar</button>
-=======
-  <div id="osk" class="osk hidden" aria-hidden="true">
-    <div class="simple-keyboard"></div>
->>>>>>> ad2090cf3f0414a8585b98d0e147810ff4dff5a5
   </div>
 
   <script src="{{ url_for('static', filename='js/app.js') }}"></script>
-  <script src="https://unpkg.com/simple-keyboard@3.7.95/build/index.js"></script>
 </body>
 </html>
