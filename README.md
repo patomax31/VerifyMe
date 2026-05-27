@@ -251,26 +251,23 @@ Opciones de salida:
 - Usa buena iluminación para mejorar la detección facial.
 - Asegúrate de que solo haya un rostro en el cuadro al capturar el encoding.
 - Si tienes problemas con la cámara, prueba con otro dispositivo o controla que no esté siendo utilizada por otra aplicación.
-<<<<<<< HEAD
 - Si tienes más de una cámara, puedes seleccionar índice con variable de entorno: `set CAMERA_INDEX=1` (Windows CMD) o `$env:CAMERA_INDEX=1` (PowerShell).
 - Perfil de cámara dual con `CAMERA_PROFILE`:
 	- `WINDOWS_STABLE` para desarrollo en Windows (DirectShow).
 	- `RASPBERRY_PI` para despliegue en Linux/Raspberry Pi (V4L2).
 	- `AUTO` (valor por defecto) detecta por sistema operativo.
 - Variables opcionales de rendimiento: `CAMERA_WIDTH`, `CAMERA_HEIGHT`, `CAMERA_FPS`.
-=======
 
 ### Troubleshooting rápido (Windows)
 
 - Si aparece `Please install face_recognition_models...`, instala siempre con el Python del entorno virtual:
 
 ```powershell
-.\.venv\Scripts\python.exe -m pip install face_recognition_models
+\.\.venv\Scripts\python.exe -m pip install face_recognition_models
 ```
 
 - Si luego aparece error de `pkg_resources`, fija `setuptools` a una versión compatible:
 
 ```powershell
-.\.venv\Scripts\python.exe -m pip install "setuptools<81"
+\.\.venv\Scripts\python.exe -m pip install "setuptools<81"
 ```
->>>>>>> 8461d2d623db31dab5f72fded4d377749a53703e
