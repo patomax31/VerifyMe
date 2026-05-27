@@ -78,7 +78,7 @@ const I18N = {
     reg_cam_ready:'Cámara lista. Sigue los pasos.', reg_saved_angle:'Captura guardada. Siguiente ángulo.',
     reg_success:'¡Alumno registrado exitosamente!', reg_error:'Error al registrar.', reg_conn_error:'Error de conexión.',
     admin_sub:'Gestión escolar, parámetros del modelo y administradores.',
-    tab_students:'Estudiantes', tab_model:'Modelo', tab_admins:'Admins',
+    tab_students:'Estudiantes', tab_model:'Modelo', tab_admins:'Admins', tab_logs:'Logs',
     tab_dashboard:'Dashboard', tab_hardware:'Hardware',
     btn_create_student:'Crear', btn_refresh:'Refrescar',
     students_mgmt:'Gestión de estudiantes.',
@@ -96,6 +96,26 @@ const I18N = {
     servo_response:'Tiempo de respuesta (s)', servo_always_active:'Siempre activo',
     servo_on:'Si', servo_off:'No', servo_load:'Cargar', servo_save:'Guardar',
     servo_hint:'Configura el tiempo de apertura del torniquete.',
+    logs_sub:'Registros de acceso con filtros.',
+    log_filter_all:'Todos',
+    log_filter_event:'Evento',
+    log_filter_result:'Resultado',
+    log_filter_name:'Nombre',
+    log_filter_search:'Buscar',
+    log_filter_clear:'Limpiar',
+    log_event_entry:'Entrada',
+    log_event_exit:'Salida',
+    log_result_ok:'OK',
+    log_result_denied:'Denegado',
+    log_msg_ready:'Mostrando ultimos registros.',
+    log_no_records:'Sin registros.',
+    log_col_time:'Fecha',
+    log_col_name:'Nombre',
+    log_col_grade:'Grado',
+    log_col_group:'Grupo',
+    log_col_shift:'Turno',
+    log_col_event:'Evento',
+    log_col_result:'Resultado',
   },
   en: {
     nav_home:'Home', nav_access:'Facial access', nav_register:'Facial register', nav_admin:'Admin panel',
@@ -125,7 +145,7 @@ const I18N = {
     reg_cam_ready:'Camera ready. Follow the steps.', reg_saved_angle:'Saved. Continue with next angle.',
     reg_success:'Student registered successfully!', reg_error:'Registration error.', reg_conn_error:'Connection error.',
     admin_sub:'School management, model settings and administrators.',
-    tab_students:'Students', tab_model:'Model', tab_admins:'Admins',
+    tab_students:'Students', tab_model:'Model', tab_admins:'Admins', tab_logs:'Logs',
     tab_dashboard:'Dashboard', tab_hardware:'Hardware',
     btn_create_student:'Create', btn_refresh:'Refresh',
     students_mgmt:'Student management.',
@@ -143,6 +163,26 @@ const I18N = {
     servo_response:'Response time (s)', servo_always_active:'Always active',
     servo_on:'Yes', servo_off:'No', servo_load:'Load', servo_save:'Save',
     servo_hint:'Configure how long the turnstile stays open.',
+    logs_sub:'Access records with filters.',
+    log_filter_all:'All',
+    log_filter_event:'Event',
+    log_filter_result:'Result',
+    log_filter_name:'Name',
+    log_filter_search:'Search',
+    log_filter_clear:'Clear',
+    log_event_entry:'Entry',
+    log_event_exit:'Exit',
+    log_result_ok:'OK',
+    log_result_denied:'Denied',
+    log_msg_ready:'Showing latest records.',
+    log_no_records:'No records.',
+    log_col_time:'Date',
+    log_col_name:'Name',
+    log_col_grade:'Grade',
+    log_col_group:'Group',
+    log_col_shift:'Shift',
+    log_col_event:'Event',
+    log_col_result:'Result',
   },
 };
 
@@ -1387,6 +1427,7 @@ document.querySelectorAll('.tab-btn[data-admin-tab]').forEach(btn => {
     const tab = btn.dataset.adminTab;
     if (tab === 'students') loadStudents();
     if (tab === 'admins') loadAdmins();
+    if (tab === 'logs') loadAdminAccessLogs();
     if (tab === 'dashboard') loadDashboard();
     if (tab === 'hardware') loadServoSettings();
   });
@@ -1843,6 +1884,102 @@ async function saveServoSettings() {
 
 document.getElementById('servoLoad')?.addEventListener('click', loadServoSettings);
 document.getElementById('servoSave')?.addEventListener('click', saveServoSettings);
+
+// ════ ADMIN: LOGS ════
+const logTurno = document.getElementById('logTurno');
+const logGrado = document.getElementById('logGrado');
+const logGrupo = document.getElementById('logGrupo');
+const logEvento = document.getElementById('logEvento');
+const logResultado = document.getElementById('logResultado');
+const logNombre = document.getElementById('logNombre');
+
+function _formatLogEvent(value) {
+  const raw = String(value || '').trim().toLowerCase();
+  if (!raw) return '--';
+  if (raw === 'entrada') return t('log_event_entry');
+  if (raw === 'salida') return t('log_event_exit');
+  return value;
+}
+
+function _formatLogResult(value) {
+  return value ? t('log_result_ok') : t('log_result_denied');
+}
+
+async function loadAdminAccessLogs() {
+  const tbody = document.querySelector('#adminAccessLogsTable tbody');
+  const msg = document.getElementById('adminLogsMsg');
+  if (!tbody) return;
+
+  const params = new URLSearchParams();
+  params.set('limit', '10');
+
+  const turno = logTurno?.value || '';
+  const grado = logGrado?.value || '';
+  const grupo = _sanitizeGroup(logGrupo?.value);
+  const evento = logEvento?.value || '';
+  const resultado = logResultado?.value || '';
+  const nombre = _sanitizeName(logNombre?.value);
+
+  if (turno) params.set('turno', turno);
+  if (grado) params.set('grado', grado);
+  if (grupo) params.set('grupo', grupo);
+  if (evento) params.set('tipo_evento', evento);
+  if (resultado) params.set('acceso_concedido', resultado);
+  if (nombre) params.set('nombre', nombre);
+
+  if (logGrupo && grupo) logGrupo.value = grupo;
+  if (logNombre && nombre) logNombre.value = nombre;
+
+  try {
+    const res = await fetch(`/api/admin/access-logs?${params.toString()}`);
+    const data = await res.json();
+    if (!data.ok) throw new Error(data.message || 'Error');
+
+    const list = data.logs || [];
+    tbody.innerHTML = list.map(l => {
+      const time = l.fecha_hora || '--';
+      const name = l.nombre_usuario || '--';
+      const gradoVal = l.grado || '--';
+      const grupoVal = l.grupo || '--';
+      const turnoVal = l.turno || '--';
+      const event = _formatLogEvent(l.tipo_evento || '--');
+      const result = _formatLogResult(l.acceso_concedido);
+      return `
+        <tr>
+          <td>${time}</td>
+          <td>${name}</td>
+          <td>${gradoVal}</td>
+          <td>${grupoVal}</td>
+          <td>${turnoVal}</td>
+          <td>${event}</td>
+          <td>${result}</td>
+        </tr>`;
+    }).join('');
+
+    if (msg) {
+      msg.textContent = list.length
+        ? `${list.length} ${t('dash_access_logs').toLowerCase()}.`
+        : t('log_no_records');
+      msg.className = 'feedback waiting';
+    }
+  } catch (err) {
+    if (msg) {
+      msg.textContent = err?.message || 'Error al cargar.';
+      msg.className = 'feedback denied';
+    }
+  }
+}
+
+document.getElementById('logSearch')?.addEventListener('click', loadAdminAccessLogs);
+document.getElementById('logClear')?.addEventListener('click', () => {
+  if (logTurno) logTurno.value = '';
+  if (logGrado) logGrado.value = '';
+  if (logGrupo) logGrupo.value = '';
+  if (logEvento) logEvento.value = '';
+  if (logResultado) logResultado.value = '';
+  if (logNombre) logNombre.value = '';
+  loadAdminAccessLogs();
+});
 
 // ════ ADMIN: ESTUDIANTES ════
 async function loadStudents() {

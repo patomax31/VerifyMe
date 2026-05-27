@@ -1033,6 +1033,14 @@ select option:checked { background-color: var(--primary); color: #fff; }
 #accessLogsTable th:nth-child(3), #accessLogsTable td:nth-child(3) { width: 100px; }
 #accessLogsTable th:nth-child(4), #accessLogsTable td:nth-child(4) { width: 90px; }
 
+#adminAccessLogsTable th:nth-child(1), #adminAccessLogsTable td:nth-child(1) { width: 140px; }
+#adminAccessLogsTable th:nth-child(2), #adminAccessLogsTable td:nth-child(2) { width: 200px; }
+#adminAccessLogsTable th:nth-child(3), #adminAccessLogsTable td:nth-child(3) { width: 60px; }
+#adminAccessLogsTable th:nth-child(4), #adminAccessLogsTable td:nth-child(4) { width: 60px; }
+#adminAccessLogsTable th:nth-child(5), #adminAccessLogsTable td:nth-child(5) { width: 90px; }
+#adminAccessLogsTable th:nth-child(6), #adminAccessLogsTable td:nth-child(6) { width: 90px; }
+#adminAccessLogsTable th:nth-child(7), #adminAccessLogsTable td:nth-child(7) { width: 90px; }
+
 /* ════ TABLE ════ */
 .table-wrap {
   overflow-x: auto; -webkit-overflow-scrolling: touch;
