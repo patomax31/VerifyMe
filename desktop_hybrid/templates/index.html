@@ -55,15 +55,12 @@
         <span id="langFlag">🇲🇽</span>
         <span id="langLabel">ES</span>
       </button>
-<<<<<<< HEAD
       <button id="clockModeBtn" class="clock-mode-btn" aria-label="Modo reloj" title="Modo reloj">
         <span class="material-symbols-outlined">schedule</span>
       </button>
       <button id="kioskBtn" class="clock-mode-btn" aria-label="Pantalla completa" title="Modo kiosco">
         <span class="material-symbols-outlined" id="kioskIcon">fullscreen</span>
       </button>
-=======
->>>>>>> e5d17192bbb52eaccfd19318987818c6abf58ea5
       <div class="topbar-clock">
         <div id="clockH" class="clock-h">--:--</div>
         <div id="clockD" class="clock-d"></div>
@@ -72,7 +69,6 @@
 
     <main class="views-wrap">
 
-<<<<<<< HEAD
       <!-- HOME -->
       <section class="view card" id="view-home">
 
@@ -381,6 +377,10 @@
             <span class="material-symbols-outlined">admin_panel_settings</span>
             <span data-i18n="tab_admins">Admins</span>
           </button>
+          <button class="tab-btn" data-admin-tab="logs">
+            <span class="material-symbols-outlined">receipt_long</span>
+            <span data-i18n="tab_logs">Logs</span>
+          </button>
         </div>
 
         <!-- Tab Estudiantes -->
@@ -484,23 +484,86 @@
           </div>
         </section>
 
+        <!-- Tab Logs -->
+        <section id="admin-logs" class="admin-tab hidden">
+          <p class="muted sm" data-i18n="logs_sub">Registros de acceso con filtros.</p>
+          <div class="grid-4 form-grid">
+            <label>
+              <span data-i18n="field_shift">Turno</span>
+              <select id="logTurno">
+                <option value="" data-i18n="log_filter_all">Todos</option>
+                <option value="MATUTINO">MATUTINO</option>
+                <option value="VESPERTINO">VESPERTINO</option>
+              </select>
+            </label>
+            <label>
+              <span data-i18n="field_grade">Grado</span>
+              <select id="logGrado">
+                <option value="" data-i18n="log_filter_all">Todos</option>
+                <option value="1">1</option>
+                <option value="2">2</option>
+                <option value="3">3</option>
+              </select>
+            </label>
+            <label>
+              <span data-i18n="field_group">Grupo</span>
+              <input id="logGrupo" type="text" maxlength="1" placeholder="A">
+            </label>
+            <label>
+              <span data-i18n="log_filter_event">Evento</span>
+              <select id="logEvento">
+                <option value="" data-i18n="log_filter_all">Todos</option>
+                <option value="Entrada" data-i18n="log_event_entry">Entrada</option>
+                <option value="Salida" data-i18n="log_event_exit">Salida</option>
+              </select>
+            </label>
+            <label>
+              <span data-i18n="log_filter_result">Resultado</span>
+              <select id="logResultado">
+                <option value="" data-i18n="log_filter_all">Todos</option>
+                <option value="true" data-i18n="log_result_ok">OK</option>
+                <option value="false" data-i18n="log_result_denied">Denegado</option>
+              </select>
+            </label>
+            <label>
+              <span data-i18n="log_filter_name">Nombre</span>
+              <input id="logNombre" type="text" maxlength="80" placeholder="Ej. Ana">
+            </label>
+          </div>
+          <div class="row">
+            <button id="logSearch">
+              <span class="material-symbols-outlined">search</span>
+              <span data-i18n="log_filter_search">Buscar</span>
+            </button>
+            <button id="logClear" style="background:var(--muted);box-shadow:none">
+              <span class="material-symbols-outlined">refresh</span>
+              <span data-i18n="log_filter_clear">Limpiar</span>
+            </button>
+          </div>
+          <p id="adminLogsMsg" class="feedback waiting" data-i18n="log_msg_ready">Mostrando ultimos registros.</p>
+          <div class="table-wrap">
+            <table id="adminAccessLogsTable">
+              <thead>
+                <tr>
+                  <th data-i18n="log_col_time">Fecha</th>
+                  <th data-i18n="log_col_name">Nombre</th>
+                  <th data-i18n="log_col_grade">Grado</th>
+                  <th data-i18n="log_col_group">Grupo</th>
+                  <th data-i18n="log_col_shift">Turno</th>
+                  <th data-i18n="log_col_event">Evento</th>
+                  <th data-i18n="log_col_result">Resultado</th>
+                </tr>
+              </thead>
+              <tbody></tbody>
+            </table>
+          </div>
+        </section>
+
       </section>
-=======
-      
-
-      
-
-
-      {% include 'partials/login.html' %}
-      {% include 'partials/register.html' %}
-      {% include 'partials/register_admin.html' %}
-      {% include 'partials/admin.html' %}
->>>>>>> e5d17192bbb52eaccfd19318987818c6abf58ea5
 
     </main>
   </div>
 
-<<<<<<< HEAD
   <!-- MODAL PRUEBA MODELO -->
   <div id="modelTestModal" class="model-test hidden" role="dialog" aria-modal="true" aria-labelledby="modelTestTitle">
     <div class="model-test__overlay" id="modelTestOverlay"></div>
@@ -594,9 +657,6 @@
   <button id="kioskExitFab" class="kiosk-exit-fab hidden" aria-label="Salir de pantalla completa" title="Salir de pantalla completa">
     <span class="material-symbols-outlined">fullscreen_exit</span>
   </button>
-
-=======
->>>>>>> e5d17192bbb52eaccfd19318987818c6abf58ea5
   <script src="{{ url_for('static', filename='js/app.js') }}"></script>
 </body>
 </html>

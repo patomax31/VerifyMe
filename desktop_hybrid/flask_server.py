@@ -33,7 +33,10 @@ ADMIN_PANEL_DIST_DIR = ADMIN_PANEL_DIR / "dist"
 from database.sqlite.access import close_access_session, get_active_session, start_access_session
 from database.sqlite.connection import connect
 from database.sqlite.migrations import initialize_database
-from database.sqlite.reporting import list_access_logs_for_active_session
+from database.sqlite.reporting import (
+    list_access_logs_detailed,
+    list_access_logs_for_active_session,
+)
 from src.application.auth_service import AuthService
 from src.application.login_use_case import LoginUseCase
 from src.application.registration_service import RegistrationService
@@ -1025,6 +1028,44 @@ def create_app() -> Flask:
             rows = list_access_logs_for_active_session(
                 tipo_evento=tipo_evento,
                 acceso_concedido=acceso_concedido,
+                limit=limit,
+                offset=offset,
+            )
+        except ValueError as exc:
+            return jsonify({"ok": False, "message": str(exc)}), 400
+
+        return jsonify({"ok": True, "logs": rows})
+
+    @app.get("/api/admin/access-logs")
+    def list_access_logs_admin():
+        grado = request.args.get("grado")
+        grupo = request.args.get("grupo")
+        turno = request.args.get("turno")
+        tipo_evento = request.args.get("tipo_evento")
+        acceso_concedido_raw = request.args.get("acceso_concedido")
+        nombre_contains = request.args.get("nombre")
+        from_datetime = request.args.get("from_datetime")
+        to_datetime = request.args.get("to_datetime")
+        limit_raw = request.args.get("limit", "10")
+        offset_raw = request.args.get("offset", "0")
+
+        try:
+            limit = int(limit_raw)
+            offset = int(offset_raw)
+        except (TypeError, ValueError):
+            return jsonify({"ok": False, "message": "limit/offset deben ser enteros."}), 400
+
+        try:
+            acceso_concedido = _parse_optional_bool(acceso_concedido_raw)
+            rows = list_access_logs_detailed(
+                from_datetime=str(from_datetime) if from_datetime else None,
+                to_datetime=str(to_datetime) if to_datetime else None,
+                tipo_evento=tipo_evento,
+                acceso_concedido=acceso_concedido,
+                grado=grado,
+                grupo=grupo,
+                turno=turno,
+                nombre_contains=nombre_contains,
                 limit=limit,
                 offset=offset,
             )
