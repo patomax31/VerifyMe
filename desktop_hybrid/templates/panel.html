@@ -149,6 +149,15 @@
               <div class="camera-reticle"></div>
               <p class="camera-overlay__txt" data-i18n="cam_stopped">Cámara detenida</p>
             </div>
+            <div class="face-scan-overlay" id="loginScanOverlay" aria-hidden="true">
+              <div class="face-scan-frame">
+                <span class="face-scan-corner face-scan-corner--tl"></span>
+                <span class="face-scan-corner face-scan-corner--tr"></span>
+                <span class="face-scan-corner face-scan-corner--bl"></span>
+                <span class="face-scan-corner face-scan-corner--br"></span>
+                <span class="face-scan-label" data-i18n="scanning">Escaneando...</span>
+              </div>
+            </div>
           </div>
 
           <div class="row">
@@ -280,73 +289,7 @@
       <!-- ══════════════════════════════════════════════
            VISTA: ADMIN
       ══════════════════════════════════════════════ -->
-      <section class="view card hidden" id="view-admin">
-        <h2 data-i18n="nav_admin">Admin panel</h2>
-        <p class="muted sm" data-i18n="admin_sub">Gestión escolar, parámetros del modelo y administradores.</p>
-
-        <div class="tabs-inline" style="margin-top:12px">
-          <button class="tab-btn active" data-admin-tab="students"><span>👥</span><span data-i18n="tab_students">Estudiantes</span></button>
-          <button class="tab-btn" data-admin-tab="model"><span>🎛</span><span data-i18n="tab_model">Modelo</span></button>
-          <button class="tab-btn" data-admin-tab="admins"><span>🛡</span><span data-i18n="tab_admins">Admins</span></button>
-        </div>
-
-        <!-- Tab: Estudiantes -->
-        <section id="admin-students" class="admin-tab">
-          <div class="grid-4 form-grid">
-            <label><span data-i18n="field_name">Nombre</span> <input id="admNombre" type="text"></label>
-            <label><span data-i18n="field_grade">Grado</span> <select id="admGrado"><option>1</option><option>2</option><option>3</option></select></label>
-            <label><span data-i18n="field_group">Grupo</span> <input id="admGrupo" type="text" maxlength="1"></label>
-            <label><span data-i18n="field_shift">Turno</span> <select id="admTurno"><option>MATUTINO</option><option>VESPERTINO</option></select></label>
-          </div>
-          <div class="row">
-            <button id="admCreate"><span>➕</span><span data-i18n="btn_create_student">Crear estudiante</span></button>
-            <button id="admRefresh"><span>🔄</span><span data-i18n="btn_refresh">Refrescar</span></button>
-          </div>
-          <p id="admStudentsMsg" class="feedback waiting" data-i18n="students_mgmt">Gestión de estudiantes.</p>
-          <div class="table-wrap">
-            <table id="studentsTable">
-              <thead><tr><th>ID</th><th data-i18n="field_name">Nombre</th><th data-i18n="field_grade">Grado</th><th data-i18n="field_group">Grupo</th><th data-i18n="field_shift">Turno</th><th data-i18n="th_status">Estado</th><th data-i18n="th_actions">Acciones</th></tr></thead>
-              <tbody></tbody>
-            </table>
-          </div>
-        </section>
-
-        <!-- Tab: Modelo -->
-        <section id="admin-model" class="admin-tab hidden">
-          <div class="grid-3 form-grid">
-            <label>Scale     <input id="cfgScale"     type="number" min="0.05" max="1.0"  step="0.01"></label>
-            <label>Tolerance <input id="cfgTolerance" type="number" min="0.2"  max="1.0"  step="0.01"></label>
-            <label>Cooldown  <input id="cfgCooldown"  type="number" min="0"    max="120"  step="0.5"></label>
-          </div>
-          <div class="row">
-            <button id="cfgLoad"><span>⬇</span><span>Cargar</span></button>
-            <button id="cfgSave"><span>💾</span><span>Guardar</span></button>
-          </div>
-          <p id="cfgMsg" class="feedback waiting">Configuración del modelo.</p>
-        </section>
-
-        <!-- Tab: Admins -->
-        <section id="admin-admins" class="admin-tab hidden">
-          <div class="grid-2 form-grid">
-            <label>No. empleado   <input id="adminNum"    type="text"></label>
-            <label>Nombre         <input id="adminNombre" type="text"></label>
-            <label>Rol            <input id="adminRol"    type="text" value="ADMIN"></label>
-            <label>Correo         <input id="adminCorreo" type="email"></label>
-            <label>Password       <input id="adminPass"   type="password"></label>
-          </div>
-          <div class="row">
-            <button id="adminCreate"><span>🛡</span><span>Registrar admin</span></button>
-            <button id="adminRefresh"><span>🔄</span><span>Refrescar</span></button>
-          </div>
-          <p id="adminMsg" class="feedback waiting">Registro de administradores.</p>
-          <div class="table-wrap">
-            <table id="adminsTable">
-              <thead><tr><th>ID</th><th>No. empleado</th><th>Nombre</th><th>Rol</th><th>Correo</th><th>Estado</th></tr></thead>
-              <tbody></tbody>
-            </table>
-          </div>
-        </section>
-      </section>
+      {% include 'partials/admin.html' %}
 
     </main>
   </div>

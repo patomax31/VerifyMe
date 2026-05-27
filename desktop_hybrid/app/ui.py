@@ -104,7 +104,7 @@ SPLASH_HTML = """<!DOCTYPE html>
     </svg>
   </div>
 
-  <h1>IdentifyMe</h1>
+  <h1>VerifyMe</h1>
   <p class="subtitle">Sistema biometrico escolar</p>
 
   <div class="bar-track">
