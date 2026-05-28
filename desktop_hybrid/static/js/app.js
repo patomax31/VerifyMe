@@ -436,6 +436,10 @@ const keyboardInputs = 'input[type="text"], input[type="email"], input[type="pas
 let activeInput = null;
 let osk = null;
 let oskInteracting = false;
+let oskLayout = 'default';
+let shiftLocked = false;
+let lastOskButton = null;
+let lastOskButtonAt = 0;
 
 function showOsk() {
   const el = document.getElementById('osk');
@@ -454,6 +458,7 @@ function hideOsk() {
 function initOsk() {
   if (osk || !window.SimpleKeyboard) return;
   const oskRoot = document.getElementById('osk');
+  if (!oskRoot) return;
   oskRoot?.addEventListener('pointerdown', e => {
     oskInteracting = true;
     e.preventDefault();
@@ -461,31 +466,49 @@ function initOsk() {
   oskRoot?.addEventListener('pointerup', () => {
     setTimeout(() => { oskInteracting = false; }, 0);
   });
+  const oskMount = oskRoot.querySelector('.simple-keyboard') || oskRoot;
   osk = new window.SimpleKeyboard.default({
+    rootElement: oskMount,
+    layoutName: oskLayout,
     onChange: input => {
       if (!activeInput) return;
       activeInput.value = input;
       activeInput.dispatchEvent(new Event('input', { bubbles: true }));
     },
     onKeyPress: button => {
+      const now = Date.now();
+      if (button === lastOskButton && now - lastOskButtonAt < 120) return;
+      lastOskButton = button;
+      lastOskButtonAt = now;
       if (button === '{enter}') {
         activeInput?.blur();
         hideOsk();
       }
-      if (button === '{shift}' || button === '{lock}') handleShift();
+      if (button === '{shift}') {
+        setOskLayout('shift');
+        return;
+      }
+      if (button === '{lock}') {
+        shiftLocked = !shiftLocked;
+        setOskLayout(shiftLocked ? 'shift' : 'default');
+        return;
+      }
+      if (!shiftLocked && oskLayout === 'shift') {
+        setOskLayout('default');
+      }
     },
     layout: {
       default: [
         'q w e r t y u i o p',
         'a s d f g h j k l',
         '{shift} z x c v b n m {bksp}',
-        '{space} {enter}'
+        '@ {space} {enter}'
       ],
       shift: [
         'Q W E R T Y U I O P',
         'A S D F G H J K L',
         '{shift} Z X C V B N M {bksp}',
-        '{space} {enter}'
+        '@ {space} {enter}'
       ]
     },
     display: {
@@ -498,11 +521,10 @@ function initOsk() {
   });
 }
 
-function handleShift() {
-  if (!osk) return;
-  const current = osk.options.layoutName || 'default';
-  const next = current === 'default' ? 'shift' : 'default';
-  osk.setOptions({ layoutName: next });
+function setOskLayout(next) {
+  if (!osk || oskLayout === next) return;
+  oskLayout = next;
+  osk.setOptions({ layoutName: oskLayout });
 }
 
 document.addEventListener('focusin', e => {
