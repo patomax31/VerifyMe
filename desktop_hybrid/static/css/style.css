@@ -1278,30 +1278,6 @@ tr:hover td { background: #EAF7EE; }
   border-radius: 999px; padding: 2px 8px; flex-shrink: 0;
 }
 
-/* ════ ANGLE GUIDE — guía SVG de orientación de cabeza ════ */
-.angle-guide {
-  display: flex; justify-content: center; align-items: center;
-  margin: 4px 0 2px;
-  height: clamp(70px, 11vw, 100px);
-  position: relative;
-}
-.angle-guide__svg {
-  height: 100%; width: auto;
-  filter: drop-shadow(0 2px 8px rgba(0,0,0,.55));
-  transition: opacity .3s ease, transform .3s ease;
-}
-.angle-guide__svg.hidden {
-  display: none !important;
-}
-/* Animación de entrada al cambiar ángulo */
-.angle-guide__svg.animate-in {
-  animation: angle-pop .35s cubic-bezier(.34,1.56,.64,1) both;
-}
-@keyframes angle-pop {
-  from { opacity: 0; transform: scale(.7); }
-  to   { opacity: 1; transform: scale(1); }
-}
-
 /* ════ KIOSCO PANEL ════ */
 .kiosk-panel.hidden { display: none !important; }
 .kiosk-panel {

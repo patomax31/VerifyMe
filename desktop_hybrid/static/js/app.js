@@ -1094,20 +1094,6 @@ function updateRegAngleUi() {
   if (hint  && angle) hint.textContent  = angle.hint;
   if (label && angle) label.textContent = angle.label;
 
-  // Cambiar SVG de guía de ángulo
-  const svgIds = ['angleSvgFront', 'angleSvgLeft', 'angleSvgRight'];
-  svgIds.forEach((id, i) => {
-    const svg = document.getElementById(id);
-    if (!svg) return;
-    if (i === regStepIndex) {
-      svg.classList.remove('hidden');
-      svg.classList.remove('animate-in');
-      void svg.offsetWidth; // reflow para reiniciar la animación
-      svg.classList.add('animate-in');
-    } else {
-      svg.classList.add('hidden');
-    }
-  });
   if (guide && angle) guide.src = `/static/img/guides/${angle.guide}`;
 }
 
