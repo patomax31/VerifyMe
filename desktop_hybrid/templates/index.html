@@ -397,6 +397,22 @@
               <span data-i18n="btn_refresh">Refrescar</span>
             </button>
           </div>
+
+          <!-- MODAL: Foto estudiante -->
+          <div id="dashPhotoModal" class="modal-overlay hidden" role="dialog" aria-modal="true" aria-labelledby="dashPhotoTitle">
+            <div class="modal-box">
+              <h3 id="dashPhotoTitle">Foto de estudiante</h3>
+              <div class="dash-photo">
+                <img id="dashPhotoImg" alt="Foto del estudiante">
+              </div>
+              <p id="dashPhotoMeta" class="muted sm"></p>
+              <p id="dashPhotoFallback" class="feedback denied hidden">Sin fotografia registrada.</p>
+              <div class="row">
+                <button id="dashPhotoClose" class="btn-back">Cerrar</button>
+              </div>
+            </div>
+          </div>
+
           <p id="admStudentsMsg" class="feedback waiting" data-i18n="students_mgmt">Gestión de estudiantes.</p>
           <div class="table-wrap">
             <table id="studentsTable">

@@ -229,6 +229,16 @@ def _resolve_credential_jpeg_path(student_id: int) -> Optional[Path]:
     return _student_credential_path_from_db(student_id)
 
 
+def _persist_student_credential_jpeg(student_id: int, foto_bytes: Optional[bytes]) -> None:
+    if not foto_bytes:
+        return
+
+    cred_dir = PROJECT_DIR / "data" / "credentials"
+    cred_dir.mkdir(parents=True, exist_ok=True)
+    out_path = cred_dir / f"est_{student_id}.jpg"
+    out_path.write_bytes(foto_bytes)
+
+
 def _jpeg_encode_frame(frame, max_width: int = 520, quality: int = 88) -> Optional[bytes]:
     if cv2 is None or frame is None:
         return None
@@ -943,6 +953,9 @@ def create_app() -> Flask:
 
         if not result.success:
             return jsonify({"ok": False, "message": result.message}), 400
+
+        if result.student_id is not None and foto_bytes:
+            _persist_student_credential_jpeg(result.student_id, foto_bytes)
 
         engine.refresh_known_students()
         return jsonify({"ok": True, "message": result.message, "student_id": result.student_id})
