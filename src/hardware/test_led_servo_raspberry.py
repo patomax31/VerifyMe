@@ -2,7 +2,7 @@
 """Prueba de LED, servomotor, buzzer y tira LED para Raspberry Pi 5.
 
 Hace cuatro cosas:
-- Enciende un LED durante 5 segundos.
+- Enciende un LED durante 5 segundopython3 src/hardware/test_led_servo_raspberry.pys.
 - Mueve un servomotor a una posicion de prueba y luego lo regresa.
 - Suena un buzzer en sincronización.
 - Controla brillo de una tira LED.

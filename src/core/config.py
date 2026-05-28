@@ -22,7 +22,7 @@ class CameraSettings:
 
 class RecognitionSettings:
     def __init__(self) -> None:
-        self.scale = _get_env_float("RECOGNITION_SCALE", 0.25)
+        self.scale = _get_env_float("RECOGNITION_SCALE", 0.5)
         self.tolerance = _get_env_float("RECOGNITION_TOLERANCE", 0.5)
         self.access_cooldown_seconds = _get_env_float("ACCESS_COOLDOWN_SECONDS", 8.0)
 

@@ -239,7 +239,7 @@ def _persist_student_credential_jpeg(student_id: int, foto_bytes: Optional[bytes
     out_path.write_bytes(foto_bytes)
 
 
-def _jpeg_encode_frame(frame, max_width: int = 520, quality: int = 88) -> Optional[bytes]:
+def _jpeg_encode_frame(frame, max_width: int = 640, quality: int = 88) -> Optional[bytes]:
     if cv2 is None or frame is None:
         return None
     h, w = frame.shape[:2]
