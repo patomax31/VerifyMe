@@ -240,13 +240,20 @@ def _persist_student_credential_jpeg(student_id: int, foto_bytes: Optional[bytes
     out_path.write_bytes(foto_bytes)
 
 
-def _jpeg_encode_frame(frame, max_width: int = 520, quality: int = 88) -> Optional[bytes]:
+def _jpeg_encode_frame(
+    frame,
+    max_width: int = 520,
+    quality: int = 88,
+    color_space: Optional[str] = None,
+) -> Optional[bytes]:
     if cv2 is None or frame is None:
         return None
     h, w = frame.shape[:2]
     if w > max_width:
         scale = max_width / float(w)
         frame = cv2.resize(frame, (int(w * scale), int(h * scale)), interpolation=cv2.INTER_AREA)
+    if color_space and color_space.upper() == "RGB":
+        frame = cv2.cvtColor(frame, cv2.COLOR_RGB2BGR)
     ok, buf = cv2.imencode(".jpg", frame, [int(cv2.IMWRITE_JPEG_QUALITY), quality])
     if not ok:
         return None
@@ -254,15 +261,39 @@ def _jpeg_encode_frame(frame, max_width: int = 520, quality: int = 88) -> Option
 
 
 _camera_stream_lock = threading.Lock()
+_latest_frame_lock = threading.Lock()
+_latest_frame_bgr = None
+
+
+def _store_latest_frame(frame, color_space: Optional[str]) -> None:
+    global _latest_frame_bgr
+    if cv2 is None or frame is None:
+        return
+    try:
+        if color_space and color_space.upper() == "RGB":
+            frame = cv2.cvtColor(frame, cv2.COLOR_RGB2BGR)
+        with _latest_frame_lock:
+            _latest_frame_bgr = frame.copy()
+    except Exception:
+        return
+
+
+def _get_latest_frame_bgr():
+    with _latest_frame_lock:
+        if _latest_frame_bgr is None:
+            return None
+        return _latest_frame_bgr.copy()
 
 
 def _mjpeg_frame_stream(cap):
     try:
+        color_space = getattr(cap, "color_space", None)
         while True:
             ret, frame = cap.read()
             if not ret or frame is None:
                 continue
-            jpeg = _jpeg_encode_frame(frame)
+            _store_latest_frame(frame, color_space)
+            jpeg = _jpeg_encode_frame(frame, color_space=color_space)
             if not jpeg:
                 continue
             yield (
@@ -607,7 +638,9 @@ def create_app() -> Flask:
             finally:
                 _camera_stream_lock.release()
 
-        return Response(_generate(), mimetype="multipart/x-mixed-replace; boundary=frame")
+        response = Response(_generate(), mimetype="multipart/x-mixed-replace; boundary=frame")
+        response.headers["Access-Control-Allow-Origin"] = "*"
+        return response
 
     @app.get("/api/login/status")
     def login_status():
@@ -653,9 +686,12 @@ def create_app() -> Flask:
 
         payload = request.get_json(silent=True) or {}
         session_id = str(payload.get("session_id", "")).strip()
-        frame = _decode_image_data_uri(payload.get("image", ""))
+        use_latest = bool(payload.get("use_latest"))
+        frame = None if use_latest else _decode_image_data_uri(payload.get("image", ""))
         if not session_id:
             return jsonify({"ok": False, "state": "error", "message": "Falta session_id"}), 400
+        if frame is None:
+            frame = _get_latest_frame_bgr()
         if frame is None:
             return jsonify({"ok": True, "state": "no_face", "message": "Imagen invalida"})
 
@@ -671,7 +707,10 @@ def create_app() -> Flask:
         assert engine is not None
 
         payload = request.get_json(silent=True) or {}
-        frame = _decode_image_data_uri(payload.get("image", ""))
+        use_latest = bool(payload.get("use_latest"))
+        frame = None if use_latest else _decode_image_data_uri(payload.get("image", ""))
+        if frame is None:
+            frame = _get_latest_frame_bgr()
         if frame is None:
             return jsonify({"ok": False, "state": "error", "message": "Imagen invalida"}), 400
 

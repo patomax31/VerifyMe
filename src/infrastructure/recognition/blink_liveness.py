@@ -11,6 +11,13 @@ from typing import Any, Dict, List, Optional, Tuple
 import cv2
 import face_recognition
 
+if not hasattr(face_recognition, "face_locations"):
+    origin = getattr(face_recognition, "__file__", None) or getattr(face_recognition, "__path__", None)
+    raise RuntimeError(
+        "Invalid face_recognition module. Expected the face_recognition package with face_locations. "
+        f"Loaded from: {origin}"
+    )
+
 
 def _dist(a: Tuple[float, float], b: Tuple[float, float]) -> float:
     return math.hypot(a[0] - b[0], a[1] - b[1])

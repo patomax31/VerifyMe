@@ -846,8 +846,21 @@ function setLivUi(state, text) {
   if (livText) livText.textContent = text || '';
   if (!livDot) return;
   livDot.style.background =
+    state === 'off'        ? '#64748B' :
     state === 'ready'      ? '#006B28' :
     state === 'need_blink' ? '#92400E' : '#006B28';
+}
+
+function setLoginReadyUi() {
+  if (loginMsg) {
+    loginMsg.textContent = t('waiting_face');
+    loginMsg.className = 'feedback waiting';
+  }
+  setLivUi('ready', t('scanning'));
+}
+
+function setLoginInactiveUi() {
+  setLivUi('off', t('liveness_init'));
 }
 
 function _activeCameraSource(videoEl, imgEl) {
@@ -857,9 +870,23 @@ function _activeCameraSource(videoEl, imgEl) {
 }
 
 function _sourceDims(el) {
-  const w = el?.videoWidth || el?.naturalWidth || el?.width || 0;
-  const h = el?.videoHeight || el?.naturalHeight || el?.height || 0;
-  return { w, h };
+  if (!el) return { w: 0, h: 0 };
+  const w = el.videoWidth || el.naturalWidth || el.width || 0;
+  const h = el.videoHeight || el.naturalHeight || el.height || 0;
+  if (w && h) return { w, h };
+  const rect = el.getBoundingClientRect ? el.getBoundingClientRect() : null;
+  if (rect && rect.width && rect.height) {
+    return { w: Math.round(rect.width), h: Math.round(rect.height) };
+  }
+  return { w: 0, h: 0 };
+}
+
+function _imageReady(el) {
+  if (!el || el.tagName !== 'IMG') return true;
+  if (!el.complete) return false;
+  if (el.naturalWidth && el.naturalHeight) return true;
+  const rect = el.getBoundingClientRect ? el.getBoundingClientRect() : null;
+  return Boolean(rect && rect.width && rect.height);
 }
 
 function _mapFaceBoxToCamera(source, faceBox) {
@@ -1044,8 +1071,7 @@ async function startLoginCameraAuto() {
       loginMsgHelp.classList.remove('is-clickable');
     }
     loginDeniedCount = 0;
-    if (loginMsg) { loginMsg.textContent = t('waiting_face'); loginMsg.className = 'feedback waiting'; }
-    setLivUi('init', t('liveness_init'));
+    setLoginReadyUi();
 
     loginInterval = setInterval(async () => {
       if (!loginLivOk) await pushLivFrame();
@@ -1058,6 +1084,7 @@ async function startLoginCameraAuto() {
       if (camOverlay)  camOverlay.classList.add('hidden');
       startLoginFaceTracker();
       loginDeniedCount = 0;
+      setLoginReadyUi();
       loginInterval = setInterval(async () => {
         if (!loginLivOk) await pushLivFrame();
         else             await captureAndVerify();
@@ -1092,19 +1119,31 @@ async function activateAccessHardware() {
 async function pushLivFrame() {
   if (loginLivBusy) return;
   if (!loginCanvas || !loginLivId) return;
-  const source = _activeCameraSource(loginVideo, loginImage);
-  if (!source) return;
-  const dims = _sourceDims(source);
-  if (!dims.w || !dims.h) return;
   loginLivBusy = true;
-  loginCanvas.width  = dims.w;
-  loginCanvas.height = dims.h;
-  loginCanvas.getContext('2d').drawImage(source, 0, 0, dims.w, dims.h);
-  const image = loginCanvas.toDataURL('image/jpeg', 0.75);
   try {
+    const useLatest = loginStream && loginStream.backend === 'mjpeg';
+    let body = { session_id: loginLivId };
+    if (useLatest) {
+      body.use_latest = true;
+    } else {
+      const source = _activeCameraSource(loginVideo, loginImage);
+      if (!source) return;
+      if (!_imageReady(source)) return;
+      const dims = _sourceDims(source);
+      if (!dims.w || !dims.h) return;
+      loginCanvas.width  = dims.w;
+      loginCanvas.height = dims.h;
+      try {
+        loginCanvas.getContext('2d').drawImage(source, 0, 0, dims.w, dims.h);
+      } catch (_) {
+        loginLivBusy = false;
+        return;
+      }
+      body.image = loginCanvas.toDataURL('image/jpeg', 0.75);
+    }
     const res  = await fetch('/api/login/liveness/frame', {
       method:'POST', headers:{'Content-Type':'application/json'},
-      body: JSON.stringify({ session_id: loginLivId, image }),
+      body: JSON.stringify(body),
     });
     const data = await res.json();
     updateLoginScanFromServer(data.face_box);
@@ -1113,7 +1152,8 @@ async function pushLivFrame() {
       loginLivOk = true;
       if (loginMsg) { loginMsg.textContent = 'Identificando…'; loginMsg.className = 'feedback waiting'; }
     }
-  } catch (_) {
+  } catch (err) {
+    console.error("Error en pushLivFrame:", err);
   } finally {
     loginLivBusy = false;
   }
@@ -1122,19 +1162,31 @@ async function pushLivFrame() {
 async function captureAndVerify() {
   if (loginVerifyBusy) return;
   if (!loginCanvas) return;
-  const source = _activeCameraSource(loginVideo, loginImage);
-  if (!source) return;
-  const dims = _sourceDims(source);
-  if (!dims.w || !dims.h) return;
   loginVerifyBusy = true;
-  loginCanvas.width  = dims.w;
-  loginCanvas.height = dims.h;
-  loginCanvas.getContext('2d').drawImage(source, 0, 0, dims.w, dims.h);
-  const image = loginCanvas.toDataURL('image/jpeg', 0.8);
   try {
+    const useLatest = loginStream && loginStream.backend === 'mjpeg';
+    let body = { liveness_session_id: loginLivId };
+    if (useLatest) {
+      body.use_latest = true;
+    } else {
+      const source = _activeCameraSource(loginVideo, loginImage);
+      if (!source) return;
+      if (!_imageReady(source)) return;
+      const dims = _sourceDims(source);
+      if (!dims.w || !dims.h) return;
+      loginCanvas.width  = dims.w;
+      loginCanvas.height = dims.h;
+      try {
+        loginCanvas.getContext('2d').drawImage(source, 0, 0, dims.w, dims.h);
+      } catch (_) {
+        loginVerifyBusy = false;
+        return;
+      }
+      body.image = loginCanvas.toDataURL('image/jpeg', 0.8);
+    }
     const res  = await fetch('/api/login/verify', {
       method:'POST', headers:{'Content-Type':'application/json'},
-      body: JSON.stringify({ image, liveness_session_id: loginLivId }),
+      body: JSON.stringify(body),
     });
     const data = await res.json();
     updateLoginScanFromServer(data.face_box);
@@ -1157,7 +1209,8 @@ async function captureAndVerify() {
         if (loginDeniedCount >= 3) loginMsgHelp.classList.add('is-clickable');
       }
     }
-  } catch (_) {
+  } catch (err) {
+    console.error("Error en captureAndVerify:", err);
   } finally {
     loginVerifyBusy = false;
   }
@@ -1186,6 +1239,7 @@ loginStart?.addEventListener('click', async () => {
     if (loginStop)   loginStop.disabled    = false;
     if (loginMsgHelp) { loginMsgHelp.classList.add('hidden'); loginMsgHelp.classList.remove('is-clickable'); }
     loginDeniedCount = 0;
+    setLoginReadyUi();
 
     loginInterval = setInterval(async () => {
       if (!loginLivOk) await pushLivFrame();
@@ -1199,6 +1253,7 @@ loginStart?.addEventListener('click', async () => {
       if (loginStart)  loginStart.disabled  = true;
       if (loginStop)   loginStop.disabled   = false;
       loginDeniedCount = 0;
+      setLoginReadyUi();
       loginInterval = setInterval(async () => {
         if (!loginLivOk) await pushLivFrame();
         else             await captureAndVerify();
@@ -1211,7 +1266,7 @@ loginStart?.addEventListener('click', async () => {
 
 loginStop?.addEventListener('click', () => {
   stopLoginCamera();
-  setLivUi('off', 'Verificación detenida.');
+  setLoginInactiveUi();
   if (loginMsg) { loginMsg.textContent = t('waiting_face'); loginMsg.className = 'feedback waiting'; }
   if (loginMsgHelp) { loginMsgHelp.classList.add('hidden'); loginMsgHelp.classList.remove('is-clickable'); }
   loginDeniedCount = 0;
@@ -1253,7 +1308,7 @@ function renderAccessResult(data) {
 function resetAccessStep() {
   showAccessStep(1);
   stopLoginCamera();
-  setLivUi('init', t('liveness_init'));
+  setLoginInactiveUi();
   if (loginMsg) { loginMsg.textContent = t('waiting_face'); loginMsg.className = 'feedback waiting'; }
   if (loginMsgHelp) { loginMsgHelp.classList.add('hidden'); loginMsgHelp.classList.remove('is-clickable'); }
   loginDeniedCount = 0;
@@ -1287,6 +1342,18 @@ const REG_ANGLES = [
   { key:'image_right', guide:'perfilHead_derecho.png', get label(){ return t('btn_save_student');  }, get hint(){ return t('angle_hint_right'); } },
 ];
 
+const REG_GUIDE_CACHE = new Map();
+function preloadRegGuides() {
+  REG_ANGLES.forEach(angle => {
+    const src = `/static/img/guides/${angle.guide}`;
+    if (REG_GUIDE_CACHE.has(src)) return;
+    const img = new Image();
+    img.src = src;
+    REG_GUIDE_CACHE.set(src, img);
+  });
+}
+preloadRegGuides();
+
 function updateRegAngleUi() {
   document.querySelectorAll('.angle-step').forEach((el, i) => {
     el.classList.remove('angle-step--active','angle-step--done');
@@ -1302,7 +1369,10 @@ function updateRegAngleUi() {
   if (hint  && angle) hint.textContent  = angle.hint;
   if (label && angle) label.textContent = angle.label;
 
-  if (guide && angle) guide.src = `/static/img/guides/${angle.guide}`;
+  if (guide && angle) {
+    const src = `/static/img/guides/${angle.guide}`;
+    guide.src = src;
+  }
 }
 
 function stopRegCamera() {
