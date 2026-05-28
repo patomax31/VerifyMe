@@ -612,7 +612,9 @@ def create_app() -> Flask:
             finally:
                 _camera_stream_lock.release()
 
-        return Response(_generate(), mimetype="multipart/x-mixed-replace; boundary=frame")
+        response = Response(_generate(), mimetype="multipart/x-mixed-replace; boundary=frame")
+        response.headers["Access-Control-Allow-Origin"] = "*"
+        return response
 
     @app.get("/api/login/status")
     def login_status():
