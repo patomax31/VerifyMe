@@ -18,13 +18,8 @@
   <aside id="drawer" class="drawer">
     <div class="drawer-head">
       <div class="drawer-brand">
-        <span class="drawer-brand__icon">🔐</span>
-        <div>
-          <p class="drawer-brand__name">VerifyMe</p>
-          <p class="drawer-brand__sub">Biométrico escolar</p>
-        </div>
+        <img class="drawer-brand__icon" src="{{ url_for('static', filename='img/logo_verifyme.png') }}" alt="VerifyMe">
       </div>
-      <button id="drawerClose" class="icon-btn" aria-label="Cerrar menú">✕</button>
     </div>
 
     <nav class="drawer-nav">
@@ -238,16 +233,21 @@
           <div class="form-grid-2" style="margin-top:14px">
             <label>
               <span data-i18n="field_name">Nombre completo</span>
-              <input id="regNombre" type="text" maxlength="80" placeholder="Ej. Ana Gómez">
+              <input id="regNombre" type="text" maxlength="20" placeholder="Ej. Ana Gómez">
             </label>
             <div class="form-row-2">
               <label>
                 <span data-i18n="field_grade">Grado</span>
                 <select id="regGrado"><option>1</option><option>2</option><option>3</option></select>
               </label>
-              <label>
-                <span data-i18n="field_group">Grupo</span>
-                <input id="regLetra" type="text" maxlength="1" placeholder="A">
+                            <label><span data-i18n="field_group">Grupo</span>
+                <select id="regLetra">
+                  <option>A</option>
+                  <option>B</option>
+                  <option>C</option>
+                  <option>D</option>
+                  <option>E</option>
+                  <option>F</option></select>
               </label>
             </div>
             <label>
@@ -260,6 +260,15 @@
             <span class="material-symbols-outlined">photo_camera</span>
             <span data-i18n="btn_go_camera">Continuar a cámara</span>
           </button>
+
+                    <!-- Botones de acción y cambio a admin -->
+          <div class="row" style="margin-top:18px; justify-content: space-between; align-items: center;">
+            <button class="btn-full" style="width: auto;" id="regGoToCamera">
+              <span>📷</span><span data-i18n="btn_go_camera">Continuar a cámara</span>
+            </button>
+            <button class="btn-ghost" id="btnSwitchToAdminReg" style="font-size: 0.9em; padding: 6px 12px;">🛡 Registrar Administrador</button>
+          </div>
+
           <p id="regStep1Msg" class="feedback waiting" style="margin-top:10px">Completa los campos faltantes para continuar.</p>
         </div>
 
@@ -356,6 +365,11 @@
             <span class="material-symbols-outlined">receipt_long</span>
             <span data-i18n="tab_logs">Logs</span>
           </button>
+          <button class="tab-btn" data-admin-tab="hardware">
+            <span class="material-symbol-oulined">settings</span></span>
+            <span data-i18n="tab_hardware">Hardware</span>
+          </button>
+
         </div>
 
         <!-- Tab Estudiantes -->
@@ -543,7 +557,7 @@
     <div class="simple-keyboard"></div>
   </div>
   <script src="https://cdn.jsdelivr.net/npm/simple-keyboard@latest/build/index.js"></script>
-  
+
   <!-- MODAL PRUEBA MODELO -->
   <div id="modelTestModal" class="model-test hidden" role="dialog" aria-modal="true" aria-labelledby="modelTestTitle">
     <div class="model-test__overlay" id="modelTestOverlay"></div>
