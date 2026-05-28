@@ -3,6 +3,9 @@ from __future__ import annotations
 import html
 import sys
 import threading
+import time
+import webbrowser
+from typing import Optional
 
 import webview
 from webview.errors import WebViewException
@@ -53,48 +56,74 @@ def run_desktop_app() -> int:
         target=start_flask_server, args=(state,), daemon=True
     )
 
-    def _on_splash_shown() -> None:
+    def _startup_sequence(splash: Optional[webview.Window] = None) -> bool:
+        """Run startup sequence: hardware, checks, start server and load UI.
+
+        If `splash` is None the function will print progress and open the system
+        browser instead of loading a webview window.
+        Returns True on success, False on failure.
+        """
         hardware.startup()
-        update_splash(splash, 8, "Verificando sistema...")
-        results = run_system_checks(
-            lambda pct, msg: update_splash(splash, pct, msg)
-        )
+        if splash:
+            update_splash(splash, 8, "Verificando sistema...")
+        else:
+            print("[INFO] Verificando sistema...")
+
+        results = run_system_checks(lambda pct, msg: update_splash(splash, pct, msg) if splash else print(f"[CHECK] {pct}% {msg}"))
         errors = [r for r in results if r.status == CheckStatus.ERROR]
 
         if errors:
             hardware.error()
             detail_lines = [f"- {r.name}: {r.detail}" for r in errors if r.detail]
             detail = format_error_details(detail_lines)
-            splash.load_html(
-                error_html(
-                    title="Verificacion fallida",
-                    detail=detail
-                    or "Se encontraron errores durante las verificaciones.",
-                    hint="Instala las dependencias faltantes y vuelve a abrir la aplicacion.",
+            if splash:
+                splash.load_html(
+                    error_html(
+                        title="Verificacion fallida",
+                        detail=detail or "Se encontraron errores durante las verificaciones.",
+                        hint="Instala las dependencias faltantes y vuelve a abrir la aplicacion.",
+                    )
                 )
-            )
-            return
+            else:
+                print("[ERROR] Verificacion fallida:")
+                print(detail or "Se encontraron errores durante las verificaciones.")
+            return False
 
-        update_splash(splash, 80, "Iniciando servidor...")
+        if splash:
+            update_splash(splash, 80, "Iniciando servidor...")
+        else:
+            print("[INFO] Iniciando servidor...")
+
         state.thread.start()
         ready = wait_for_server()
 
         if not ready:
             hardware.error()
             detail = html.escape(state.startup_error or "Tiempo de espera agotado al iniciar Flask.")
-            splash.load_html(
-                error_html(
-                    title="No se pudo iniciar",
-                    detail=detail,
-                    hint="Revisa la consola para mas detalles del error.",
+            if splash:
+                splash.load_html(
+                    error_html(
+                        title="No se pudo iniciar",
+                        detail=detail,
+                        hint="Revisa la consola para mas detalles del error.",
+                    )
                 )
-            )
-            return
+            else:
+                print(f"[ERROR] No se pudo iniciar el servidor: {detail}")
+            return False
 
-        update_splash(splash, 96, "Preparando interfaz...")
-        target_path = "/admin-panel/" if _admin_panel_dist_ready() else "/"
-        splash.load_url(f"http://{HOST}:{PORT}{target_path}")
+        if splash:
+            update_splash(splash, 96, "Preparando interfaz...")
+            target_path = "/admin-panel/" if _admin_panel_dist_ready() else "/"
+            splash.load_url(f"http://{HOST}:{PORT}{target_path}")
+        else:
+            target_path = "/admin-panel/" if _admin_panel_dist_ready() else "/"
+            print(f"[INFO] Servidor listo en http://{HOST}:{PORT}{target_path}")
         hardware.success()
+        return True
+
+    def _on_splash_shown() -> None:
+        _startup_sequence(splash)
 
     splash.events.shown += _on_splash_shown
 
@@ -104,7 +133,21 @@ def run_desktop_app() -> int:
         print("[ERROR] No se pudo iniciar PyWebview con backend Qt.")
         print(f"[ERROR] Detalle: {exc}")
         print("[HINT] Instala dependencias: pip install qtpy PyQt6 PyQt6-WebEngine")
-        return 1
+        # Fallback: iniciar servidor en modo headless y abrir navegador por defecto
+        print("[INFO] Iniciando servidor en modo headless y abriendo navegador por defecto...")
+        ok = _startup_sequence(None)
+        if not ok:
+            return 1
+        target_path = "/admin-panel/" if _admin_panel_dist_ready() else "/"
+        try:
+            webbrowser.open(f"http://{HOST}:{PORT}{target_path}")
+        except Exception:
+            print(f"[WARN] No se pudo abrir el navegador automaticamente. Abre: http://{HOST}:{PORT}{target_path}")
+        try:
+            while state.thread.is_alive():
+                time.sleep(0.5)
+        except KeyboardInterrupt:
+            pass
     finally:
         hardware.cleanup()
         stop_server(state)

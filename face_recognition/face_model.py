@@ -15,6 +15,7 @@ from dataclasses import dataclass
 from typing import List, Optional, Tuple
 
 import cv2
+from src.infrastructure.camera.opencv_camera import open_camera as open_opencv_camera
 
 try:
     import face_recognition
@@ -107,34 +108,15 @@ class FaceModelTester:
         print(f"[face_model] Rostros conocidos cargados: {len(self.known_names)}")
 
     def open_camera(self, camera_index: int = 0) -> Optional[cv2.VideoCapture]:
-        """Abre camara con perfil dual para PC y Raspberry Pi."""
-        profile = os.getenv("CAMERA_PROFILE", "AUTO").strip().upper()
-        if profile == "AUTO":
-            profile = "WINDOWS_STABLE" if os.name == "nt" else "RASPBERRY_PI"
+        """Abre la cámara delegando en la implementación de `opencv_camera.open_camera`.
 
-        if profile == "WINDOWS_STABLE":
-            attempts = [(camera_index, cv2.CAP_DSHOW), (1 - camera_index, cv2.CAP_DSHOW)]
-        else:
-            attempts = [
-                (camera_index, cv2.CAP_V4L2),
-                (1 - camera_index, cv2.CAP_V4L2),
-                (camera_index, None),
-            ]
-
-        width = int(os.getenv("CAMERA_WIDTH", "640"))
-        height = int(os.getenv("CAMERA_HEIGHT", "480"))
-        fps = int(os.getenv("CAMERA_FPS", "20"))
-
-        for index, backend in attempts:
-            cap = cv2.VideoCapture(index) if backend is None else cv2.VideoCapture(index, backend)
-            if cap.isOpened():
-                cap.set(cv2.CAP_PROP_FRAME_WIDTH, width)
-                cap.set(cv2.CAP_PROP_FRAME_HEIGHT, height)
-                cap.set(cv2.CAP_PROP_FPS, fps)
-                return cap
-            cap.release()
-
-        return None
+        Acepta `camera_index` para pruebas locales.
+        """
+        try:
+            return open_opencv_camera(camera_index=camera_index)
+        except Exception as exc:
+            print(f"[face_model] Error abriendo la camara: {exc}")
+            return None
 
     def process_frame(self, frame) -> Tuple[List[Tuple[int, int, int, int]], List[str]]:
         """Detecta rostros y retorna labels por cada rostro detectado."""
