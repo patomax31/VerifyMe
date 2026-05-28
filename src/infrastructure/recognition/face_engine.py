@@ -1,6 +1,13 @@
 import cv2
 import face_recognition
 
+if not hasattr(face_recognition, "face_locations"):
+    origin = getattr(face_recognition, "__file__", None) or getattr(face_recognition, "__path__", None)
+    raise RuntimeError(
+        "Invalid face_recognition module. Expected the face_recognition package with face_locations. "
+        f"Loaded from: {origin}"
+    )
+
 
 def detect_face_encodings_from_frame(frame, scale=0.25):
     """Return face locations and encodings from a BGR frame."""

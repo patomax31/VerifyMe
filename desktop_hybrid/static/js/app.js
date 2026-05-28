@@ -850,6 +850,14 @@ function setLivUi(state, text) {
     state === 'need_blink' ? '#92400E' : '#006B28';
 }
 
+function setLoginReadyUi() {
+  if (loginMsg) {
+    loginMsg.textContent = t('waiting_face');
+    loginMsg.className = 'feedback waiting';
+  }
+  setLivUi('init', t('liveness_init'));
+}
+
 function _activeCameraSource(videoEl, imgEl) {
   if (videoEl && videoEl.srcObject) return videoEl;
   if (imgEl && !imgEl.classList.contains('hidden')) return imgEl;
@@ -1044,8 +1052,7 @@ async function startLoginCameraAuto() {
       loginMsgHelp.classList.remove('is-clickable');
     }
     loginDeniedCount = 0;
-    if (loginMsg) { loginMsg.textContent = t('waiting_face'); loginMsg.className = 'feedback waiting'; }
-    setLivUi('init', t('liveness_init'));
+    setLoginReadyUi();
 
     loginInterval = setInterval(async () => {
       if (!loginLivOk) await pushLivFrame();
@@ -1058,6 +1065,7 @@ async function startLoginCameraAuto() {
       if (camOverlay)  camOverlay.classList.add('hidden');
       startLoginFaceTracker();
       loginDeniedCount = 0;
+      setLoginReadyUi();
       loginInterval = setInterval(async () => {
         if (!loginLivOk) await pushLivFrame();
         else             await captureAndVerify();
@@ -1082,6 +1090,7 @@ async function pushLivFrame() {
   if (!loginCanvas || !loginLivId) return;
   const source = _activeCameraSource(loginVideo, loginImage);
   if (!source) return;
+  if (source.tagName === 'IMG' && (!source.complete || source.naturalWidth === 0)) return;
   const dims = _sourceDims(source);
   if (!dims.w || !dims.h) return;
   loginLivBusy = true;
@@ -1112,6 +1121,7 @@ async function captureAndVerify() {
   if (!loginCanvas) return;
   const source = _activeCameraSource(loginVideo, loginImage);
   if (!source) return;
+  if (source.tagName === 'IMG' && (!source.complete || source.naturalWidth === 0)) return;
   const dims = _sourceDims(source);
   if (!dims.w || !dims.h) return;
   loginVerifyBusy = true;
@@ -1173,6 +1183,7 @@ loginStart?.addEventListener('click', async () => {
     if (loginStop)   loginStop.disabled    = false;
     if (loginMsgHelp) { loginMsgHelp.classList.add('hidden'); loginMsgHelp.classList.remove('is-clickable'); }
     loginDeniedCount = 0;
+    setLoginReadyUi();
 
     loginInterval = setInterval(async () => {
       if (!loginLivOk) await pushLivFrame();
@@ -1186,6 +1197,7 @@ loginStart?.addEventListener('click', async () => {
       if (loginStart)  loginStart.disabled  = true;
       if (loginStop)   loginStop.disabled   = false;
       loginDeniedCount = 0;
+      setLoginReadyUi();
       loginInterval = setInterval(async () => {
         if (!loginLivOk) await pushLivFrame();
         else             await captureAndVerify();
@@ -1274,6 +1286,18 @@ const REG_ANGLES = [
   { key:'image_right', guide:'perfilHead_derecho.png', get label(){ return t('btn_save_student');  }, get hint(){ return t('angle_hint_right'); } },
 ];
 
+const REG_GUIDE_CACHE = new Map();
+function preloadRegGuides() {
+  REG_ANGLES.forEach(angle => {
+    const src = `/static/img/guides/${angle.guide}`;
+    if (REG_GUIDE_CACHE.has(src)) return;
+    const img = new Image();
+    img.src = src;
+    REG_GUIDE_CACHE.set(src, img);
+  });
+}
+preloadRegGuides();
+
 function updateRegAngleUi() {
   document.querySelectorAll('.angle-step').forEach((el, i) => {
     el.classList.remove('angle-step--active','angle-step--done');
@@ -1289,7 +1313,10 @@ function updateRegAngleUi() {
   if (hint  && angle) hint.textContent  = angle.hint;
   if (label && angle) label.textContent = angle.label;
 
-  if (guide && angle) guide.src = `/static/img/guides/${angle.guide}`;
+  if (guide && angle) {
+    const src = `/static/img/guides/${angle.guide}`;
+    guide.src = src;
+  }
 }
 
 function stopRegCamera() {

@@ -239,13 +239,20 @@ def _persist_student_credential_jpeg(student_id: int, foto_bytes: Optional[bytes
     out_path.write_bytes(foto_bytes)
 
 
-def _jpeg_encode_frame(frame, max_width: int = 520, quality: int = 88) -> Optional[bytes]:
+def _jpeg_encode_frame(
+    frame,
+    max_width: int = 520,
+    quality: int = 88,
+    color_space: Optional[str] = None,
+) -> Optional[bytes]:
     if cv2 is None or frame is None:
         return None
     h, w = frame.shape[:2]
     if w > max_width:
         scale = max_width / float(w)
         frame = cv2.resize(frame, (int(w * scale), int(h * scale)), interpolation=cv2.INTER_AREA)
+    if color_space and color_space.upper() == "RGB":
+        frame = cv2.cvtColor(frame, cv2.COLOR_RGB2BGR)
     ok, buf = cv2.imencode(".jpg", frame, [int(cv2.IMWRITE_JPEG_QUALITY), quality])
     if not ok:
         return None
@@ -257,11 +264,12 @@ _camera_stream_lock = threading.Lock()
 
 def _mjpeg_frame_stream(cap):
     try:
+        color_space = getattr(cap, "color_space", None)
         while True:
             ret, frame = cap.read()
             if not ret or frame is None:
                 continue
-            jpeg = _jpeg_encode_frame(frame)
+            jpeg = _jpeg_encode_frame(frame, color_space=color_space)
             if not jpeg:
                 continue
             yield (
