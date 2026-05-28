@@ -35,7 +35,7 @@ def _try_picamera2():
             capture_width = full_res[0]
             capture_height = full_res[1]
             print(f"[DEBUG] Will capture at full sensor: {capture_width}x{capture_height}, then resize to {settings.width}x{settings.height}", 
-                  file=sys.stderr)
+                file=sys.stderr)
         
         # Create configuration with full resolution to avoid ISP crop
         config = picam2.create_preview_configuration(
@@ -52,13 +52,22 @@ def _try_picamera2():
         
         picam2.configure(config)
         
-        # Set conservative camera controls
+        # Optimize exposure for better brightness (full sensor capture needs more light)
         try:
             picam2.set_controls({
-                "AnalogueGain": 1.0,
+                "ExposureTime": 30000,    # 30ms exposure time for better brightness
+                "AnalogueGain": 4.0,      # 4x gain to compensate for full sensor capture
+                "AwbMode": 1,             # Auto white balance
             })
-        except Exception:
-            pass
+            print("[DEBUG] Camera exposure optimized for full sensor capture", file=sys.stderr)
+        except Exception as e:
+            print(f"[DEBUG] Could not set all camera controls: {e}", file=sys.stderr)
+            try:
+                picam2.set_controls({
+                    "AnalogueGain": 2.0,
+                })
+            except Exception:
+                pass
         
         picam2.start()
         
@@ -81,14 +90,14 @@ def _try_picamera2():
                     if self.frame_count < 1:
                         h, w = frame_rgb.shape[:2]
                         print(f"[DEBUG] First frame: {w}x{h}, will resize to {self.target_width}x{self.target_height}", 
-                              file=sys.stderr)
+                            file=sys.stderr)
                         self.frame_count = 1
                     
                     # Resize to target dimensions
                     h, w = frame_rgb.shape[:2]
                     if (w, h) != (self.target_width, self.target_height):
                         frame_rgb = cv2.resize(frame_rgb, (self.target_width, self.target_height), 
-                                             interpolation=cv2.INTER_AREA)
+                                            interpolation=cv2.INTER_AREA)
                     
                     # Convert RGB to BGR for OpenCV compatibility
                     frame_bgr = cv2.cvtColor(frame_rgb, cv2.COLOR_RGB2BGR)
