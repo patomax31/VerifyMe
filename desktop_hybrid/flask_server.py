@@ -150,7 +150,7 @@ def _credential_jpeg_path(student_id: int) -> Optional[Path]:
     return path if path.is_file() else None
 
 
-def _jpeg_encode_frame(frame, max_width: int = 520, quality: int = 88) -> Optional[bytes]:
+def _jpeg_encode_frame(frame, max_width: int = 640, quality: int = 88) -> Optional[bytes]:
     if cv2 is None or frame is None:
         return None
     h, w = frame.shape[:2]

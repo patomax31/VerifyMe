@@ -2,7 +2,7 @@ import cv2
 import face_recognition
 
 
-def detect_face_encodings_from_frame(frame, scale=0.25):
+def detect_face_encodings_from_frame(frame, scale=0.5):
     """Return face locations and encodings from a BGR frame."""
     small_frame = cv2.resize(frame, (0, 0), fx=scale, fy=scale)
     rgb_small = cv2.cvtColor(small_frame, cv2.COLOR_BGR2RGB)
@@ -25,7 +25,7 @@ def _registration_scales(base_scale: float):
     return out
 
 
-def detect_face_encodings_from_frame_robust(frame, base_scale: float = 0.25):
+def detect_face_encodings_from_frame_robust(frame, base_scale: float = 0.5):
     """
     Igual que detect_face_encodings_from_frame pero reintenta con varias escalas y
     upsample en HOG. Pensado para registro (frente y perfiles): los perfiles suelen
@@ -67,7 +67,7 @@ def _login_match_scales(base_scale: float):
     return out
 
 
-def extract_login_face_encoding(frame, base_scale: float = 0.25):
+def extract_login_face_encoding(frame, base_scale: float = 0.5):
     """
     Un único encoding para comparar en login: reintenta escalas hasta hallar exactamente 1 rostro.
     Alinea mejor con encodings guardados en registro robusto (frente + perfiles).
