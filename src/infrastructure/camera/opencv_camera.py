@@ -52,20 +52,19 @@ def _try_picamera2():
         
         picam2.configure(config)
         
-        # Optimize exposure for better brightness (full sensor capture needs more light)
+        # Set exposure controls for better brightness with full sensor capture
         try:
+            # Use moderate gains and let auto-exposure adjust from there
             picam2.set_controls({
-                "ExposureTime": 30000,    # 30ms exposure time for better brightness
-                "AnalogueGain": 4.0,      # 4x gain to compensate for full sensor capture
-                "AwbMode": 1,             # Auto white balance
+                "AnalogueGain": 2.0,      # 2x gain (more moderate than before)
+                "FrameDurationLimits": (100, 33333),  # Allow slower frames for better exposure
             })
-            print("[DEBUG] Camera exposure optimized for full sensor capture", file=sys.stderr)
+            print("[DEBUG] Camera gain set to 2.0x for brightness", file=sys.stderr)
         except Exception as e:
-            print(f"[DEBUG] Could not set all camera controls: {e}", file=sys.stderr)
+            print(f"[DEBUG] Could not set camera controls: {e}", file=sys.stderr)
             try:
-                picam2.set_controls({
-                    "AnalogueGain": 2.0,
-                })
+                # Fallback: just set basic gain
+                picam2.set_controls({"AnalogueGain": 1.5})
             except Exception:
                 pass
         
