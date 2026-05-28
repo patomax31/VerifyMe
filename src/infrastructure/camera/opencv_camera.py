@@ -66,8 +66,9 @@ def _try_picamera2():
                             self.target_size,
                             interpolation=cv2.INTER_AREA,
                         )
-                    frame_rgb = cv2.rotate(frame_rgb, cv2.ROTATE_180)
-                    return True, frame_rgb
+                    # Convert RGB to BGR for OpenCV
+                    frame_bgr = cv2.cvtColor(frame_rgb, cv2.COLOR_RGB2BGR)
+                    return True, frame_bgr
                 except Exception:
                     return False, None
             
