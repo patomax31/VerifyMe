@@ -113,6 +113,14 @@ body {
 }
 .drawer.open { transform: translateX(0); }
 
+body:not(.drawer-unlocked) .drawer {
+  pointer-events: none;
+}
+
+body:not(.drawer-unlocked) #hamburger {
+  display: none !important;
+}
+
 .drawer-head {
   width: 100%;
   height: 120px;
@@ -171,16 +179,16 @@ body {
 .app-layout { display: flex; flex-direction: column; min-height: 100vh; }
 
 @media (min-width: 900px) {
-  .drawer {
+  body.drawer-unlocked .drawer {
     transform: translateX(0) !important;
     position: fixed;
     box-shadow: none;
     border-right: 2px solid var(--line);
   }
-  .drawer-overlay { display: none !important; }
-  #hamburger      { display: none !important; }
-  #drawerClose    { display: none !important; }
-  .app-layout     { margin-left: var(--drawer-w); }
+  body.drawer-unlocked .drawer-overlay { display: none !important; }
+  body.drawer-unlocked #hamburger      { display: none !important; }
+  body.drawer-unlocked #drawerClose    { display: none !important; }
+  body.drawer-unlocked .app-layout     { margin-left: var(--drawer-w); }
 }
 
 /* ── Topbar ── */

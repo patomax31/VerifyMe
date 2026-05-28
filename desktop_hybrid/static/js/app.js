@@ -1,5 +1,5 @@
 /* ═══════════════════════════════════════════════════════════════════════
-   VerifyMe · app.js
+   VerifyMe · app.js  — sin conflictos de merge
 ═══════════════════════════════════════════════════════════════════════ */
 
 // ════ GLOBALES DE CAMARA Y TIMERS ════
@@ -63,6 +63,7 @@ const I18N = {
     access_sub:'Posiciona el rostro del alumno frente a la cámara.',
     liveness_init:'Inicia la cámara para comenzar la verificación.',
     cam_stopped:'Cámara detenida', btn_start_cam:'Iniciar cámara', btn_stop:'Detener',
+    scanning:'Escaneando...',
     waiting_face:'ESPERANDO ROSTRO...', result_title:'Resultado', btn_scan_another:'Escanear otro alumno',
     reg_title_data:'Datos del alumno', reg_sub_data:'Ingresa la información escolar.',
     field_name:'Nombre completo', field_grade:'Grado', field_group:'Grupo', field_shift:'Turno',
@@ -77,7 +78,7 @@ const I18N = {
     reg_cam_ready:'Cámara lista. Sigue los pasos.', reg_saved_angle:'Captura guardada. Siguiente ángulo.',
     reg_success:'¡Alumno registrado exitosamente!', reg_error:'Error al registrar.', reg_conn_error:'Error de conexión.',
     admin_sub:'Gestión escolar, parámetros del modelo y administradores.',
-    tab_students:'Estudiantes', tab_model:'Modelo', tab_admins:'Admins',
+    tab_students:'Estudiantes', tab_model:'Modelo', tab_admins:'Admins', tab_logs:'Logs',
     tab_dashboard:'Dashboard', tab_hardware:'Hardware',
     btn_create_student:'Crear', btn_refresh:'Refrescar',
     students_mgmt:'Gestión de estudiantes.',
@@ -95,6 +96,26 @@ const I18N = {
     servo_response:'Tiempo de respuesta (s)', servo_always_active:'Siempre activo',
     servo_on:'Si', servo_off:'No', servo_load:'Cargar', servo_save:'Guardar',
     servo_hint:'Configura el tiempo de apertura del torniquete.',
+    logs_sub:'Registros de acceso con filtros.',
+    log_filter_all:'Todos',
+    log_filter_event:'Evento',
+    log_filter_result:'Resultado',
+    log_filter_name:'Nombre',
+    log_filter_search:'Buscar',
+    log_filter_clear:'Limpiar',
+    log_event_entry:'Entrada',
+    log_event_exit:'Salida',
+    log_result_ok:'OK',
+    log_result_denied:'Denegado',
+    log_msg_ready:'Mostrando ultimos registros.',
+    log_no_records:'Sin registros.',
+    log_col_time:'Fecha',
+    log_col_name:'Nombre',
+    log_col_grade:'Grado',
+    log_col_group:'Grupo',
+    log_col_shift:'Turno',
+    log_col_event:'Evento',
+    log_col_result:'Resultado',
   },
   en: {
     nav_home:'Home', nav_access:'Facial access', nav_register:'Facial register', nav_admin:'Admin panel',
@@ -109,6 +130,7 @@ const I18N = {
     access_sub:"Position the student's face in front of the camera.",
     liveness_init:'Start the camera to begin verification.',
     cam_stopped:'Camera stopped', btn_start_cam:'Start camera', btn_stop:'Stop',
+    scanning:'Scanning...',
     waiting_face:'WAITING FOR FACE...', result_title:'Result', btn_scan_another:'Scan another student',
     reg_title_data:'Student data', reg_sub_data:'Enter school information.',
     field_name:'Full name', field_grade:'Grade', field_group:'Group', field_shift:'Shift',
@@ -123,7 +145,7 @@ const I18N = {
     reg_cam_ready:'Camera ready. Follow the steps.', reg_saved_angle:'Saved. Continue with next angle.',
     reg_success:'Student registered successfully!', reg_error:'Registration error.', reg_conn_error:'Connection error.',
     admin_sub:'School management, model settings and administrators.',
-    tab_students:'Students', tab_model:'Model', tab_admins:'Admins',
+    tab_students:'Students', tab_model:'Model', tab_admins:'Admins', tab_logs:'Logs',
     tab_dashboard:'Dashboard', tab_hardware:'Hardware',
     btn_create_student:'Create', btn_refresh:'Refresh',
     students_mgmt:'Student management.',
@@ -141,6 +163,26 @@ const I18N = {
     servo_response:'Response time (s)', servo_always_active:'Always active',
     servo_on:'Yes', servo_off:'No', servo_load:'Load', servo_save:'Save',
     servo_hint:'Configure how long the turnstile stays open.',
+    logs_sub:'Access records with filters.',
+    log_filter_all:'All',
+    log_filter_event:'Event',
+    log_filter_result:'Result',
+    log_filter_name:'Name',
+    log_filter_search:'Search',
+    log_filter_clear:'Clear',
+    log_event_entry:'Entry',
+    log_event_exit:'Exit',
+    log_result_ok:'OK',
+    log_result_denied:'Denied',
+    log_msg_ready:'Showing latest records.',
+    log_no_records:'No records.',
+    log_col_time:'Date',
+    log_col_name:'Name',
+    log_col_grade:'Grade',
+    log_col_group:'Group',
+    log_col_shift:'Shift',
+    log_col_event:'Event',
+    log_col_result:'Result',
   },
 };
 
@@ -171,8 +213,38 @@ document.getElementById('langBtn')?.addEventListener('click', () => {
 // ════ DRAWER ════
 const drawer        = document.getElementById('drawer');
 const drawerOverlay = document.getElementById('drawerOverlay');
+const drawerAuthBtn = document.getElementById('drawerAuthBtn');
+
+let drawerUnlocked = false;
+
+function syncDrawerAuthUi() {
+  if (!drawerAuthBtn) return;
+  const icon = drawerAuthBtn.querySelector('.material-symbols-outlined');
+  if (icon) icon.textContent = drawerUnlocked ? 'lock_open' : 'lock';
+  const label = drawerUnlocked ? 'Abrir menú de administrador' : 'Desbloquear menú de administrador';
+  drawerAuthBtn.setAttribute('aria-label', label);
+  drawerAuthBtn.setAttribute('title', label);
+}
+
+function unlockDrawerAccess() {
+  drawerUnlocked = true;
+  document.body.classList.add('drawer-unlocked');
+  syncDrawerAuthUi();
+  openDrawer();
+}
+
+function requestDrawerUnlock() {
+  const pass = prompt('Ingresa la contraseña de administrador:');
+  if (pass === null) return;
+  if (pass === ADMIN_DRAWER_PASSWORD) {
+    unlockDrawerAccess();
+    return;
+  }
+  alert('Contraseña incorrecta');
+}
 
 function openDrawer()  {
+  if (!drawerUnlocked) return;
   drawer?.classList.add('open');
   drawerOverlay?.classList.add('open');
   document.body.style.overflow = 'hidden';
@@ -184,11 +256,20 @@ function closeDrawer() {
 }
 
 document.getElementById('hamburger')?.addEventListener('click', openDrawer);
+drawerAuthBtn?.addEventListener('click', () => {
+  if (drawerUnlocked) {
+    openDrawer();
+    return;
+  }
+  requestDrawerUnlock();
+});
 document.getElementById('drawerClose')?.addEventListener('click', closeDrawer);
 drawerOverlay?.addEventListener('click', closeDrawer);
 document.addEventListener('keydown', e => {
   if (e.key === 'Escape') { closeDrawer(); closeClockOverlay(); }
 });
+
+syncDrawerAuthUi();
 
 // ════ NAVEGACIÓN ════
 const allViews = document.querySelectorAll('.view');
@@ -199,26 +280,40 @@ function showView(viewId) {
   if (viewId !== 'register') stopRegCamera();
   if (viewId !== 'register-admin') stopRegAdminCamera();
 
-  allViews.forEach(v => v.classList.add('hidden'));
-  navBtns.forEach(b => b.classList.remove('active'));
+  // Animación de salida en la vista actual
+  const current = document.querySelector('.view:not(.hidden)');
+  if (current) current.classList.add('view-exit');
 
-  const target = document.getElementById('view-' + viewId);
-  if (target) target.classList.remove('hidden');
+  setTimeout(() => {
+    allViews.forEach(v => { v.classList.add('hidden'); v.classList.remove('view-exit', 'view-enter'); });
+    navBtns.forEach(b => b.classList.remove('active'));
 
-  const btn = document.querySelector('.nav-btn[data-view="' + viewId + '"]');
-  if (btn) btn.classList.add('active');
+    const target = document.getElementById('view-' + viewId);
+    if (target) {
+      target.classList.remove('hidden');
+      target.classList.add('view-enter');
+      requestAnimationFrame(() => requestAnimationFrame(() => target.classList.remove('view-enter')));
+    }
 
-  const titleEl = document.getElementById('topbarTitle');
-  if (titleEl) titleEl.textContent = t('title_' + viewId) || viewId;
+    const btn = document.querySelector('.nav-btn[data-view="' + viewId + '"]');
+    if (btn) btn.classList.add('active');
 
-  closeDrawer();
+    const titleEl = document.getElementById('topbarTitle');
+    if (titleEl) titleEl.textContent = t('title_' + viewId) || viewId;
 
-  if (viewId === 'access') startLoginCamera();
+    closeDrawer();
+
+    // Auto-iniciar cámara al entrar a acceso facial
+    if (viewId === 'access') {
+      showAccessStep(1);
+      setTimeout(startLoginCameraAuto, 300);
+    }
+  }, 180);
 }
 
 navBtns.forEach(b => b.addEventListener('click', () => showView(b.dataset.view)));
 
-document.querySelectorAll('.quick-nav-btn[data-goto]').forEach(b => {
+document.querySelectorAll('[data-goto]').forEach(b => {
   b.addEventListener('click', () => showView(b.dataset.goto));
 });
 
@@ -250,18 +345,14 @@ let inactivityTimer = null;
 let countdownTimer  = null;
 let countdownInterval = null;
 
-// ── Tiempos configurables ──
-const INACTIVITY_MS  = 60000; // 60s inactivo → inicia cuenta regresiva
-const COUNTDOWN_SECS = 10;    // 10s de cuenta regresiva visible
+const INACTIVITY_MS  = 60000;
+const COUNTDOWN_SECS = 10;
 
-// ── Toast elementos ──
 const clockToast    = document.getElementById('clockToast');
 const toastNum      = document.getElementById('toastNum');
 const toastProgress = document.getElementById('toastProgress');
 const toastCancel   = document.getElementById('toastCancel');
-const toastMsg      = document.getElementById('toastMsg');
 
-// Circunferencia del SVG circle r=13 → 2π×13 ≈ 81.68 ≈ 82
 const CIRC = 82;
 
 const DAYS_ES   = ['Domingo','Lunes','Martes','Miércoles','Jueves','Viernes','Sábado'];
@@ -296,14 +387,12 @@ function tickClockOverlay() {
   if (covS)  covS.textContent  = String(s).padStart(2,'0') + 's';
 }
 
-// ── Mostrar overlay con transición suave ──
 function openClockOverlay() {
   if (!clockOverlay) return;
   stopCountdown();
   stopInactivityTimer();
   hideToast();
   clockOverlay.classList.remove('hidden');
-  // Forzar reflow para que la transición CSS funcione
   clockOverlay.getBoundingClientRect();
   clockOverlay.classList.add('visible');
   document.body.style.overflow = 'hidden';
@@ -317,7 +406,6 @@ function closeClockOverlay() {
   document.body.style.overflow = '';
   clearInterval(clockInterval);
   clockInterval = null;
-  // Esperar a que termine la transición antes de ocultar
   setTimeout(() => {
     if (!clockOverlay.classList.contains('visible')) {
       clockOverlay.classList.add('hidden');
@@ -326,19 +414,16 @@ function closeClockOverlay() {
   resetInactivityTimer();
 }
 
-// ── Toast cuenta regresiva ──
 function showToast() {
   if (!clockToast) return;
   let secs = COUNTDOWN_SECS;
-  toastNum.textContent = secs;
-  // Barra arranca llena y va vaciando
-  toastProgress.style.strokeDashoffset = 0;
+  if (toastNum) toastNum.textContent = secs;
+  if (toastProgress) toastProgress.style.strokeDashoffset = 0;
   clockToast.classList.add('visible');
 
   countdownInterval = setInterval(() => {
     secs--;
     if (toastNum) toastNum.textContent = secs;
-    // Progreso: va de 0 a CIRC conforme bajan los segundos
     const offset = CIRC * (1 - secs / COUNTDOWN_SECS);
     if (toastProgress) toastProgress.style.strokeDashoffset = offset;
     if (secs <= 0) {
@@ -366,7 +451,6 @@ function resetInactivityTimer() {
   clearTimeout(inactivityTimer);
   stopCountdown();
   inactivityTimer = setTimeout(() => {
-    // Primero muestra el toast con cuenta regresiva
     showToast();
   }, INACTIVITY_MS);
 }
@@ -377,18 +461,15 @@ function stopInactivityTimer() {
   stopCountdown();
 }
 
-// Cancelar con el botón del toast
 toastCancel?.addEventListener('click', e => {
   e.stopPropagation();
   stopCountdown();
   resetInactivityTimer();
 });
 
-// Reiniciar timer con cualquier actividad (solo cuando overlay está oculto)
 ['click','touchstart','mousemove','keydown','scroll','pointerdown'].forEach(ev => {
   document.addEventListener(ev, () => {
     if (!clockOverlay?.classList.contains('visible')) {
-      // Si el toast está visible, ocultarlo y reiniciar
       if (clockToast?.classList.contains('visible')) {
         stopCountdown();
         resetInactivityTimer();
@@ -399,19 +480,32 @@ toastCancel?.addEventListener('click', e => {
   }, { passive: true });
 });
 
-// Tocar cualquier parte del overlay lo cierra
-clockOverlay?.addEventListener('click', closeClockOverlay);
+clockOverlay?.addEventListener('click', () => {
+  closeClockOverlay();
+  showView('access');
+});
 
-// Botón reloj en topbar
 document.getElementById('clockModeBtn')?.addEventListener('click', e => {
   e.stopPropagation();
   openClockOverlay();
 });
 
-// Arrancar en modo reloj al cargar (sin cuenta regresiva, directo)
 openClockOverlay();
 
 // ════ HOME STATS ════
+function animateCount(el, target, duration = 900) {
+  if (!el) return;
+  const start = performance.now();
+  const from  = parseInt(el.textContent) || 0;
+  const step  = ts => {
+    const progress = Math.min((ts - start) / duration, 1);
+    const ease = 1 - Math.pow(1 - progress, 3);
+    el.textContent = Math.round(from + (target - from) * ease);
+    if (progress < 1) requestAnimationFrame(step);
+  };
+  requestAnimationFrame(step);
+}
+
 async function fetchHomeStats() {
   try {
     const res  = await fetch('/api/admin/students');
@@ -419,9 +513,32 @@ async function fetchHomeStats() {
     const list = data.students || data || [];
     const tot  = document.getElementById('statTotal');
     const act  = document.getElementById('statActivos');
-    if (tot) tot.textContent = list.length;
-    if (act) act.textContent = list.filter(s => s.activo !== false).length;
+    animateCount(tot, list.length);
+    animateCount(act, list.filter(s => s.activo !== false).length);
+
+    // Últimos accesos (mock si no hay endpoint)
+    renderLastAccess(list.slice(-4).reverse());
   } catch (_) {}
+}
+
+function renderLastAccess(list) {
+  const container = document.getElementById('lastAccessList');
+  if (!container) return;
+  if (!list.length) return;
+  container.innerHTML = list.map(s => {
+    const initials = (s.nombre||'??').split(' ').map(w => w[0]).join('').slice(0,2).toUpperCase();
+    const colors   = ['#006B28','#008A34','#004D1C','#1E5530'];
+    const color    = colors[(s.id || 0) % colors.length];
+    return `
+      <div class="access-item" style="--accent:${color}">
+        <div class="access-item__avatar" style="background:${color}">${initials}</div>
+        <div class="access-item__info">
+          <span class="access-item__name">${s.nombre}</span>
+          <span class="access-item__meta">${s.grado}° ${s.letra||''} · ${s.turno||''}</span>
+        </div>
+        <span class="access-item__badge">&#10003;</span>
+      </div>`;
+  }).join('');
 }
 fetchHomeStats();
 
@@ -431,16 +548,122 @@ document.getElementById('logoutBtn')?.addEventListener('click', async () => {
   window.location.href = '/';
 });
 
+const ADMIN_DRAWER_PASSWORD = '1234';
+
+// ════ MODO KIOSCO / FULLSCREEN ════
+const kioskBtn        = document.getElementById('kioskBtn');
+const kioskIcon       = document.getElementById('kioskIcon');
+const kioskPanel      = document.getElementById('kioskPanel');
+const kioskPanelOverlay = document.getElementById('kioskPanelOverlay');
+const kioskConfirm    = document.getElementById('kioskConfirm');
+const kioskCancel     = document.getElementById('kioskCancel');
+const kioskExitFab    = document.getElementById('kioskExitFab');
 // ════ ON-SCREEN KEYBOARD (simple-keyboard) ════
-const keyboardInputs = 'input[type="text"], input[type="email"], input[type="password"], input[type="number"], input[type="adminValidateNombre"],input[type="adminValidateCorreo"],input[type="adminValidatePass"], textarea';
+const keyboardInputs = 'input[type="text"], input[type="email"], input[type="password"], input[type="number"], input[type="search"], textarea';
 let activeInput = null;
 let osk = null;
 let oskInteracting = false;
+
 let oskLayout = 'default';
 let shiftLocked = false;
 let lastOskButton = null;
 let lastOskButtonAt = 0;
 let oskLoading = null;
+
+let kioskActive = false;
+
+// ── Detectar si ya estamos en fullscreen (p.ej. al recargar) ──
+function isFullscreen() {
+  return !!(
+    document.fullscreenElement ||
+    document.webkitFullscreenElement ||
+    document.mozFullScreenElement ||
+    document.msFullscreenElement
+  );
+}
+
+// ── Entrar a fullscreen ──
+async function enterFullscreen() {
+  const el = document.documentElement;
+  try {
+    if      (el.requestFullscreen)          await el.requestFullscreen({ navigationUI: 'hide' });
+    else if (el.webkitRequestFullscreen)   el.webkitRequestFullscreen();
+    else if (el.mozRequestFullScreen)      el.mozRequestFullScreen();
+    else if (el.msRequestFullscreen)       el.msRequestFullscreen();
+  } catch (e) {
+    console.warn('Fullscreen error:', e);
+  }
+}
+
+// ── Salir de fullscreen ──
+async function exitFullscreen() {
+  try {
+    if      (document.exitFullscreen)          await document.exitFullscreen();
+    else if (document.webkitExitFullscreen)   document.webkitExitFullscreen();
+    else if (document.mozCancelFullScreen)    document.mozCancelFullScreen();
+    else if (document.msExitFullscreen)       document.msExitFullscreen();
+  } catch (e) {}
+}
+
+// ── Actualizar UI según estado fullscreen ──
+function onFullscreenChange() {
+  kioskActive = isFullscreen();
+
+  // Ícono del botón topbar
+  if (kioskIcon) kioskIcon.textContent = kioskActive ? 'fullscreen_exit' : 'fullscreen';
+
+  // FAB de salida: visible solo en fullscreen
+  if (kioskExitFab) {
+    if (kioskActive) {
+      kioskExitFab.classList.remove('hidden');
+      kioskExitFab.classList.add('visible');
+    } else {
+      kioskExitFab.classList.remove('visible');
+      setTimeout(() => kioskExitFab.classList.add('hidden'), 400);
+    }
+  }
+
+  // Badge en topbar
+  document.body.classList.toggle('kiosk-mode', kioskActive);
+}
+
+// ── Eventos de cambio fullscreen (cross-browser) ──
+document.addEventListener('fullscreenchange',       onFullscreenChange);
+document.addEventListener('webkitfullscreenchange', onFullscreenChange);
+document.addEventListener('mozfullscreenchange',    onFullscreenChange);
+document.addEventListener('MSFullscreenChange',     onFullscreenChange);
+
+// ── Abrir panel de confirmación ──
+function openKioskPanel() {
+  kioskPanel?.classList.remove('hidden');
+  requestAnimationFrame(() => kioskPanel?.classList.add('open'));
+}
+
+function closeKioskPanel() {
+  kioskPanel?.classList.remove('open');
+  setTimeout(() => kioskPanel?.classList.add('hidden'), 280);
+}
+
+// Botón topbar → abrir panel (si no está en fullscreen) o salir (si ya está)
+kioskBtn?.addEventListener('click', () => {
+  if (isFullscreen()) exitFullscreen();
+  else                openKioskPanel();
+});
+
+// Confirmar → entrar a fullscreen (DEBE ser gesto directo del usuario)
+kioskConfirm?.addEventListener('click', async () => {
+  closeKioskPanel();
+  await new Promise(r => setTimeout(r, 300)); // esperar que cierre el panel
+  await enterFullscreen();
+});
+
+kioskCancel?.addEventListener('click',        closeKioskPanel);
+kioskPanelOverlay?.addEventListener('click',  closeKioskPanel);
+
+// FAB flotante de salida
+kioskExitFab?.addEventListener('click', exitFullscreen);
+
+// Tecla Escape ya la maneja el navegador de forma nativa para salir de fullscreen
 
 function showOsk() {
   const el = document.getElementById('osk');
@@ -456,24 +679,22 @@ function hideOsk() {
   el.setAttribute('aria-hidden', 'true');
 }
 
+function setOskLayout(next) {
+  if (!osk || oskLayout === next) return;
+  oskLayout = next;
+  osk.setOptions({ layoutName: oskLayout });
+}
+
 function loadSimpleKeyboard() {
   if (window.SimpleKeyboard) return Promise.resolve();
   if (oskLoading) return oskLoading;
 
   oskLoading = new Promise((resolve, reject) => {
-    const cssUrl = 'https://cdn.jsdelivr.net/npm/simple-keyboard@latest/build/css/index.css';
     const jsUrl = 'https://cdn.jsdelivr.net/npm/simple-keyboard@latest/build/index.js';
 
-    if (!document.querySelector('link[data-simple-keyboard]')) {
-      const link = document.createElement('link');
-      link.rel = 'stylesheet';
-      link.href = cssUrl;
-      link.setAttribute('data-simple-keyboard', '1');
-      document.head.appendChild(link);
-    }
-
     if (document.querySelector('script[data-simple-keyboard]')) {
-      return resolve();
+      resolve();
+      return;
     }
 
     const script = document.createElement('script');
@@ -494,15 +715,18 @@ function initOsk() {
     loadSimpleKeyboard().then(() => initOsk());
     return;
   }
+
   const oskRoot = document.getElementById('osk');
   if (!oskRoot) return;
-  oskRoot?.addEventListener('pointerdown', e => {
+
+  oskRoot.addEventListener('pointerdown', e => {
     oskInteracting = true;
     e.preventDefault();
   });
-  oskRoot?.addEventListener('pointerup', () => {
+  oskRoot.addEventListener('pointerup', () => {
     setTimeout(() => { oskInteracting = false; }, 0);
   });
+
   const oskMount = oskRoot.querySelector('.simple-keyboard') || oskRoot;
   osk = new window.SimpleKeyboard.default({
     rootElement: oskMount,
@@ -517,19 +741,24 @@ function initOsk() {
       if (button === lastOskButton && now - lastOskButtonAt < 120) return;
       lastOskButton = button;
       lastOskButtonAt = now;
+
       if (button === '{enter}') {
         activeInput?.blur();
         hideOsk();
+        return;
       }
+
       if (button === '{shift}') {
         setOskLayout('shift');
         return;
       }
+
       if (button === '{lock}') {
         shiftLocked = !shiftLocked;
         setOskLayout(shiftLocked ? 'shift' : 'default');
         return;
       }
+
       if (!shiftLocked && oskLayout === 'shift') {
         setOskLayout('default');
       }
@@ -556,12 +785,6 @@ function initOsk() {
       '{lock}': '⇪'
     }
   });
-}
-
-function setOskLayout(next) {
-  if (!osk || oskLayout === next) return;
-  oskLayout = next;
-  osk.setOptions({ layoutName: oskLayout });
 }
 
 document.addEventListener('focusin', e => {
@@ -594,10 +817,30 @@ document.addEventListener('focusout', e => {
 let loginLivId       = null;
 let loginLivOk       = false;
 let loginDeniedCount = 0;
+let loginVerifyBusy  = false;
+let loginLivBusy     = false;
+let loginFaceDetector = null;
+let loginFaceTrackId = null;
+let loginFaceDetectBusy = false;
+let loginFaceLastTick = 0;
+let loginFaceLastSeen = 0;
+let loginFaceTrackerUsesBrowser = false;
 
 const loginCanvas     = document.getElementById('loginCanvas');
 const livDot          = document.getElementById('loginLivenessDot');
 const livText         = document.getElementById('loginLivenessText');
+const loginScanOverlay = document.getElementById('loginScanOverlay');
+const loginScanFrame = loginScanOverlay?.querySelector('.face-scan-frame');
+
+function setLoginScanning(active, box) {
+  if (!loginScanOverlay) return;
+  loginScanOverlay.classList.toggle('is-visible', active);
+  if (!active || !loginScanFrame || !box) return;
+  loginScanFrame.style.setProperty('--scan-x', `${Math.round(box.x)}px`);
+  loginScanFrame.style.setProperty('--scan-y', `${Math.round(box.y)}px`);
+  loginScanFrame.style.setProperty('--scan-w', `${Math.round(box.w)}px`);
+  loginScanFrame.style.setProperty('--scan-h', `${Math.round(box.h)}px`);
+}
 
 function setLivUi(state, text) {
   if (livText) livText.textContent = text || '';
@@ -617,6 +860,126 @@ function _sourceDims(el) {
   const w = el?.videoWidth || el?.naturalWidth || el?.width || 0;
   const h = el?.videoHeight || el?.naturalHeight || el?.height || 0;
   return { w, h };
+}
+
+function _mapFaceBoxToCamera(source, faceBox) {
+  const cameraBox = source?.closest?.('.camera-box');
+  const rect = cameraBox?.getBoundingClientRect();
+  const dims = _sourceDims(source);
+  if (!rect || !dims.w || !dims.h || !faceBox) return null;
+
+  const scale = Math.max(rect.width / dims.w, rect.height / dims.h);
+  const renderedW = dims.w * scale;
+  const renderedH = dims.h * scale;
+  const offsetX = (rect.width - renderedW) / 2;
+  const offsetY = (rect.height - renderedH) / 2;
+
+  const rawX = faceBox.x * scale + offsetX;
+  const rawY = faceBox.y * scale + offsetY;
+  const rawW = faceBox.width * scale;
+  const rawH = faceBox.height * scale;
+  const padX = Math.max(24, rawW * 0.24);
+  const padY = Math.max(28, rawH * 0.30);
+
+  const x = Math.max(10, rawX - padX);
+  const y = Math.max(10, rawY - padY);
+  const w = Math.min(rect.width - x - 10, rawW + padX * 2);
+  const h = Math.min(rect.height - y - 10, rawH + padY * 2);
+  if (w < 80 || h < 80) return null;
+  return { x, y, w, h };
+}
+
+function _mapNormalizedFaceBoxToCamera(source, faceBox) {
+  const dims = _sourceDims(source);
+  if (!dims.w || !dims.h || !faceBox) return null;
+  return _mapFaceBoxToCamera(source, {
+    x: faceBox.x * dims.w,
+    y: faceBox.y * dims.h,
+    width: faceBox.width * dims.w,
+    height: faceBox.height * dims.h,
+  });
+}
+
+function updateLoginScanFromServer(faceBox) {
+  if (loginFaceTrackerUsesBrowser) return;
+  const source = _activeCameraSource(loginVideo, loginImage);
+  const box = _mapNormalizedFaceBoxToCamera(source, faceBox);
+  if (box) {
+    loginFaceLastSeen = performance.now();
+    setLoginScanning(true, box);
+    return;
+  }
+  if (!loginFaceLastSeen || performance.now() - loginFaceLastSeen > 900) {
+    setLoginScanning(false);
+  }
+}
+
+function _largestFace(faces) {
+  return faces.reduce((best, face) => {
+    if (!best) return face;
+    const a = face.boundingBox.width * face.boundingBox.height;
+    const b = best.boundingBox.width * best.boundingBox.height;
+    return a > b ? face : best;
+  }, null);
+}
+
+function startLoginFaceTracker() {
+  stopLoginFaceTracker();
+  loginFaceTrackerUsesBrowser = false;
+  if (!loginScanOverlay || !('FaceDetector' in window)) {
+    setLoginScanning(false);
+    return;
+  }
+  try {
+    loginFaceDetector = new FaceDetector({ fastMode: true, maxDetectedFaces: 1 });
+    loginFaceTrackerUsesBrowser = true;
+  } catch (_) {
+    loginFaceDetector = null;
+    loginFaceTrackerUsesBrowser = false;
+    setLoginScanning(false);
+    return;
+  }
+
+  const tick = now => {
+    if (!loginFaceDetector) return;
+    const source = _activeCameraSource(loginVideo, loginImage);
+    const dims = _sourceDims(source);
+    const ready = source && dims.w && dims.h && (source.tagName !== 'VIDEO' || source.readyState >= 2);
+
+    if (ready && !loginFaceDetectBusy && now - loginFaceLastTick >= 140) {
+      loginFaceLastTick = now;
+      loginFaceDetectBusy = true;
+      loginFaceDetector.detect(source)
+        .then(faces => {
+          const face = faces?.length ? _largestFace(faces) : null;
+          const box = face ? _mapFaceBoxToCamera(source, face.boundingBox) : null;
+          if (box) {
+            loginFaceLastSeen = performance.now();
+            setLoginScanning(true, box);
+          }
+        })
+        .catch(() => {})
+        .finally(() => { loginFaceDetectBusy = false; });
+    }
+
+    if (!ready || now - loginFaceLastSeen > 650) setLoginScanning(false);
+    loginFaceTrackId = requestAnimationFrame(tick);
+  };
+
+  loginFaceLastTick = 0;
+  loginFaceLastSeen = 0;
+  loginFaceTrackId = requestAnimationFrame(tick);
+}
+
+function stopLoginFaceTracker() {
+  if (loginFaceTrackId) cancelAnimationFrame(loginFaceTrackId);
+  loginFaceTrackId = null;
+  loginFaceDetector = null;
+  loginFaceTrackerUsesBrowser = false;
+  loginFaceDetectBusy = false;
+  loginFaceLastTick = 0;
+  loginFaceLastSeen = 0;
+  setLoginScanning(false);
 }
 
 function _useMjpeg(imgEl, videoEl) {
@@ -649,7 +1012,62 @@ function stopLoginCamera() {
   if (loginImage)  { loginImage.src = ''; loginImage.classList.add('hidden'); }
   if (loginVideo)  loginVideo.classList.remove('hidden');
   if (camOverlay)  camOverlay.classList.remove('hidden');
+  if (loginStart)  loginStart.disabled  = false;
+  if (loginStop)   loginStop.disabled   = true;
+  stopLoginFaceTracker();
   loginLivId = null; loginLivOk = false;
+  loginVerifyBusy = false; loginLivBusy = false;
+}
+
+// Auto-start: se llama al navegar al view, sin clic manual
+async function startLoginCameraAuto() {
+  if (loginStream || loginInterval) return;
+  if (loginStart) loginStart.disabled = true;
+  if (loginStop)  loginStop.disabled  = false;
+  setLivUi('init', 'Conectando cámara…');
+  try {
+    loginLivOk = false; loginLivId = null;
+    try {
+      const ls = await fetch('/api/login/liveness/start', { method:'POST' });
+      const lj = await ls.json();
+      if (lj.ok && lj.session_id) loginLivId = lj.session_id;
+      else loginLivOk = true;
+    } catch (_) { loginLivOk = true; }
+
+    loginStream = await navigator.mediaDevices.getUserMedia({ video: true });
+    _useGetUserMedia(loginVideo, loginImage, loginStream);
+    if (camOverlay)  camOverlay.classList.add('hidden');
+    if (loginMsgHelp) { loginMsgHelp.classList.add('hidden'); loginMsgHelp.classList.remove('is-clickable'); }
+    startLoginFaceTracker();
+    if (loginMsgHelp) {
+      loginMsgHelp.classList.add('hidden');
+      loginMsgHelp.classList.remove('is-clickable');
+    }
+    loginDeniedCount = 0;
+    if (loginMsg) { loginMsg.textContent = t('waiting_face'); loginMsg.className = 'feedback waiting'; }
+    setLivUi('init', t('liveness_init'));
+
+    loginInterval = setInterval(async () => {
+      if (!loginLivOk) await pushLivFrame();
+      else             await captureAndVerify();
+    }, 700);
+  } catch (_) {
+    try {
+      loginStream = { backend: 'mjpeg' };
+      _useMjpeg(loginImage, loginVideo);
+      if (camOverlay)  camOverlay.classList.add('hidden');
+      startLoginFaceTracker();
+      loginDeniedCount = 0;
+      loginInterval = setInterval(async () => {
+        if (!loginLivOk) await pushLivFrame();
+        else             await captureAndVerify();
+      }, 700);
+    } catch (_) {
+      if (loginMsg) { loginMsg.textContent = t('no_camera'); loginMsg.className = 'feedback denied'; }
+      if (loginStart) loginStart.disabled = false;
+      if (loginStop)  loginStop.disabled  = true;
+    }
+  }
 }
 
 function showAccessStep(n) {
@@ -659,33 +1077,101 @@ function showAccessStep(n) {
   else         { s1?.classList.add('hidden');    s2?.classList.remove('hidden'); }
 }
 
-async function startLoginCamera() {
-  if (loginStream || loginInterval) return;
+async function pushLivFrame() {
+  if (loginLivBusy) return;
+  if (!loginCanvas || !loginLivId) return;
+  const source = _activeCameraSource(loginVideo, loginImage);
+  if (!source) return;
+  const dims = _sourceDims(source);
+  if (!dims.w || !dims.h) return;
+  loginLivBusy = true;
+  loginCanvas.width  = dims.w;
+  loginCanvas.height = dims.h;
+  loginCanvas.getContext('2d').drawImage(source, 0, 0, dims.w, dims.h);
+  const image = loginCanvas.toDataURL('image/jpeg', 0.75);
+  try {
+    const res  = await fetch('/api/login/liveness/frame', {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({ session_id: loginLivId, image }),
+    });
+    const data = await res.json();
+    updateLoginScanFromServer(data.face_box);
+    setLivUi(data.state, data.message);
+    if (data.state === 'ready') {
+      loginLivOk = true;
+      if (loginMsg) { loginMsg.textContent = 'Identificando…'; loginMsg.className = 'feedback waiting'; }
+    }
+  } catch (_) {
+  } finally {
+    loginLivBusy = false;
+  }
+}
+
+async function captureAndVerify() {
+  if (loginVerifyBusy) return;
+  if (!loginCanvas) return;
+  const source = _activeCameraSource(loginVideo, loginImage);
+  if (!source) return;
+  const dims = _sourceDims(source);
+  if (!dims.w || !dims.h) return;
+  loginVerifyBusy = true;
+  loginCanvas.width  = dims.w;
+  loginCanvas.height = dims.h;
+  loginCanvas.getContext('2d').drawImage(source, 0, 0, dims.w, dims.h);
+  const image = loginCanvas.toDataURL('image/jpeg', 0.8);
+  try {
+    const res  = await fetch('/api/login/verify', {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({ image, liveness_session_id: loginLivId }),
+    });
+    const data = await res.json();
+    updateLoginScanFromServer(data.face_box);
+    if (data.state === 'granted' || data.state === 'denied') {
+      stopLoginFaceTracker();
+    }
+    if (loginMsg) { loginMsg.textContent = data.message||''; loginMsg.className = 'feedback '+(data.state||''); }
+    if (data.state === 'granted') {
+      stopLoginCamera();
+      renderAccessResult(data);
+      showAccessStep(2);
+      if (loginMsgHelp) { loginMsgHelp.classList.add('hidden'); loginMsgHelp.classList.remove('is-clickable'); }
+      loginDeniedCount = 0;
+    }
+    if (data.state === 'denied') {
+      loginDeniedCount += 1;
+      if (loginMsgHelp) {
+        loginMsgHelp.classList.remove('hidden');
+        if (loginDeniedCount >= 3) loginMsgHelp.classList.add('is-clickable');
+      }
+    }
+  } catch (_) {
+  } finally {
+    loginVerifyBusy = false;
+  }
+}
+
+loginStart?.addEventListener('click', async () => {
   try {
     showAccessStep(1);
     loginLivOk = false; loginLivId = null;
-    setLivUi('init', t('liveness_init'));
+    setLivUi('init', 'Conectando…');
 
     try {
       const ls = await fetch('/api/login/liveness/start', { method:'POST' });
       const lj = await ls.json();
-      if (lj.ok && lj.session_id) {
-        loginLivId = lj.session_id;
-      } else {
-        loginLivOk = true;
-      }
+      if (lj.ok && lj.session_id) loginLivId = lj.session_id;
+      else loginLivOk = true;
     } catch (_) { loginLivOk = true; }
 
-    if (!navigator.mediaDevices?.getUserMedia) {
-      throw new Error('getUserMedia not available');
-    }
     loginStream = await navigator.mediaDevices.getUserMedia({ video: true });
     _useGetUserMedia(loginVideo, loginImage, loginStream);
     if (camOverlay)  camOverlay.classList.add('hidden');
-    if (loginMsgHelp) {
-      loginMsgHelp.classList.add('hidden');
-      loginMsgHelp.classList.remove('is-clickable');
-    }
+    if (loginStart)  loginStart.disabled  = true;
+    if (loginStop)   loginStop.disabled   = false;
+    startLoginFaceTracker();
+    if (loginStart)  loginStart.disabled   = true;
+    if (loginStop)   loginStop.disabled    = false;
+    if (loginMsgHelp) { loginMsgHelp.classList.add('hidden'); loginMsgHelp.classList.remove('is-clickable'); }
     loginDeniedCount = 0;
 
     loginInterval = setInterval(async () => {
@@ -697,6 +1183,8 @@ async function startLoginCamera() {
       loginStream = { backend: 'mjpeg' };
       _useMjpeg(loginImage, loginVideo);
       if (camOverlay)  camOverlay.classList.add('hidden');
+      if (loginStart)  loginStart.disabled  = true;
+      if (loginStop)   loginStop.disabled   = false;
       loginDeniedCount = 0;
       loginInterval = setInterval(async () => {
         if (!loginLivOk) await pushLivFrame();
@@ -706,7 +1194,15 @@ async function startLoginCamera() {
       if (loginMsg) { loginMsg.textContent = t('no_camera'); loginMsg.className = 'feedback denied'; }
     }
   }
-}
+});
+
+loginStop?.addEventListener('click', () => {
+  stopLoginCamera();
+  setLivUi('off', 'Verificación detenida.');
+  if (loginMsg) { loginMsg.textContent = t('waiting_face'); loginMsg.className = 'feedback waiting'; }
+  if (loginMsgHelp) { loginMsgHelp.classList.add('hidden'); loginMsgHelp.classList.remove('is-clickable'); }
+  loginDeniedCount = 0;
+});
 
 function renderAccessResult(data) {
   const cont = document.getElementById('accessResult');
@@ -752,101 +1248,6 @@ function resetAccessStep() {
 
 document.getElementById('btnScanAnother')?.addEventListener('click', resetAccessStep);
 
-async function pushLivFrame() {
-  if (!loginCanvas || !loginLivId) return;
-  const source = _activeCameraSource(loginVideo, loginImage);
-  if (!source) return;
-  const dims = _sourceDims(source);
-  if (!dims.w || !dims.h) return;
-  loginCanvas.width  = dims.w;
-  loginCanvas.height = dims.h;
-  loginCanvas.getContext('2d').drawImage(source, 0, 0, dims.w, dims.h);
-  const image = loginCanvas.toDataURL('image/jpeg', 0.75);
-  try {
-    const res  = await fetch('/api/login/liveness/frame', {
-      method:'POST', headers:{'Content-Type':'application/json'},
-      body: JSON.stringify({ session_id: loginLivId, image }),
-    });
-    const data = await res.json();
-    setLivUi(data.state, data.message);
-    if (data.state === 'ready') {
-      loginLivOk = true;
-      if (loginMsg) { loginMsg.textContent = 'Identificando…'; loginMsg.className = 'feedback waiting'; }
-    }
-  } catch (_) {}
-}
-
-async function captureAndVerify() {
-  if (!loginCanvas) return;
-  const source = _activeCameraSource(loginVideo, loginImage);
-  if (!source) return;
-  const dims = _sourceDims(source);
-  if (!dims.w || !dims.h) return;
-  loginCanvas.width  = dims.w;
-  loginCanvas.height = dims.h;
-  loginCanvas.getContext('2d').drawImage(source, 0, 0, dims.w, dims.h);
-  const image = loginCanvas.toDataURL('image/jpeg', 0.8);
-  try {
-    const res  = await fetch('/api/login/verify', {
-      method:'POST', headers:{'Content-Type':'application/json'},
-      body: JSON.stringify({ image, liveness_session_id: loginLivId }),
-    });
-    const data = await res.json();
-    if (loginMsg) { loginMsg.textContent = data.message||''; loginMsg.className = 'feedback '+(data.state||''); }
-    if (data.state === 'granted') {
-      stopLoginCamera();
-      renderAccessResult(data);
-      showAccessStep(2);
-      if (loginMsgHelp) { loginMsgHelp.classList.add('hidden'); loginMsgHelp.classList.remove('is-clickable'); }
-      loginDeniedCount = 0;
-    }
-    if (data.state === 'denied') {
-      loginDeniedCount += 1;
-      if (loginMsgHelp) {
-        loginMsgHelp.classList.remove('hidden');
-        if (loginDeniedCount >= 3) loginMsgHelp.classList.add('is-clickable');
-      }
-    }
-  } catch (_) {}
-}
-
-loginStart?.addEventListener('click', async () => {
-  try {
-    showAccessStep(1);
-    loginLivOk = false; loginLivId = null;
-    setLivUi('init', 'Conectando…');
-    try {
-      const ls = await fetch('/api/login/liveness/start', { method:'POST' });
-      const lj = await ls.json();
-      if (lj.ok && lj.session_id) loginLivId = lj.session_id;
-      else loginLivOk = true;
-    } catch (_) { loginLivOk = true; }
-
-    loginStream = await navigator.mediaDevices.getUserMedia({ video: true });
-    if (loginVideo)  loginVideo.srcObject  = loginStream;
-    if (camOverlay)  camOverlay.classList.add('hidden');
-    if (loginStart)  loginStart.disabled   = true;
-    if (loginStop)   loginStop.disabled    = false;
-    if (loginMsgHelp) { loginMsgHelp.classList.add('hidden'); loginMsgHelp.classList.remove('is-clickable'); }
-    loginDeniedCount = 0;
-
-    loginInterval = setInterval(async () => {
-      if (!loginLivOk) await pushLivFrame();
-      else             await captureAndVerify();
-    }, 700);
-  } catch (_) {
-    if (loginMsg) { loginMsg.textContent = t('no_camera'); loginMsg.className = 'feedback denied'; }
-  }
-});
-
-loginStop?.addEventListener('click', () => {
-  stopLoginCamera();
-  setLivUi('off', 'Verificación detenida.');
-  if (loginMsg) { loginMsg.textContent = t('waiting_face'); loginMsg.className = 'feedback waiting'; }
-  if (loginMsgHelp) { loginMsgHelp.classList.add('hidden'); loginMsgHelp.classList.remove('is-clickable'); }
-  loginDeniedCount = 0;
-});
-
 function openLoginHelpModal()  { loginHelpModal?.classList.remove('hidden'); }
 function closeLoginHelpModal() { loginHelpModal?.classList.add('hidden'); }
 loginMsgHelp?.addEventListener('click', () => { if (loginMsgHelp?.classList.contains('is-clickable')) openLoginHelpModal(); });
@@ -863,14 +1264,14 @@ const regNombreInput = document.getElementById('regNombre');
 regNombreInput?.addEventListener('input', () => {
   const raw = regNombreInput.value;
   const cleaned = raw.replace(/[^A-Za-zÁÉÍÓÚÑáéíóúñ\s]/g, '').replace(/\s{2,}/g, ' ');
-  const limited = cleaned.slice(0, 20);
+  const limited = cleaned.slice(0, 80);
   if (limited !== raw) regNombreInput.value = limited;
 });
 
 const REG_ANGLES = [
-  { key:'image_front', get label(){ return t('btn_capture_front'); }, get hint(){ return t('angle_hint_front'); } },
-  { key:'image_left',  get label(){ return t('btn_capture_left');  }, get hint(){ return t('angle_hint_left');  } },
-  { key:'image_right', get label(){ return t('btn_save_student');  }, get hint(){ return t('angle_hint_right'); } },
+  { key:'image_front', guide:'perfilHead_frente.png', get label(){ return t('btn_capture_front'); }, get hint(){ return t('angle_hint_front'); } },
+  { key:'image_left',  guide:'perfilHead_izquierdo.png', get label(){ return t('btn_capture_left');  }, get hint(){ return t('angle_hint_left');  } },
+  { key:'image_right', guide:'perfilHead_derecho.png', get label(){ return t('btn_save_student');  }, get hint(){ return t('angle_hint_right'); } },
 ];
 
 function updateRegAngleUi() {
@@ -883,9 +1284,12 @@ function updateRegAngleUi() {
   });
   const hint  = document.getElementById('regAngleHint');
   const label = document.getElementById('regCaptureLabel');
+  const guide = document.getElementById('regAngleGuideImg');
   const angle = REG_ANGLES[regStepIndex];
   if (hint  && angle) hint.textContent  = angle.hint;
   if (label && angle) label.textContent = angle.label;
+
+  if (guide && angle) guide.src = `/static/img/guides/${angle.guide}`;
 }
 
 function stopRegCamera() {
@@ -908,6 +1312,8 @@ document.getElementById('regGoToCamera')?.addEventListener('click', () => {
   const turno  = document.getElementById('regTurno')?.value;
   const msg1   = document.getElementById('regStep1Msg');
 
+  if (!nombre) { if (msg1) { msg1.textContent = 'Ingresa el nombre.'; msg1.className='feedback denied'; } return; }
+  if (!letra)  { if (msg1) { msg1.textContent = 'Ingresa el grupo.';  msg1.className='feedback denied'; } return; }
   if (!nombre || !letra) {
     if (msg1) {
       msg1.textContent = 'Completa los campos faltantes para continuar.';
@@ -948,9 +1354,7 @@ document.getElementById('btnBackToStep1')?.addEventListener('click', () => {
 
 regStart?.addEventListener('click', async () => {
   try {
-    if (!navigator.mediaDevices?.getUserMedia) {
-      throw new Error('getUserMedia not available');
-    }
+    if (!navigator.mediaDevices?.getUserMedia) throw new Error('getUserMedia not available');
     regStream = await navigator.mediaDevices.getUserMedia({ video: true });
     _useGetUserMedia(regVideo, regImage, regStream);
     if (regCamOv)   regCamOv.classList.add('hidden');
@@ -1026,7 +1430,7 @@ updateRegAngleUi();
 // ════ CAMBIO A REGISTRO DE ADMIN ════
 document.getElementById('btnSwitchToAdminReg')?.addEventListener('click', () => {
   const pass = prompt('Ingresa la contraseña de administrador para continuar:');
-  if (pass === '1234') {
+  if (pass === ADMIN_DRAWER_PASSWORD) {
     showView('register-admin');
   } else if (pass !== null) {
     alert('Contraseña incorrecta');
@@ -1204,6 +1608,7 @@ document.querySelectorAll('.tab-btn[data-admin-tab]').forEach(btn => {
     const tab = btn.dataset.adminTab;
     if (tab === 'students') loadStudents();
     if (tab === 'admins') loadAdmins();
+    if (tab === 'logs') loadAdminAccessLogs();
     if (tab === 'dashboard') loadDashboard();
     if (tab === 'hardware') loadServoSettings();
   });
@@ -1387,13 +1792,17 @@ function openDashPhotoModal(student) {
   const grupo = student?.grupo || student?.letra || '---';
   const turno = student?.turno || '---';
   const grado = student?.grado || '---';
+  const photoUrl = student?.foto_url || student?.foto || `/api/credencial/${student.id}`;
   if (dashPhotoTitle) dashPhotoTitle.textContent = t('dash_photo_title');
   if (dashPhotoMeta) dashPhotoMeta.textContent = `${name} · ${grado}${grupo} · ${turno}`;
   if (dashPhotoFallback) dashPhotoFallback.classList.add('hidden');
-  dashPhotoImg.src = `/api/credencial/${student.id}?t=${Date.now()}`;
+  dashPhotoImg.onload = () => {
+    if (dashPhotoFallback) dashPhotoFallback.classList.add('hidden');
+  };
   dashPhotoImg.onerror = () => {
     if (dashPhotoFallback) dashPhotoFallback.classList.remove('hidden');
   };
+  dashPhotoImg.src = `${photoUrl}?t=${Date.now()}`;
   dashPhotoModal.classList.remove('hidden');
 }
 
@@ -1661,7 +2070,105 @@ async function saveServoSettings() {
 document.getElementById('servoLoad')?.addEventListener('click', loadServoSettings);
 document.getElementById('servoSave')?.addEventListener('click', saveServoSettings);
 
+// ════ ADMIN: LOGS ════
+const logTurno = document.getElementById('logTurno');
+const logGrado = document.getElementById('logGrado');
+const logGrupo = document.getElementById('logGrupo');
+const logEvento = document.getElementById('logEvento');
+const logResultado = document.getElementById('logResultado');
+const logNombre = document.getElementById('logNombre');
+
+function _formatLogEvent(value) {
+  const raw = String(value || '').trim().toLowerCase();
+  if (!raw) return '--';
+  if (raw === 'entrada') return t('log_event_entry');
+  if (raw === 'salida') return t('log_event_exit');
+  return value;
+}
+
+function _formatLogResult(value) {
+  return value ? t('log_result_ok') : t('log_result_denied');
+}
+
+async function loadAdminAccessLogs() {
+  const tbody = document.querySelector('#adminAccessLogsTable tbody');
+  const msg = document.getElementById('adminLogsMsg');
+  if (!tbody) return;
+
+  const params = new URLSearchParams();
+  params.set('limit', '10');
+
+  const turno = logTurno?.value || '';
+  const grado = logGrado?.value || '';
+  const grupo = _sanitizeGroup(logGrupo?.value);
+  const evento = logEvento?.value || '';
+  const resultado = logResultado?.value || '';
+  const nombre = _sanitizeName(logNombre?.value);
+
+  if (turno) params.set('turno', turno);
+  if (grado) params.set('grado', grado);
+  if (grupo) params.set('grupo', grupo);
+  if (evento) params.set('tipo_evento', evento);
+  if (resultado) params.set('acceso_concedido', resultado);
+  if (nombre) params.set('nombre', nombre);
+
+  if (logGrupo && grupo) logGrupo.value = grupo;
+  if (logNombre && nombre) logNombre.value = nombre;
+
+  try {
+    const res = await fetch(`/api/admin/access-logs?${params.toString()}`);
+    const data = await res.json();
+    if (!data.ok) throw new Error(data.message || 'Error');
+
+    const list = data.logs || [];
+    tbody.innerHTML = list.map(l => {
+      const time = l.fecha_hora || '--';
+      const name = l.nombre_usuario || '--';
+      const gradoVal = l.grado || '--';
+      const grupoVal = l.grupo || '--';
+      const turnoVal = l.turno || '--';
+      const event = _formatLogEvent(l.tipo_evento || '--');
+      const result = _formatLogResult(l.acceso_concedido);
+      return `
+        <tr>
+          <td>${time}</td>
+          <td>${name}</td>
+          <td>${gradoVal}</td>
+          <td>${grupoVal}</td>
+          <td>${turnoVal}</td>
+          <td>${event}</td>
+          <td>${result}</td>
+        </tr>`;
+    }).join('');
+
+    if (msg) {
+      msg.textContent = list.length
+        ? `${list.length} ${t('dash_access_logs').toLowerCase()}.`
+        : t('log_no_records');
+      msg.className = 'feedback waiting';
+    }
+  } catch (err) {
+    if (msg) {
+      msg.textContent = err?.message || 'Error al cargar.';
+      msg.className = 'feedback denied';
+    }
+  }
+}
+
+document.getElementById('logSearch')?.addEventListener('click', loadAdminAccessLogs);
+document.getElementById('logClear')?.addEventListener('click', () => {
+  if (logTurno) logTurno.value = '';
+  if (logGrado) logGrado.value = '';
+  if (logGrupo) logGrupo.value = '';
+  if (logEvento) logEvento.value = '';
+  if (logResultado) logResultado.value = '';
+  if (logNombre) logNombre.value = '';
+  loadAdminAccessLogs();
+});
+
 // ════ ADMIN: ESTUDIANTES ════
+const studentsCache = new Map();
+
 async function loadStudents() {
   const tbody = document.querySelector('#studentsTable tbody');
   const msg   = document.getElementById('admStudentsMsg');
@@ -1670,17 +2177,28 @@ async function loadStudents() {
     const res  = await fetch('/api/admin/students');
     const data = await res.json();
     const list = data.students || data || [];
+    studentsCache.clear();
+    list.forEach(s => studentsCache.set(Number(s.id), s));
     tbody.innerHTML = list.map(s => `
       <tr>
         <td>${s.id}</td><td>${s.nombre}</td><td>${s.grado}</td>
         <td>${s.letra||s.grupo||'---'}</td><td>${s.turno}</td>
         <td style="text-align:center">${s.estado_activo !== 0 ? '&#10003;':'&#10007;'}</td>
-        <td><button style="padding:4px 9px;font-size:.72rem;box-shadow:none;background:#B91C1C"
-          onclick="deleteStudent(${s.id})">Eliminar</button></td>
+        <td style="display:flex;gap:6px;flex-wrap:wrap">
+          <button style="padding:4px 9px;font-size:.72rem;box-shadow:none;background:var(--primary)"
+            type="button" onclick="openStudentPhoto(${s.id})">Foto</button>
+          <button style="padding:4px 9px;font-size:.72rem;box-shadow:none;background:#B91C1C"
+            onclick="deleteStudent(${s.id})">Eliminar</button>
+        </td>
       </tr>`).join('');
     if (msg) { msg.textContent = `${list.length} estudiantes.`; msg.className = 'feedback waiting'; }
   } catch (_) { if (msg) { msg.textContent = 'Error al cargar.'; msg.className = 'feedback denied'; } }
 }
+
+window.openStudentPhoto = id => {
+  const student = studentsCache.get(Number(id));
+  if (student) openDashPhotoModal(student);
+};
 
 window.deleteStudent = async id => {
   if (!confirm(`¿Eliminar estudiante #${id}?`)) return;
@@ -1723,9 +2241,9 @@ document.getElementById('cfgLoad')?.addEventListener('click', async () => {
     const res  = await fetch('/api/admin/model-config');
     const data = await res.json();
     const cfg = data.config || {};
-    if (cfg.scale != null)     document.getElementById('cfgScale').value     = cfg.scale;
-    if (cfg.tolerance != null) document.getElementById('cfgTolerance').value = cfg.tolerance;
-    if (cfg.cooldown_seconds != null)  document.getElementById('cfgCooldown').value  = cfg.cooldown_seconds;
+    if (cfg.scale != null)               document.getElementById('cfgScale').value     = cfg.scale;
+    if (cfg.tolerance != null)           document.getElementById('cfgTolerance').value = cfg.tolerance;
+    if (cfg.cooldown_seconds != null)    document.getElementById('cfgCooldown').value  = cfg.cooldown_seconds;
     if (msg) { msg.textContent='Configuración cargada.'; msg.className='feedback granted'; }
     updateModelTestValues();
   } catch (_) {}
@@ -1737,9 +2255,9 @@ document.getElementById('cfgSave')?.addEventListener('click', async () => {
     const res  = await fetch('/api/admin/model-config', {
       method:'PUT', headers:{'Content-Type':'application/json'},
       body: JSON.stringify({
-        scale:     parseFloat(document.getElementById('cfgScale')?.value),
-        tolerance: parseFloat(document.getElementById('cfgTolerance')?.value),
-        cooldown_seconds:  parseFloat(document.getElementById('cfgCooldown')?.value),
+        scale:            parseFloat(document.getElementById('cfgScale')?.value),
+        tolerance:        parseFloat(document.getElementById('cfgTolerance')?.value),
+        cooldown_seconds: parseFloat(document.getElementById('cfgCooldown')?.value),
       }),
     });
     const data = await res.json();
@@ -1749,29 +2267,29 @@ document.getElementById('cfgSave')?.addEventListener('click', async () => {
 });
 
 // ════ ADMIN: PRUEBA MODELO ════
-let modelTestStream = null;
-const modelTestModal = document.getElementById('modelTestModal');
+let modelTestStream  = null;
+const modelTestModal   = document.getElementById('modelTestModal');
 const modelTestOverlay = document.getElementById('modelTestOverlay');
-const modelTestClose = document.getElementById('modelTestClose');
-const modelTestVideo = document.getElementById('modelTestVideo');
-const modelTestCanvas = document.getElementById('modelTestCanvas');
-const modelTestFps = document.getElementById('modelTestFps');
-const modelTestFaces = document.getElementById('modelTestFaces');
-const modelTestScale = document.getElementById('modelTestScale');
-const modelTestTolerance = document.getElementById('modelTestTolerance');
-const modelTestCooldown = document.getElementById('modelTestCooldown');
-let modelTestDetector = null;
-let modelTestAnimId = null;
-let modelTestFrames = 0;
-let modelTestLastTick = 0;
+const modelTestClose   = document.getElementById('modelTestClose');
+const modelTestVideo   = document.getElementById('modelTestVideo');
+const modelTestCanvas  = document.getElementById('modelTestCanvas');
+const modelTestFps     = document.getElementById('modelTestFps');
+const modelTestFaces   = document.getElementById('modelTestFaces');
+const modelTestScale   = document.getElementById('modelTestScale');
+const modelTestTol     = document.getElementById('modelTestTolerance');
+const modelTestCool    = document.getElementById('modelTestCooldown');
+let modelTestDetector  = null;
+let modelTestAnimId    = null;
+let modelTestFrames    = 0;
+let modelTestLastTick  = 0;
 
 function updateModelTestValues() {
-  const scale = document.getElementById('cfgScale')?.value;
+  const scale     = document.getElementById('cfgScale')?.value;
   const tolerance = document.getElementById('cfgTolerance')?.value;
-  const cooldown = document.getElementById('cfgCooldown')?.value;
-  if (modelTestScale) modelTestScale.textContent = scale || '--';
-  if (modelTestTolerance) modelTestTolerance.textContent = tolerance || '--';
-  if (modelTestCooldown) modelTestCooldown.textContent = cooldown || '--';
+  const cooldown  = document.getElementById('cfgCooldown')?.value;
+  if (modelTestScale) modelTestScale.textContent = scale     || '--';
+  if (modelTestTol)   modelTestTol.textContent   = tolerance || '--';
+  if (modelTestCool)  modelTestCool.textContent  = cooldown  || '--';
 }
 
 async function openModelTest() {
@@ -1781,12 +2299,10 @@ async function openModelTest() {
   try {
     modelTestStream = await navigator.mediaDevices.getUserMedia({ video: true });
     if (modelTestVideo) modelTestVideo.srcObject = modelTestStream;
-    if ('FaceDetector' in window) {
-      modelTestDetector = new FaceDetector({ fastMode: true, maxDetectedFaces: 3 });
-    } else {
-      modelTestDetector = null;
-    }
-    modelTestFrames = 0;
+    modelTestDetector = ('FaceDetector' in window)
+      ? new FaceDetector({ fastMode: true, maxDetectedFaces: 3 })
+      : null;
+    modelTestFrames   = 0;
     modelTestLastTick = performance.now();
     startModelTestLoop();
   } catch (_) {}
@@ -1799,11 +2315,8 @@ function closeModelTest() {
   if (modelTestStream) modelTestStream.getTracks().forEach(t => t.stop());
   modelTestStream = null;
   if (modelTestVideo) modelTestVideo.srcObject = null;
-  if (modelTestCanvas) {
-    const ctx = modelTestCanvas.getContext('2d');
-    ctx?.clearRect(0, 0, modelTestCanvas.width, modelTestCanvas.height);
-  }
-  if (modelTestFps) modelTestFps.textContent = '--';
+  if (modelTestCanvas) modelTestCanvas.getContext('2d')?.clearRect(0, 0, modelTestCanvas.width, modelTestCanvas.height);
+  if (modelTestFps)   modelTestFps.textContent   = '--';
   if (modelTestFaces) modelTestFaces.textContent = '--';
 }
 
@@ -1812,12 +2325,9 @@ async function startModelTestLoop() {
   const ctx = modelTestCanvas.getContext('2d');
   const loop = async () => {
     if (!modelTestModal || modelTestModal.classList.contains('hidden')) return;
-    if (modelTestVideo.readyState < 2) {
-      modelTestAnimId = requestAnimationFrame(loop);
-      return;
-    }
+    if (modelTestVideo.readyState < 2) { modelTestAnimId = requestAnimationFrame(loop); return; }
 
-    modelTestCanvas.width = modelTestVideo.videoWidth;
+    modelTestCanvas.width  = modelTestVideo.videoWidth;
     modelTestCanvas.height = modelTestVideo.videoHeight;
     ctx?.clearRect(0, 0, modelTestCanvas.width, modelTestCanvas.height);
 
@@ -1827,29 +2337,26 @@ async function startModelTestLoop() {
         const faces = await modelTestDetector.detect(modelTestVideo);
         facesCount = faces.length;
         ctx.lineWidth = 3;
-        ctx.strokeStyle = 'rgba(0, 255, 140, 0.9)';
-        ctx.fillStyle = 'rgba(0, 255, 140, 0.12)';
+        ctx.strokeStyle = 'rgba(0,255,140,.9)';
+        ctx.fillStyle   = 'rgba(0,255,140,.12)';
         faces.forEach(face => {
-          const box = face.boundingBox;
-          ctx.strokeRect(box.x, box.y, box.width, box.height);
-          ctx.fillRect(box.x, box.y, box.width, box.height);
+          const b = face.boundingBox;
+          ctx.strokeRect(b.x, b.y, b.width, b.height);
+          ctx.fillRect(b.x, b.y, b.width, b.height);
         });
-      } catch (_) {
-        facesCount = 0;
-      }
+      } catch (_) { facesCount = 0; }
     }
 
     modelTestFrames += 1;
-    const now = performance.now();
+    const now     = performance.now();
     const elapsed = now - modelTestLastTick;
     if (elapsed >= 500) {
       const fps = Math.round((modelTestFrames / elapsed) * 1000);
-      if (modelTestFps) modelTestFps.textContent = String(fps);
+      if (modelTestFps)   modelTestFps.textContent   = String(fps);
       if (modelTestFaces) modelTestFaces.textContent = String(facesCount);
-      modelTestFrames = 0;
+      modelTestFrames   = 0;
       modelTestLastTick = now;
     }
-
     modelTestAnimId = requestAnimationFrame(loop);
   };
   modelTestAnimId = requestAnimationFrame(loop);
@@ -1857,7 +2364,7 @@ async function startModelTestLoop() {
 
 document.getElementById('cfgTest')?.addEventListener('click', openModelTest);
 modelTestOverlay?.addEventListener('click', closeModelTest);
-modelTestClose?.addEventListener('click', closeModelTest);
+modelTestClose?.addEventListener('click',   closeModelTest);
 
 // ════ ADMIN: ADMINS ════
 async function loadAdmins() {

@@ -17,9 +17,7 @@
   <!-- Drawer -->
   <aside id="drawer" class="drawer">
     <div class="drawer-head">
-      <div class="drawer-brand">
         <img class="drawer-brand__icon" src="{{ url_for('static', filename='img/logo_verifyme.png') }}" alt="VerifyMe">
-      </div>
     </div>
 
     <nav class="drawer-nav">
@@ -47,6 +45,9 @@
         <p class="eyebrow">VerifyMe</p>
         <p class="topbar-title" id="topbarTitle">Panel principal</p>
       </div>
+      <button id="drawerAuthBtn" class="clock-mode-btn" aria-label="Desbloquear menú de administrador" title="Desbloquear menú de administrador">
+        <span class="material-symbols-outlined">lock</span>
+      </button>
       <button class="topbar-lang" id="langBtn" aria-label="Cambiar idioma">
         <span id="langFlag">🇲🇽</span>
         <span id="langLabel">ES</span>
@@ -124,10 +125,7 @@
             <span class="material-symbols-outlined">person_add</span>
             <span data-i18n="qnav_register">Registrar alumno</span>
           </button>
-          <button class="quick-nav-btn" data-goto="admin">
-            <span class="material-symbols-outlined">settings</span>
-            <span data-i18n="nav_admin">Admin panel</span>
-          </button>
+
         </div>
       </section>
 
@@ -365,10 +363,7 @@
             <span class="material-symbols-outlined">receipt_long</span>
             <span data-i18n="tab_logs">Logs</span>
           </button>
-          <button class="tab-btn" data-admin-tab="hardware">
-            <span class="material-symbol-oulined">settings</span></span>
-            <span data-i18n="tab_hardware">Hardware</span>
-          </button>
+
 
         </div>
 

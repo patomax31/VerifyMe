@@ -193,6 +193,41 @@ def _credential_jpeg_path(student_id: int) -> Optional[Path]:
     path = PROJECT_DIR / "data" / "credentials" / f"est_{student_id}.jpg"
     return path if path.is_file() else None
 
+def _student_credential_path_from_db(student_id: int) -> Optional[Path]:
+    try:
+        with connect() as conn:
+            row = conn.execute(
+                """
+                SELECT foto_credencial
+                FROM datos_biometricos
+                WHERE tipo_usuario = 'ESTUDIANTE' AND id_usuario_ref = ?
+                ORDER BY rowid DESC
+                LIMIT 1
+                """,
+                (student_id,),
+            ).fetchone()
+    except Exception:
+        return None
+
+    if not row:
+        return None
+
+    stored = str(row[0] or "").strip()
+    if not stored:
+        return None
+
+    stored_path = Path(stored)
+    if not stored_path.is_absolute():
+        stored_path = PROJECT_DIR / stored_path
+    return stored_path if stored_path.is_file() else None
+
+
+def _resolve_credential_jpeg_path(student_id: int) -> Optional[Path]:
+    direct_path = _credential_jpeg_path(student_id)
+    if direct_path is not None:
+        return direct_path
+    return _student_credential_path_from_db(student_id)
+
 
 def _jpeg_encode_frame(frame, max_width: int = 520, quality: int = 88) -> Optional[bytes]:
     if cv2 is None or frame is None:
@@ -580,7 +615,7 @@ def create_app() -> Flask:
 
     @app.get("/api/credencial/<int:student_id>")
     def credencial_foto(student_id: int):
-        path = _credential_jpeg_path(student_id)
+        path = _resolve_credential_jpeg_path(student_id)
         if path is None:
             return jsonify({"ok": False, "message": "Sin fotografia de credencial"}), 404
         return send_file(path, mimetype="image/jpeg")
@@ -931,6 +966,7 @@ def create_app() -> Flask:
                 "grupo": row[3],
                 "turno": row[4],
                 "estado_activo": int(row[5]),
+                "foto_url": (f"/api/credencial/{int(row[0])}" if _resolve_credential_jpeg_path(int(row[0])) else None),
             }
             for row in rows
         ]
