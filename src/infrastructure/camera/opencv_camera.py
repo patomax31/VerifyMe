@@ -17,28 +17,60 @@ def _try_picamera2():
         picam2 = Picamera2()
         settings = get_camera_settings()
         
-        # Create configuration for RGB format
+        # Get full sensor resolution to avoid zoom/crop
+        sensor_modes = picam2.sensor_modes
+        print(f"[DEBUG] Available sensor modes: {len(sensor_modes)} modes", file=sys.stderr)
+        
+        # CRITICAL FIX: Do NOT specify size in create_preview_configuration()
+        # When you specify a size (e.g., 640x480), picamera2 performs internal cropping
+        # to fit that size, which creates the zoom/crop artifact on Raspberry Pi 5
+        # Instead, capture at full sensor resolution and resize in Python after capture
         config = picam2.create_preview_configuration(
-            main={"size": (settings.width, settings.height), "format": "RGB888"}
+            main={"format": "RGB888"},  # NO size specified - captures full sensor
+            raw=None  # Disable raw stream
         )
+        
         picam2.configure(config)
         picam2.start()
         
+        # Log actual sensor resolution being captured
+        import time
+        time.sleep(0.5)  # Brief delay to ensure camera starts
+        try:
+            test_frame = picam2.capture_array()
+            if test_frame is not None:
+                actual_h, actual_w = test_frame.shape[:2]
+                print(f"[INFO] Actual sensor capture: {actual_w}x{actual_h}", file=sys.stderr)
+        except Exception:
+            pass
+        
         # Wrapper to provide OpenCV-compatible interface
         class PiCameraWrapper:
-            def __init__(self, camera):
+            def __init__(self, camera, target_width, target_height):
                 self.camera = camera
                 self.is_open = True
+                self.target_width = target_width
+                self.target_height = target_height
+                self.resize_method = cv2.INTER_LANCZOS4  # High-quality downsampling
             
             def read(self):
                 try:
                     frame_rgb = self.camera.capture_array()
                     if frame_rgb is None or frame_rgb.size == 0:
                         return False, None
-                    # Convert RGB to BGR for OpenCV
-                    #frame_bgr = cv2.cvtColor(frame_rgb, cv2.COLOR_RGB2BGR)
-                    return True, frame_rgb
-                except Exception:
+                    
+                    # Resize to target dimensions if needed
+                    # The resize happens AFTER full sensor capture, preventing internal cropping
+                    h, w = frame_rgb.shape[:2]
+                    if (w, h) != (self.target_width, self.target_height):
+                        frame_rgb = cv2.resize(frame_rgb, (self.target_width, self.target_height), 
+                                             interpolation=self.resize_method)
+                    
+                    # Convert RGB to BGR for OpenCV compatibility
+                    frame_bgr = cv2.cvtColor(frame_rgb, cv2.COLOR_RGB2BGR)
+                    return True, frame_bgr
+                except Exception as e:
+                    print(f"[ERROR] PiCameraWrapper.read() failed: {e}", file=sys.stderr)
                     return False, None
             
             def release(self):
@@ -60,7 +92,7 @@ def _try_picamera2():
                 return -1
         
         print("[SUCCESS] Raspberry Pi Camera Module 2 ready via picamera2!", file=sys.stderr)
-        return PiCameraWrapper(picam2)
+        return PiCameraWrapper(picam2, settings.width, settings.height)
         
     except ImportError:
         print("[DEBUG] picamera2 not installed, trying fallback methods", file=sys.stderr)
