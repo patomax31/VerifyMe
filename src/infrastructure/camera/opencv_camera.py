@@ -36,8 +36,8 @@ def _try_picamera2():
                     if frame_rgb is None or frame_rgb.size == 0:
                         return False, None
                     # Convert RGB to BGR for OpenCV
-                    #frame_bgr = cv2.cvtColor(frame_rgb, cv2.COLOR_RGB2BGR)
-                    return True, frame_rgb
+                    frame_bgr = cv2.cvtColor(frame_rgb, cv2.COLOR_RGB2BGR)
+                    return True, frame_bgr
                 except Exception:
                     return False, None
             
