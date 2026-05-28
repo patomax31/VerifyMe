@@ -16,28 +16,55 @@ def _try_picamera2():
         print("[INFO] Initializing Raspberry Pi Camera Module 2 with picamera2...", file=sys.stderr)
         picam2 = Picamera2()
         settings = get_camera_settings()
-        
-        # Create configuration for RGB format
+
+        full_size = picam2.camera_properties.get("PixelArraySize")
+        if not full_size or len(full_size) != 2:
+            full_size = (settings.width, settings.height)
+        else:
+            full_size = (int(full_size[0]), int(full_size[1]))
+
+        print(f"[DEBUG] Full sensor resolution: {full_size}", file=sys.stderr)
+        print(
+            f"[DEBUG] Will capture at full sensor: {full_size[0]}x{full_size[1]}, "
+            f"then resize to {settings.width}x{settings.height}",
+            file=sys.stderr,
+        )
+
         config = picam2.create_preview_configuration(
-            main={"size": (settings.width, settings.height), "format": "RGB888"}
+            main={"size": full_size, "format": "RGB888"}
         )
         picam2.configure(config)
         picam2.start()
         
         # Wrapper to provide OpenCV-compatible interface
         class PiCameraWrapper:
-            def __init__(self, camera):
+            def __init__(self, camera, target_size):
                 self.camera = camera
                 self.is_open = True
+                self.target_size = target_size
+                self._logged_first_frame = False
             
             def read(self):
                 try:
                     frame_rgb = self.camera.capture_array()
                     if frame_rgb is None or frame_rgb.size == 0:
                         return False, None
-                    # Convert RGB to BGR for OpenCV
-                    frame_bgr = cv2.cvtColor(frame_rgb, cv2.COLOR_RGB2BGR)
-                    return True, frame_bgr
+                    if not self._logged_first_frame:
+                        h, w = frame_rgb.shape[:2]
+                        print(
+                            f"[DEBUG] First frame: {w}x{h}, will resize to "
+                            f"{self.target_size[0]}x{self.target_size[1]}",
+                            file=sys.stderr,
+                        )
+                        self._logged_first_frame = True
+                    if (frame_rgb.shape[1], frame_rgb.shape[0]) != self.target_size:
+                        frame_rgb = cv2.resize(
+                            frame_rgb,
+                            self.target_size,
+                            interpolation=cv2.INTER_AREA,
+                        )
+                    frame_rgb = cv2.rotate(frame_rgb, cv2.ROTATE_180)
+                    return True, frame_rgb
                 except Exception:
                     return False, None
             
@@ -60,7 +87,7 @@ def _try_picamera2():
                 return -1
         
         print("[SUCCESS] Raspberry Pi Camera Module 2 ready via picamera2!", file=sys.stderr)
-        return PiCameraWrapper(picam2)
+        return PiCameraWrapper(picam2, (settings.width, settings.height))
         
     except ImportError:
         print("[DEBUG] picamera2 not installed, trying fallback methods", file=sys.stderr)
