@@ -38,7 +38,7 @@ class KnownFace:
 class FaceModelTester:
     """Ejecuta prueba de camara con deteccion/reconocimiento facial."""
 
-    def __init__(self, tolerance: float = 0.5, scale: float = 0.25) -> None:
+    def __init__(self, tolerance: float = 0.5, scale: float = 0.5) -> None:
         self.tolerance = tolerance
         self.scale = scale
         self.known_names: List[str] = []
