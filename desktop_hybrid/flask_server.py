@@ -30,8 +30,13 @@ if str(PROJECT_DIR) not in sys.path:
 ADMIN_PANEL_DIR = PROJECT_DIR / "admin_panel"
 ADMIN_PANEL_DIST_DIR = ADMIN_PANEL_DIR / "dist"
 
+from database.sqlite.access import close_access_session, get_active_session, start_access_session
 from database.sqlite.connection import connect
 from database.sqlite.migrations import initialize_database
+from database.sqlite.reporting import (
+    list_access_logs_detailed,
+    list_access_logs_for_active_session,
+)
 from src.application.auth_service import AuthService
 from src.application.login_use_case import LoginUseCase
 from src.application.registration_service import RegistrationService
@@ -40,6 +45,7 @@ from src.core.config import RecognitionSettings, get_recognition_settings
 from src.infrastructure.camera.opencv_camera import open_camera
 from src.infrastructure.persistence.pkl_repository import PklRepository
 from src.infrastructure.persistence.sqlite_repository import SQLiteRepository
+from src.hardware import servomotor
 
 RUNTIME_ERROR = None
 try:
@@ -69,6 +75,8 @@ class WebFaceEngine:
     def __init__(self, recognition_settings: RecognitionSettings) -> None:
         if RUNTIME_ERROR is not None:
             raise RuntimeError(RUNTIME_ERROR)
+        if FaceMatcherAdapter is None:
+            raise RuntimeError("Dependencias de reconocimiento no disponibles.")
 
         self.recognition_settings = recognition_settings
         self.login_use_case = LoginUseCase(
@@ -107,8 +115,9 @@ class WebFaceEngine:
 
 
 def _resource_base() -> Path:
-    if hasattr(sys, "_MEIPASS"):
-        return Path(sys._MEIPASS)
+    bundle_dir = getattr(sys, "_MEIPASS", None)
+    if bundle_dir:
+        return Path(bundle_dir)
     return Path(__file__).resolve().parent
 
 
@@ -129,6 +138,8 @@ def _runtime_check(engine_error: Optional[str], engine: Optional[WebFaceEngine])
 
 
 def _decode_image_data_uri(image_data: str):
+    if cv2 is None or np is None:
+        return None
     if not image_data:
         return None
 
@@ -143,6 +154,39 @@ def _decode_image_data_uri(image_data: str):
 
     nparr = np.frombuffer(binary, np.uint8)
     return cv2.imdecode(nparr, cv2.IMREAD_COLOR)
+
+
+def _normalized_login_face_box(frame) -> Optional[Dict[str, float]]:
+    if cv2 is None or frame is None:
+        return None
+    try:
+        import face_recognition
+    except Exception:
+        return None
+
+    h, w = frame.shape[:2]
+    if h <= 0 or w <= 0:
+        return None
+
+    max_side = 720
+    scale = min(1.0, max_side / float(max(h, w)))
+    if scale < 1.0:
+        small = cv2.resize(frame, (int(w * scale), int(h * scale)), interpolation=cv2.INTER_AREA)
+    else:
+        small = frame
+
+    sh, sw = small.shape[:2]
+    rgb = cv2.cvtColor(small, cv2.COLOR_BGR2RGB)
+    locs = face_recognition.face_locations(rgb, number_of_times_to_upsample=1, model="hog")
+    if len(locs) != 1:
+        return None
+    top, right, bottom, left = locs[0]
+    return {
+        "x": max(0.0, min(1.0, left / float(sw))),
+        "y": max(0.0, min(1.0, top / float(sh))),
+        "width": max(0.0, min(1.0, (right - left) / float(sw))),
+        "height": max(0.0, min(1.0, (bottom - top) / float(sh))),
+    }
 
 
 def _credential_jpeg_path(student_id: int) -> Optional[Path]:
@@ -346,6 +390,73 @@ def _save_model_settings(scale: float, tolerance: float, cooldown_seconds: float
         )
 
 
+def _ensure_servo_settings_table() -> None:
+    with connect() as conn:
+        conn.execute(
+            """
+            CREATE TABLE IF NOT EXISTS servo_settings (
+                id INTEGER PRIMARY KEY CHECK (id = 1),
+                hold_seconds REAL NOT NULL,
+                always_active INTEGER NOT NULL,
+                updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+            )
+            """
+        )
+
+
+def _load_servo_settings() -> Dict[str, float | bool]:
+    _ensure_servo_settings_table()
+    defaults = servomotor.get_servo_settings()
+
+    with connect() as conn:
+        row = conn.execute(
+            "SELECT hold_seconds, always_active FROM servo_settings WHERE id = 1"
+        ).fetchone()
+
+    if row:
+        return {
+            "hold_seconds": float(row[0]),
+            "always_active": bool(int(row[1])),
+        }
+
+    return {
+        "hold_seconds": float(defaults["hold_seconds"]),
+        "always_active": bool(defaults["always_active"]),
+    }
+
+
+def _save_servo_settings(*, hold_seconds: float, always_active: bool) -> None:
+    _ensure_servo_settings_table()
+
+    with connect() as conn:
+        conn.execute(
+            """
+            INSERT INTO servo_settings (id, hold_seconds, always_active)
+            VALUES (1, ?, ?)
+            ON CONFLICT(id) DO UPDATE SET
+                hold_seconds = excluded.hold_seconds,
+                always_active = excluded.always_active,
+                updated_at = CURRENT_TIMESTAMP
+            """,
+            (float(hold_seconds), 1 if always_active else 0),
+        )
+
+
+def _parse_optional_bool(value: Optional[str]) -> Optional[bool]:
+    if value is None:
+        return None
+
+    raw = value.strip().lower()
+    if not raw or raw == "all":
+        return None
+    if raw in {"true", "1", "yes"}:
+        return True
+    if raw in {"false", "0", "no"}:
+        return False
+
+    raise ValueError("acceso_concedido debe ser true, false o all")
+
+
 def create_app() -> Flask:
     initialize_database()
 
@@ -366,6 +477,12 @@ def create_app() -> Flask:
     recognition_settings.scale = cfg["scale"]
     recognition_settings.tolerance = cfg["tolerance"]
     recognition_settings.access_cooldown_seconds = cfg["cooldown_seconds"]
+
+    servo_cfg = _load_servo_settings()
+    servomotor.update_servo_settings(
+        hold_seconds=float(servo_cfg["hold_seconds"]),
+        always_active=bool(servo_cfg["always_active"]),
+    )
 
     engine = None
     engine_error = None
@@ -409,8 +526,8 @@ def create_app() -> Flask:
         return jsonify(
             {
                 "ok": runtime_issue is None,
-                "service": "IdentifyMe Desktop",
-                "message": runtime_issue or "Servidor Flask activo",
+                "service": "VerifyMe",
+                "message": runtime_issue or "",
             }
         )
 
@@ -449,6 +566,8 @@ def create_app() -> Flask:
         runtime_issue = _runtime_check(engine_error, engine)
         if runtime_issue is not None:
             return jsonify({"users_count": 0, "ready": False, "message": runtime_issue})
+
+        assert engine is not None
 
         engine.refresh_known_students()
         return jsonify(
@@ -492,8 +611,8 @@ def create_app() -> Flask:
         if frame is None:
             return jsonify({"ok": True, "state": "no_face", "message": "Imagen invalida"})
 
-        state, message = push_liveness_frame(session_id, frame)
-        return jsonify({"ok": True, "state": state, "message": message})
+        state, message, face_box = push_liveness_frame(session_id, frame)
+        return jsonify({"ok": True, "state": state, "message": message, "face_box": face_box})
 
     @app.post("/api/login/verify")
     def verify_face():
@@ -501,11 +620,14 @@ def create_app() -> Flask:
         if runtime_issue is not None:
             return jsonify({"ok": False, "state": "error", "message": runtime_issue}), 500
 
+        assert engine is not None
+
         payload = request.get_json(silent=True) or {}
         frame = _decode_image_data_uri(payload.get("image", ""))
         if frame is None:
             return jsonify({"ok": False, "state": "error", "message": "Imagen invalida"}), 400
 
+        face_box = _normalized_login_face_box(frame)
         liveness_sid = str(payload.get("liveness_session_id") or payload.get("liveness_session") or "").strip()
         if not liveness_sid or liveness_session_ready is None or not liveness_session_ready(liveness_sid):
             return jsonify(
@@ -514,6 +636,7 @@ def create_app() -> Flask:
                     "state": "liveness_required",
                     "message": "Primero completa la verificación: parpadea cuando el sistema te lo pida.",
                     "user": None,
+                    "face_box": face_box,
                 }
             )
 
@@ -524,6 +647,7 @@ def create_app() -> Flask:
                     "ok": False,
                     "state": "error",
                     "message": "ERROR: No hay usuarios registrados",
+                    "face_box": face_box,
                 }
             ), 400
 
@@ -533,6 +657,7 @@ def create_app() -> Flask:
         else:
             enc_live = None
         if enc_live is None:
+            assert detect_face_encodings_from_frame is not None
             _, enc_list = detect_face_encodings_from_frame(frame, scale=base_scale)
             if len(enc_list) > 1:
                 return jsonify(
@@ -541,6 +666,7 @@ def create_app() -> Flask:
                         "state": "positioning",
                         "message": "CENTRA TU ROSTRO",
                         "user": None,
+                        "face_box": None,
                     }
                 )
             enc_live = enc_list[0] if len(enc_list) == 1 else None
@@ -552,6 +678,7 @@ def create_app() -> Flask:
                     "state": "waiting",
                     "message": "ESPERANDO ROSTRO...",
                     "user": None,
+                    "face_box": None,
                 }
             )
 
@@ -583,6 +710,7 @@ def create_app() -> Flask:
                     "state": "granted",
                     "message": result.message,
                     "user": user_data,
+                    "face_box": face_box,
                 }
             )
 
@@ -592,14 +720,107 @@ def create_app() -> Flask:
                 "state": "denied",
                 "message": result.message,
                 "user": None,
+                "face_box": face_box,
             }
         )
+
+    @app.post("/api/registro-admin")
+    def register_admin_face():
+        runtime_issue = _runtime_check(engine_error, engine)
+        if runtime_issue is not None:
+            return jsonify({"ok": False, "message": runtime_issue}), 500
+
+        assert engine is not None
+
+        payload = request.get_json(silent=True) or {}
+
+        num_empleado = str(payload.get("num_empleado") or payload.get("numero_empleado") or "").strip()
+        nombre = str(payload.get("nombre", "")).strip()
+        rol = str(payload.get("rol", "")).strip() or "ADMIN"
+        correo = str(payload.get("correo", "")).strip().lower()
+        password = str(payload.get("password", ""))
+
+        if not all([num_empleado, nombre, correo, password]):
+            return jsonify({"ok": False, "message": "Todos los campos de administrador son obligatorios."}), 400
+
+        frame_f = _decode_image_data_uri(str(payload.get("image_front", "") or ""))
+        frame_l = _decode_image_data_uri(str(payload.get("image_left", "") or ""))
+        frame_r = _decode_image_data_uri(str(payload.get("image_right", "") or ""))
+
+        if not (frame_f is not None and frame_l is not None and frame_r is not None):
+            return jsonify({"ok": False, "message": "Faltan imagenes para el registro biometrico."}), 400
+
+        scale = engine.recognition_settings.scale
+
+        def _encode_registration_frame(fr):
+            if detect_face_encodings_from_frame_robust is not None:
+                return detect_face_encodings_from_frame_robust(fr, base_scale=scale)
+            return detect_face_encodings_from_frame(fr, scale=scale)
+
+        encodings_f = _encode_registration_frame(frame_f)[1]
+        encodings_l = _encode_registration_frame(frame_l)[1]
+        encodings_r = _encode_registration_frame(frame_r)[1]
+
+        for tag, encs in (
+            ("frente", encodings_f),
+            ("perfil izquierdo", encodings_l),
+            ("perfil derecho", encodings_r),
+        ):
+            if len(encs) == 0:
+                return jsonify({"ok": False, "message": f"No se detecto rostro en {tag}."}), 400
+            if len(encs) > 1:
+                return jsonify({"ok": False, "message": f"Varios rostros en {tag}. Debe haber solo uno."}), 400
+
+        foto_bytes = _jpeg_encode_frame(frame_f)
+        if not foto_bytes:
+            return jsonify({"ok": False, "message": "No se pudo guardar la foto de credencial."}), 400
+
+        password_hash = generate_password_hash(password)
+
+        try:
+            with closing(connect()) as conn:
+                cur = conn.execute(
+                    """
+                    INSERT INTO personal_administrativo
+                    (num_empleado, nombre_completo, rol, correo, password_hash, estado_activo)
+                    VALUES (?, ?, ?, ?, ?, 1)
+                    """,
+                    (num_empleado, nombre, rol, correo, password_hash),
+                )
+                admin_id = cur.lastrowid
+                
+                import json
+                conn.execute(
+                    """
+                    INSERT INTO datos_biometricos 
+                    (tipo_usuario, id_usuario_ref, vector_facial, vector_perfil_izq, vector_perfil_der, foto_credencial)
+                    VALUES (?, ?, ?, ?, ?, ?)
+                    """,
+                    (
+                        "PERSONAL",
+                        admin_id,
+                        json.dumps(encodings_f[0].tolist()),
+                        json.dumps(encodings_l[0].tolist()),
+                        json.dumps(encodings_r[0].tolist()),
+                        foto_bytes
+                    )
+                )
+                conn.commit()
+        except sqlite3.IntegrityError:
+            return jsonify({"ok": False, "message": "El numero de empleado o correo ya esta registrado."}), 400
+        except Exception as e:
+            return jsonify({"ok": False, "message": f"Error en base de datos: {str(e)}"}), 500
+
+        engine.refresh_known_students() # It also refreshes staff
+        return jsonify({"ok": True, "message": "Administrador y datos biometricos registrados correctamene."})
 
     @app.post("/api/registro")
     def register_face():
         runtime_issue = _runtime_check(engine_error, engine)
         if runtime_issue is not None:
             return jsonify({"ok": False, "message": runtime_issue}), 500
+
+        assert engine is not None
 
         payload = request.get_json(silent=True) or {}
 
@@ -627,6 +848,7 @@ def create_app() -> Flask:
         def _encode_registration_frame(fr):
             if detect_face_encodings_from_frame_robust is not None:
                 return detect_face_encodings_from_frame_robust(fr, base_scale=scale)
+            assert detect_face_encodings_from_frame is not None
             return detect_face_encodings_from_frame(fr, scale=scale)
 
         if frame_f is not None and frame_l is not None and frame_r is not None:
@@ -748,6 +970,110 @@ def create_app() -> Flask:
 
         return jsonify({"ok": True, "student_id": student_id, "message": "Estudiante creado."})
 
+    @app.get("/api/admin/access-session")
+    def get_access_session():
+        session = get_active_session()
+        return jsonify({"ok": True, "active": session is not None, "session": session})
+
+    @app.post("/api/admin/access-session/start")
+    def start_access_session_admin():
+        payload = request.get_json(silent=True) or {}
+        inicio = payload.get("inicio")
+
+        try:
+            session_id = start_access_session(inicio=str(inicio) if inicio else None)
+        except ValueError as exc:
+            message = str(exc)
+            status = 409 if "Ya existe" in message else 400
+            return jsonify({"ok": False, "message": message}), status
+
+        return jsonify({"ok": True, "session_id": session_id, "message": "Sesion iniciada."})
+
+    @app.post("/api/admin/access-session/close")
+    def close_access_session_admin():
+        payload = request.get_json(silent=True) or {}
+        session_id = payload.get("session_id")
+        fin = payload.get("fin")
+
+        try:
+            session_id_value = int(session_id) if session_id is not None else None
+        except (TypeError, ValueError):
+            return jsonify({"ok": False, "message": "session_id invalido."}), 400
+
+        try:
+            close_access_session(
+                session_id=session_id_value,
+                fin=str(fin) if fin else None,
+            )
+        except ValueError as exc:
+            return jsonify({"ok": False, "message": str(exc)}), 400
+
+        return jsonify({"ok": True, "message": "Sesion cerrada."})
+
+    @app.get("/api/admin/access-logs/active-session")
+    def list_access_logs_active_session():
+        tipo_evento = request.args.get("tipo_evento")
+        acceso_concedido_raw = request.args.get("acceso_concedido")
+        limit_raw = request.args.get("limit", "100")
+        offset_raw = request.args.get("offset", "0")
+
+        try:
+            limit = int(limit_raw)
+            offset = int(offset_raw)
+        except (TypeError, ValueError):
+            return jsonify({"ok": False, "message": "limit/offset deben ser enteros."}), 400
+
+        try:
+            acceso_concedido = _parse_optional_bool(acceso_concedido_raw)
+            rows = list_access_logs_for_active_session(
+                tipo_evento=tipo_evento,
+                acceso_concedido=acceso_concedido,
+                limit=limit,
+                offset=offset,
+            )
+        except ValueError as exc:
+            return jsonify({"ok": False, "message": str(exc)}), 400
+
+        return jsonify({"ok": True, "logs": rows})
+
+    @app.get("/api/admin/access-logs")
+    def list_access_logs_admin():
+        grado = request.args.get("grado")
+        grupo = request.args.get("grupo")
+        turno = request.args.get("turno")
+        tipo_evento = request.args.get("tipo_evento")
+        acceso_concedido_raw = request.args.get("acceso_concedido")
+        nombre_contains = request.args.get("nombre")
+        from_datetime = request.args.get("from_datetime")
+        to_datetime = request.args.get("to_datetime")
+        limit_raw = request.args.get("limit", "10")
+        offset_raw = request.args.get("offset", "0")
+
+        try:
+            limit = int(limit_raw)
+            offset = int(offset_raw)
+        except (TypeError, ValueError):
+            return jsonify({"ok": False, "message": "limit/offset deben ser enteros."}), 400
+
+        try:
+            acceso_concedido = _parse_optional_bool(acceso_concedido_raw)
+            rows = list_access_logs_detailed(
+                from_datetime=str(from_datetime) if from_datetime else None,
+                to_datetime=str(to_datetime) if to_datetime else None,
+                tipo_evento=tipo_evento,
+                acceso_concedido=acceso_concedido,
+                grado=grado,
+                grupo=grupo,
+                turno=turno,
+                nombre_contains=nombre_contains,
+                limit=limit,
+                offset=offset,
+            )
+        except ValueError as exc:
+            return jsonify({"ok": False, "message": str(exc)}), 400
+
+        return jsonify({"ok": True, "logs": rows})
+
     @app.put("/api/admin/students/<int:student_id>")
     def update_student_admin(student_id: int):
         payload = request.get_json(silent=True) or {}
@@ -795,6 +1121,20 @@ def create_app() -> Flask:
             if cur.rowcount == 0:
                 return jsonify({"ok": False, "message": "Estudiante no encontrado."}), 404
 
+        cred_path = PROJECT_DIR / "data" / "credentials" / f"est_{student_id}.jpg"
+        pkl_path = PROJECT_DIR / "data" / f"est_{student_id}.pkl"
+        try:
+            if cred_path.exists():
+                cred_path.unlink()
+        except Exception as exc:
+            print(f"[WARN] No se pudo borrar credencial: {exc}")
+
+        try:
+            if pkl_path.exists():
+                pkl_path.unlink()
+        except Exception as exc:
+            print(f"[WARN] No se pudo borrar pkl: {exc}")
+
         return jsonify({"ok": True, "message": "Estudiante desactivado."})
 
     @app.get("/api/admin/model-config")
@@ -838,6 +1178,52 @@ def create_app() -> Flask:
             }
         )
 
+    @app.get("/api/admin/servo-settings")
+    def get_servo_settings():
+        cfg_local = _load_servo_settings()
+        return jsonify({"ok": True, "config": cfg_local})
+
+    @app.put("/api/admin/servo-settings")
+    def update_servo_settings():
+        payload = request.get_json(silent=True) or {}
+        current = _load_servo_settings()
+        hold_raw = payload.get("hold_seconds", current["hold_seconds"])
+        always_raw = payload.get("always_active", current["always_active"])
+
+        try:
+            hold_seconds = float(hold_raw)
+        except (TypeError, ValueError):
+            return jsonify({"ok": False, "message": "hold_seconds debe ser numerico."}), 400
+
+        if hold_seconds < 0 or hold_seconds > 120:
+            return jsonify({"ok": False, "message": "hold_seconds debe estar entre 0 y 120."}), 400
+
+        if isinstance(always_raw, bool):
+            always_active = always_raw
+        elif isinstance(always_raw, (int, float)):
+            always_active = bool(always_raw)
+        elif isinstance(always_raw, str):
+            always_active = always_raw.strip().lower() in {"1", "true", "yes", "on"}
+        else:
+            always_active = False
+
+        _save_servo_settings(hold_seconds=hold_seconds, always_active=always_active)
+        servomotor.update_servo_settings(
+            hold_seconds=hold_seconds,
+            always_active=always_active,
+        )
+
+        return jsonify(
+            {
+                "ok": True,
+                "message": "Configuracion del servomotor actualizada.",
+                "config": {
+                    "hold_seconds": hold_seconds,
+                    "always_active": always_active,
+                },
+            }
+        )
+
     @app.get("/api/admin/admins")
     def list_admins():
         with connect() as conn:
@@ -853,7 +1239,9 @@ def create_app() -> Flask:
             {
                 "id": int(row[0]),
                 "num_empleado": row[1],
+                "numero_empleado": row[1],
                 "nombre_completo": row[2],
+                "nombre": row[2],
                 "rol": row[3],
                 "correo": row[4],
                 "estado_activo": int(row[5]),
@@ -862,11 +1250,92 @@ def create_app() -> Flask:
         ]
         return jsonify({"ok": True, "admins": admins})
 
+    @app.post("/api/admin/admins")
+    def create_admin():
+        payload = request.get_json(silent=True) or {}
+        num_empleado = str(payload.get("num_empleado") or payload.get("numero_empleado") or "").strip()
+        nombre_completo = str(payload.get("nombre_completo") or payload.get("nombre") or "").strip()
+        rol = str(payload.get("rol", "")).strip() or "ADMIN"
+        correo = str(payload.get("correo", "")).strip().lower()
+        password = str(payload.get("password", ""))
+
+        if not all([num_empleado, nombre_completo, correo, password]):
+            return jsonify({"ok": False, "message": "Todos los campos son obligatorios."}), 400
+
+        password_hash = generate_password_hash(password)
+
+        try:
+            with closing(connect()) as conn:
+                conn.execute(
+                    """
+                    INSERT INTO personal_administrativo
+                    (num_empleado, nombre_completo, rol, correo, password_hash, estado_activo)
+                    VALUES (?, ?, ?, ?, ?, 1)
+                    """,
+                    (num_empleado, nombre_completo, rol, correo, password_hash),
+                )
+                conn.commit()
+        except sqlite3.IntegrityError:
+            return jsonify({"ok": False, "message": "num_empleado o correo ya existe."}), 409
+
+        return jsonify({"ok": True, "message": "Administrador registrado correctamente."})
+
+    @app.put("/api/admin/admins/<int:admin_id>")
+    def update_admin(admin_id: int):
+        payload = request.get_json(silent=True) or {}
+        num_empleado = str(payload.get("num_empleado") or payload.get("numero_empleado") or "").strip()
+        nombre_completo = str(payload.get("nombre_completo") or payload.get("nombre") or "").strip()
+        rol = str(payload.get("rol", "")).strip() or "ADMIN"
+        correo = str(payload.get("correo", "")).strip().lower()
+        estado_activo = int(payload.get("estado_activo", 1))
+        password = str(payload.get("password") or "").strip()
+
+        if not nombre_completo or not correo:
+            return jsonify({"ok": False, "message": "Nombre y correo son obligatorios."}), 400
+
+        updates = ["nombre_completo = ?", "rol = ?", "correo = ?", "estado_activo = ?"]
+        params = [nombre_completo, rol, correo, 1 if estado_activo else 0]
+
+        if num_empleado:
+            updates.append("num_empleado = ?")
+            params.append(num_empleado)
+
+        if password:
+            password_hash = generate_password_hash(password)
+            updates.append("password_hash = ?")
+            params.append(password_hash)
+
+        params.append(admin_id)
+
+        with closing(connect()) as conn:
+            cur = conn.execute(
+                f"UPDATE personal_administrativo SET {', '.join(updates)} WHERE id_personal = ?",
+                params,
+            )
+            if cur.rowcount == 0:
+                return jsonify({"ok": False, "message": "Administrador no encontrado."}), 404
+            conn.commit()
+
+        return jsonify({"ok": True, "message": "Administrador actualizado."})
+
+    @app.delete("/api/admin/admins/<int:admin_id>")
+    def deactivate_admin(admin_id: int):
+        with closing(connect()) as conn:
+            cur = conn.execute(
+                "UPDATE personal_administrativo SET estado_activo = 0 WHERE id_personal = ?",
+                (admin_id,),
+            )
+            if cur.rowcount == 0:
+                return jsonify({"ok": False, "message": "Administrador no encontrado."}), 404
+            conn.commit()
+
+        return jsonify({"ok": True, "message": "Administrador desactivado."})
+
     @app.post("/api/admin/register")
     def register_admin():
         payload = request.get_json(silent=True) or {}
-        num_empleado = str(payload.get("num_empleado", "")).strip()
-        nombre_completo = str(payload.get("nombre_completo", "")).strip()
+        num_empleado = str(payload.get("num_empleado") or payload.get("numero_empleado") or "").strip()
+        nombre_completo = str(payload.get("nombre_completo") or payload.get("nombre") or "").strip()
         rol = str(payload.get("rol", "")).strip() or "ADMIN"
         correo = str(payload.get("correo", "")).strip().lower()
         password = str(payload.get("password", ""))
@@ -912,11 +1381,11 @@ def create_app() -> Flask:
                 "translated": translated
             })
 
-        except Exception as e:
+        except Exception:
 
             return jsonify({
                 "success": False,
-                "error": str(e)
+                "error": "Translation service unavailable."
             }), 500
         
     

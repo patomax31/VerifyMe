@@ -174,6 +174,102 @@ def list_access_logs(
     return _rows_to_dicts(rows)
 
 
+def list_access_logs_detailed(
+    *,
+    from_datetime: Optional[str] = None,
+    to_datetime: Optional[str] = None,
+    tipo_usuario: Optional[str] = None,
+    tipo_evento: Optional[str] = None,
+    acceso_concedido: Optional[bool] = None,
+    grado: Optional[str] = None,
+    grupo: Optional[str] = None,
+    turno: Optional[str] = None,
+    nombre_contains: Optional[str] = None,
+    limit: int = 100,
+    offset: int = 0,
+) -> List[Dict]:
+    initialize_database()
+    _validate_limit_offset(limit, offset)
+
+    from_iso = _normalize_iso_datetime(from_datetime, "from_datetime")
+    to_iso = _normalize_iso_datetime(to_datetime, "to_datetime")
+
+    conditions = []
+    params = []
+
+    if from_iso:
+        conditions.append("l.fecha_hora >= ?")
+        params.append(from_iso)
+
+    if to_iso:
+        conditions.append("l.fecha_hora <= ?")
+        params.append(to_iso)
+
+    if tipo_usuario:
+        tipo_usuario_norm = tipo_usuario.strip().upper()
+        if tipo_usuario_norm not in _VALID_TIPO_USUARIO:
+            raise ValueError("tipo_usuario debe ser ESTUDIANTE o PERSONAL")
+        conditions.append("l.tipo_usuario = ?")
+        params.append(tipo_usuario_norm)
+
+    if tipo_evento:
+        tipo_evento_norm = tipo_evento.strip().capitalize()
+        if tipo_evento_norm not in _VALID_TIPO_EVENTO:
+            raise ValueError("tipo_evento debe ser Entrada o Salida")
+        conditions.append("l.tipo_evento = ?")
+        params.append(tipo_evento_norm)
+
+    if acceso_concedido is not None:
+        conditions.append("l.acceso_concedido = ?")
+        params.append(1 if acceso_concedido else 0)
+
+    if grado:
+        conditions.append("(l.tipo_usuario = 'ESTUDIANTE' AND e.grado = ?)")
+        params.append(str(grado).strip())
+
+    if grupo:
+        conditions.append("(l.tipo_usuario = 'ESTUDIANTE' AND e.grupo = ?)")
+        params.append(str(grupo).strip().upper())
+
+    if turno:
+        conditions.append("(l.tipo_usuario = 'ESTUDIANTE' AND e.turno = ?)")
+        params.append(str(turno).strip().upper())
+
+    if nombre_contains:
+        conditions.append("UPPER(l.nombre_usuario) LIKE UPPER(?)")
+        params.append(f"%{nombre_contains.strip()}%")
+
+    where_clause = f"WHERE {' AND '.join(conditions)}" if conditions else ""
+
+    query = f"""
+        SELECT
+            l.id_log,
+            l.fecha_hora,
+            l.tipo_usuario,
+            l.id_usuario_ref,
+            l.nombre_usuario,
+            l.tipo_evento,
+            l.acceso_concedido,
+            e.grado,
+            e.grupo,
+            e.turno
+        FROM vw_logs_acceso l
+        LEFT JOIN vw_estudiantes e
+            ON l.tipo_usuario = 'ESTUDIANTE'
+            AND e.id_estudiante = l.id_usuario_ref
+        {where_clause}
+        ORDER BY l.fecha_hora DESC, l.id_log DESC
+        LIMIT ? OFFSET ?
+    """
+    params.extend([limit, offset])
+
+    with connect() as conn:
+        conn.row_factory = sqlite3.Row
+        rows = conn.execute(query, params).fetchall()
+
+    return _rows_to_dicts(rows)
+
+
 def list_access_logs_for_active_session(
     *,
     tipo_evento: Optional[str] = None,

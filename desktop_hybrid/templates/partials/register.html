@@ -1,0 +1,96 @@
+      <!-- REGISTRO BIOMÉTRICO -->
+      <section class="view view-camera hidden" id="view-register">
+
+        <!-- Paso 1: datos -->
+        <div class="step-panel card" id="reg-step1">
+          <div class="step-badge" data-i18n="step1of2">Paso 1 de 2</div>
+          <h2 data-i18n="reg_title_data">Datos del alumno</h2>
+          <p class="muted sm" data-i18n="reg_sub_data">Ingresa la información del estudiante antes de capturar su rostro.</p>
+
+          <div class="form-grid-2" style="margin-top:14px">
+            <label><span data-i18n="field_name">Nombre completo</span>
+              <input id="regNombre" type="text" maxlength="20" placeholder="Ej. Ana Gómez">
+            </label>
+            <div class="form-row-2">
+              <label><span data-i18n="field_grade">Grado</span>
+                <select id="regGrado"><option>1</option><option>2</option><option>3</option></select>
+              </label>
+              <label><span data-i18n="field_group">Grupo</span>
+                <select id="regLetra">
+                  <option>A</option>
+                  <option>B</option>
+                  <option>C</option>
+                  <option>D</option>
+                  <option>E</option>
+                  <option>F</option></select>
+              </label>
+            </div>
+            <label><span data-i18n="field_shift">Turno</span>
+              <select id="regTurno"><option>MATUTINO</option><option>VESPERTINO</option></select>
+            </label>
+          </div>
+
+          <!-- Botones de acción y cambio a admin -->
+          <div class="row" style="margin-top:18px; justify-content: space-between; align-items: center;">
+            <button class="btn-full" style="width: auto;" id="regGoToCamera">
+              <span>📷</span><span data-i18n="btn_go_camera">Continuar a cámara</span>
+            </button>
+            <button class="btn-ghost" id="btnSwitchToAdminReg" style="font-size: 0.9em; padding: 6px 12px;">🛡 Registrar Administrador</button>
+          </div>
+          <p id="regStep1Msg" class="feedback waiting" style="margin-top:10px">Completa los campos faltantes para continuar.</p>
+        </div>
+
+        <!-- Paso 2: cámara 3 ángulos -->
+        <div class="camera-stage hidden" id="reg-step2">
+          <div class="camera-box camera-full">
+            <video id="regVideo" autoplay playsinline muted></video>
+            <canvas id="regCanvas" class="hidden"></canvas>
+            <div class="camera-overlay" id="regCameraOverlay">
+              <div class="camera-reticle"></div>
+              <p class="camera-overlay__txt">Cámara detenida</p>
+            </div>
+            <div class="register-guide-overlay" aria-hidden="true">
+              <div class="register-angle-guide">
+                <img id="regAngleGuideImg"
+                     src="{{ url_for('static', filename='img/guides/perfilHead_frente.png') }}"
+                     alt="">
+              </div>
+              <div class="register-face-oval"></div>
+            </div>
+            <div class="camera-hud">
+              <div class="camera-hud__top">
+                <div class="camera-pill" data-i18n="step2of2">Paso 2 de 2</div>
+                <h2 data-i18n="reg_title_cam">Captura biométrica</h2>
+                <p class="camera-sub" data-i18n="reg_sub_cam">Captura 3 ángulos: frente, perfil izquierdo y perfil derecho.</p>
+                <div class="angle-stepper">
+                  <div class="angle-step angle-step--active" data-angle="0">
+                    <div class="angle-step__num">1</div>
+                    <div class="angle-step__label" data-i18n="angle_front">Frente</div>
+                  </div>
+                  <div class="angle-step__line"></div>
+                  <div class="angle-step" data-angle="1">
+                    <div class="angle-step__num">2</div>
+                    <div class="angle-step__label" data-i18n="angle_left">Izquierda</div>
+                  </div>
+                  <div class="angle-step__line"></div>
+                  <div class="angle-step" data-angle="2">
+                    <div class="angle-step__num">3</div>
+                    <div class="angle-step__label" data-i18n="angle_right">Derecha</div>
+                  </div>
+                </div>
+                <p id="regAngleHint" class="angle-hint" data-i18n="angle_hint_front">Mira de frente a la cámara.</p>
+              </div>
+              <div class="camera-hud__bottom">
+                <p id="regMessage" class="feedback waiting" data-i18n="reg_start_cam">Inicia la cámara y sigue los pasos.</p>
+                <div class="row camera-actions">
+                  <button id="regStart"><span>📷</span><span data-i18n="btn_start_cam">Iniciar</span></button>
+                  <button id="regCapture" disabled><span>✓</span><span id="regCaptureLabel" data-i18n="btn_capture_front">Capturar frente</span></button>
+                  <button id="regStop" class="btn-danger" disabled><span>⏹</span><span data-i18n="btn_stop">Detener</span></button>
+                  <button class="btn-back" id="btnBackToStep1" data-i18n="btn_edit_data">← Editar datos</button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+      </section>
