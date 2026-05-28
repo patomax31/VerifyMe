@@ -260,6 +260,28 @@ def _jpeg_encode_frame(
 
 
 _camera_stream_lock = threading.Lock()
+_latest_frame_lock = threading.Lock()
+_latest_frame_bgr = None
+
+
+def _store_latest_frame(frame, color_space: Optional[str]) -> None:
+    global _latest_frame_bgr
+    if cv2 is None or frame is None:
+        return
+    try:
+        if color_space and color_space.upper() == "RGB":
+            frame = cv2.cvtColor(frame, cv2.COLOR_RGB2BGR)
+        with _latest_frame_lock:
+            _latest_frame_bgr = frame.copy()
+    except Exception:
+        return
+
+
+def _get_latest_frame_bgr():
+    with _latest_frame_lock:
+        if _latest_frame_bgr is None:
+            return None
+        return _latest_frame_bgr.copy()
 
 
 def _mjpeg_frame_stream(cap):
@@ -269,6 +291,7 @@ def _mjpeg_frame_stream(cap):
             ret, frame = cap.read()
             if not ret or frame is None:
                 continue
+            _store_latest_frame(frame, color_space)
             jpeg = _jpeg_encode_frame(frame, color_space=color_space)
             if not jpeg:
                 continue
@@ -660,9 +683,12 @@ def create_app() -> Flask:
 
         payload = request.get_json(silent=True) or {}
         session_id = str(payload.get("session_id", "")).strip()
-        frame = _decode_image_data_uri(payload.get("image", ""))
+        use_latest = bool(payload.get("use_latest"))
+        frame = None if use_latest else _decode_image_data_uri(payload.get("image", ""))
         if not session_id:
             return jsonify({"ok": False, "state": "error", "message": "Falta session_id"}), 400
+        if frame is None:
+            frame = _get_latest_frame_bgr()
         if frame is None:
             return jsonify({"ok": True, "state": "no_face", "message": "Imagen invalida"})
 
@@ -678,7 +704,10 @@ def create_app() -> Flask:
         assert engine is not None
 
         payload = request.get_json(silent=True) or {}
-        frame = _decode_image_data_uri(payload.get("image", ""))
+        use_latest = bool(payload.get("use_latest"))
+        frame = None if use_latest else _decode_image_data_uri(payload.get("image", ""))
+        if frame is None:
+            frame = _get_latest_frame_bgr()
         if frame is None:
             return jsonify({"ok": False, "state": "error", "message": "Imagen invalida"}), 400
 
