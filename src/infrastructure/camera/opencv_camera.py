@@ -17,27 +17,38 @@ def _try_picamera2():
         picam2 = Picamera2()
         settings = get_camera_settings()
         
-        # Create configuration for RGB format
-        config = picam2.create_preview_configuration(
-            main={"size": (settings.width, settings.height), "format": "RGB888"}
+        # Use create_video_configuration for better frame size control (prevents excessive zoom)
+        # and respects the requested resolution without cropping
+        config = picam2.create_video_configuration(
+            main={"size": (settings.width, settings.height), "format": "RGB888"},
+            controls={"FrameRate": settings.fps}
         )
         picam2.configure(config)
         picam2.start()
         
         # Wrapper to provide OpenCV-compatible interface
         class PiCameraWrapper:
-            def __init__(self, camera):
+            def __init__(self, camera, target_width, target_height):
                 self.camera = camera
                 self.is_open = True
+                self.target_width = target_width
+                self.target_height = target_height
             
             def read(self):
                 try:
                     frame_rgb = self.camera.capture_array()
                     if frame_rgb is None or frame_rgb.size == 0:
                         return False, None
-                    # Convert RGB to BGR for OpenCV
-                    #frame_bgr = cv2.cvtColor(frame_rgb, cv2.COLOR_RGB2BGR)
-                    return True, frame_rgb
+                    
+                    # Ensure frame is resized to exact target dimensions to prevent zoom artifacts
+                    # caused by aspect ratio mismatch between sensor and requested resolution
+                    h, w = frame_rgb.shape[:2]
+                    if (w, h) != (self.target_width, self.target_height):
+                        frame_rgb = cv2.resize(frame_rgb, (self.target_width, self.target_height), interpolation=cv2.INTER_LINEAR)
+                    
+                    # Convert RGB to BGR for OpenCV compatibility
+                    frame_bgr = cv2.cvtColor(frame_rgb, cv2.COLOR_RGB2BGR)
+                    return True, frame_bgr
                 except Exception:
                     return False, None
             
@@ -60,7 +71,7 @@ def _try_picamera2():
                 return -1
         
         print("[SUCCESS] Raspberry Pi Camera Module 2 ready via picamera2!", file=sys.stderr)
-        return PiCameraWrapper(picam2)
+        return PiCameraWrapper(picam2, settings.width, settings.height)
         
     except ImportError:
         print("[DEBUG] picamera2 not installed, trying fallback methods", file=sys.stderr)

@@ -201,7 +201,9 @@ def _jpeg_encode_frame(frame, max_width: int = 640, quality: int = 88) -> Option
     if w > max_width:
         scale = max_width / float(w)
         frame = cv2.resize(frame, (int(w * scale), int(h * scale)), interpolation=cv2.INTER_AREA)
-    ok, buf = cv2.imencode(".jpg", frame, [int(cv2.IMWRITE_JPEG_QUALITY), quality])
+    # Convert BGR to RGB for display (user sees correct colors in browser)
+    frame_rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+    ok, buf = cv2.imencode(".jpg", frame_rgb, [int(cv2.IMWRITE_JPEG_QUALITY), quality])
     if not ok:
         return None
     return bytes(buf)
