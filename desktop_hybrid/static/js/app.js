@@ -213,8 +213,38 @@ document.getElementById('langBtn')?.addEventListener('click', () => {
 // ════ DRAWER ════
 const drawer        = document.getElementById('drawer');
 const drawerOverlay = document.getElementById('drawerOverlay');
+const drawerAuthBtn = document.getElementById('drawerAuthBtn');
+
+let drawerUnlocked = false;
+
+function syncDrawerAuthUi() {
+  if (!drawerAuthBtn) return;
+  const icon = drawerAuthBtn.querySelector('.material-symbols-outlined');
+  if (icon) icon.textContent = drawerUnlocked ? 'lock_open' : 'lock';
+  const label = drawerUnlocked ? 'Abrir menú de administrador' : 'Desbloquear menú de administrador';
+  drawerAuthBtn.setAttribute('aria-label', label);
+  drawerAuthBtn.setAttribute('title', label);
+}
+
+function unlockDrawerAccess() {
+  drawerUnlocked = true;
+  document.body.classList.add('drawer-unlocked');
+  syncDrawerAuthUi();
+  openDrawer();
+}
+
+function requestDrawerUnlock() {
+  const pass = prompt('Ingresa la contraseña de administrador:');
+  if (pass === null) return;
+  if (pass === ADMIN_DRAWER_PASSWORD) {
+    unlockDrawerAccess();
+    return;
+  }
+  alert('Contraseña incorrecta');
+}
 
 function openDrawer()  {
+  if (!drawerUnlocked) return;
   drawer?.classList.add('open');
   drawerOverlay?.classList.add('open');
   document.body.style.overflow = 'hidden';
@@ -226,11 +256,20 @@ function closeDrawer() {
 }
 
 document.getElementById('hamburger')?.addEventListener('click', openDrawer);
+drawerAuthBtn?.addEventListener('click', () => {
+  if (drawerUnlocked) {
+    openDrawer();
+    return;
+  }
+  requestDrawerUnlock();
+});
 document.getElementById('drawerClose')?.addEventListener('click', closeDrawer);
 drawerOverlay?.addEventListener('click', closeDrawer);
 document.addEventListener('keydown', e => {
   if (e.key === 'Escape') { closeDrawer(); closeClockOverlay(); }
 });
+
+syncDrawerAuthUi();
 
 // ════ NAVEGACIÓN ════
 const allViews = document.querySelectorAll('.view');
@@ -509,6 +548,8 @@ document.getElementById('logoutBtn')?.addEventListener('click', async () => {
   window.location.href = '/';
 });
 
+const ADMIN_DRAWER_PASSWORD = '1234';
+
 // ════ MODO KIOSCO / FULLSCREEN ════
 const kioskBtn        = document.getElementById('kioskBtn');
 const kioskIcon       = document.getElementById('kioskIcon');
@@ -518,14 +559,16 @@ const kioskConfirm    = document.getElementById('kioskConfirm');
 const kioskCancel     = document.getElementById('kioskCancel');
 const kioskExitFab    = document.getElementById('kioskExitFab');
 // ════ ON-SCREEN KEYBOARD (simple-keyboard) ════
-const keyboardInputs = 'input[type="text"], input[type="email"], input[type="password"], input[type="number"], input[type="adminValidateNombre"],input[type="adminValidateCorreo"],input[type="adminValidatePass"], textarea';
+const keyboardInputs = 'input[type="text"], input[type="email"], input[type="password"], input[type="number"], input[type="search"], textarea';
 let activeInput = null;
 let osk = null;
 let oskInteracting = false;
+
 let oskLayout = 'default';
 let shiftLocked = false;
 let lastOskButton = null;
 let lastOskButtonAt = 0;
+let oskLoading = null;
 
 let kioskActive = false;
 
@@ -621,6 +664,7 @@ kioskPanelOverlay?.addEventListener('click',  closeKioskPanel);
 kioskExitFab?.addEventListener('click', exitFullscreen);
 
 // Tecla Escape ya la maneja el navegador de forma nativa para salir de fullscreen
+
 function showOsk() {
   const el = document.getElementById('osk');
   if (!el) return;
@@ -635,17 +679,54 @@ function hideOsk() {
   el.setAttribute('aria-hidden', 'true');
 }
 
+function setOskLayout(next) {
+  if (!osk || oskLayout === next) return;
+  oskLayout = next;
+  osk.setOptions({ layoutName: oskLayout });
+}
+
+function loadSimpleKeyboard() {
+  if (window.SimpleKeyboard) return Promise.resolve();
+  if (oskLoading) return oskLoading;
+
+  oskLoading = new Promise((resolve, reject) => {
+    const jsUrl = 'https://cdn.jsdelivr.net/npm/simple-keyboard@latest/build/index.js';
+
+    if (document.querySelector('script[data-simple-keyboard]')) {
+      resolve();
+      return;
+    }
+
+    const script = document.createElement('script');
+    script.src = jsUrl;
+    script.defer = true;
+    script.setAttribute('data-simple-keyboard', '1');
+    script.onload = () => resolve();
+    script.onerror = () => reject(new Error('simple-keyboard failed to load'));
+    document.head.appendChild(script);
+  }).catch(() => {});
+
+  return oskLoading;
+}
+
 function initOsk() {
-  if (osk || !window.SimpleKeyboard) return;
+  if (osk) return;
+  if (!window.SimpleKeyboard) {
+    loadSimpleKeyboard().then(() => initOsk());
+    return;
+  }
+
   const oskRoot = document.getElementById('osk');
   if (!oskRoot) return;
-  oskRoot?.addEventListener('pointerdown', e => {
+
+  oskRoot.addEventListener('pointerdown', e => {
     oskInteracting = true;
     e.preventDefault();
   });
-  oskRoot?.addEventListener('pointerup', () => {
+  oskRoot.addEventListener('pointerup', () => {
     setTimeout(() => { oskInteracting = false; }, 0);
   });
+
   const oskMount = oskRoot.querySelector('.simple-keyboard') || oskRoot;
   osk = new window.SimpleKeyboard.default({
     rootElement: oskMount,
@@ -660,19 +741,24 @@ function initOsk() {
       if (button === lastOskButton && now - lastOskButtonAt < 120) return;
       lastOskButton = button;
       lastOskButtonAt = now;
+
       if (button === '{enter}') {
         activeInput?.blur();
         hideOsk();
+        return;
       }
+
       if (button === '{shift}') {
         setOskLayout('shift');
         return;
       }
+
       if (button === '{lock}') {
         shiftLocked = !shiftLocked;
         setOskLayout(shiftLocked ? 'shift' : 'default');
         return;
       }
+
       if (!shiftLocked && oskLayout === 'shift') {
         setOskLayout('default');
       }
@@ -699,12 +785,6 @@ function initOsk() {
       '{lock}': '⇪'
     }
   });
-}
-
-function setOskLayout(next) {
-  if (!osk || oskLayout === next) return;
-  oskLayout = next;
-  osk.setOptions({ layoutName: oskLayout });
 }
 
 document.addEventListener('focusin', e => {
@@ -1350,7 +1430,7 @@ updateRegAngleUi();
 // ════ CAMBIO A REGISTRO DE ADMIN ════
 document.getElementById('btnSwitchToAdminReg')?.addEventListener('click', () => {
   const pass = prompt('Ingresa la contraseña de administrador para continuar:');
-  if (pass === '1234') {
+  if (pass === ADMIN_DRAWER_PASSWORD) {
     showView('register-admin');
   } else if (pass !== null) {
     alert('Contraseña incorrecta');
@@ -1712,13 +1792,17 @@ function openDashPhotoModal(student) {
   const grupo = student?.grupo || student?.letra || '---';
   const turno = student?.turno || '---';
   const grado = student?.grado || '---';
+  const photoUrl = student?.foto_url || student?.foto || `/api/credencial/${student.id}`;
   if (dashPhotoTitle) dashPhotoTitle.textContent = t('dash_photo_title');
   if (dashPhotoMeta) dashPhotoMeta.textContent = `${name} · ${grado}${grupo} · ${turno}`;
   if (dashPhotoFallback) dashPhotoFallback.classList.add('hidden');
-  dashPhotoImg.src = `/api/credencial/${student.id}?t=${Date.now()}`;
+  dashPhotoImg.onload = () => {
+    if (dashPhotoFallback) dashPhotoFallback.classList.add('hidden');
+  };
   dashPhotoImg.onerror = () => {
     if (dashPhotoFallback) dashPhotoFallback.classList.remove('hidden');
   };
+  dashPhotoImg.src = `${photoUrl}?t=${Date.now()}`;
   dashPhotoModal.classList.remove('hidden');
 }
 
@@ -2083,6 +2167,8 @@ document.getElementById('logClear')?.addEventListener('click', () => {
 });
 
 // ════ ADMIN: ESTUDIANTES ════
+const studentsCache = new Map();
+
 async function loadStudents() {
   const tbody = document.querySelector('#studentsTable tbody');
   const msg   = document.getElementById('admStudentsMsg');
@@ -2091,17 +2177,28 @@ async function loadStudents() {
     const res  = await fetch('/api/admin/students');
     const data = await res.json();
     const list = data.students || data || [];
+    studentsCache.clear();
+    list.forEach(s => studentsCache.set(Number(s.id), s));
     tbody.innerHTML = list.map(s => `
       <tr>
         <td>${s.id}</td><td>${s.nombre}</td><td>${s.grado}</td>
         <td>${s.letra||s.grupo||'---'}</td><td>${s.turno}</td>
         <td style="text-align:center">${s.estado_activo !== 0 ? '&#10003;':'&#10007;'}</td>
-        <td><button style="padding:4px 9px;font-size:.72rem;box-shadow:none;background:#B91C1C"
-          onclick="deleteStudent(${s.id})">Eliminar</button></td>
+        <td style="display:flex;gap:6px;flex-wrap:wrap">
+          <button style="padding:4px 9px;font-size:.72rem;box-shadow:none;background:var(--primary)"
+            type="button" onclick="openStudentPhoto(${s.id})">Foto</button>
+          <button style="padding:4px 9px;font-size:.72rem;box-shadow:none;background:#B91C1C"
+            onclick="deleteStudent(${s.id})">Eliminar</button>
+        </td>
       </tr>`).join('');
     if (msg) { msg.textContent = `${list.length} estudiantes.`; msg.className = 'feedback waiting'; }
   } catch (_) { if (msg) { msg.textContent = 'Error al cargar.'; msg.className = 'feedback denied'; } }
 }
+
+window.openStudentPhoto = id => {
+  const student = studentsCache.get(Number(id));
+  if (student) openDashPhotoModal(student);
+};
 
 window.deleteStudent = async id => {
   if (!confirm(`¿Eliminar estudiante #${id}?`)) return;
