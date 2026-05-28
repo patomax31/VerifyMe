@@ -17,22 +17,49 @@ def _try_picamera2():
         picam2 = Picamera2()
         settings = get_camera_settings()
         
-        # Get full sensor resolution to avoid zoom/crop
-        sensor_modes = picam2.sensor_modes
-        print(f"[DEBUG] Available sensor modes: {len(sensor_modes)} modes", file=sys.stderr)
+        # Debug: Get camera capabilities
+        try:
+            full_res = picam2.camera_properties.get("PixelArraySize")
+            print(f"[DEBUG] Full sensor resolution: {full_res}", file=sys.stderr)
+        except Exception as e:
+            print(f"[DEBUG] Could not get sensor resolution: {e}", file=sys.stderr)
+            full_res = None
         
-        # Use create_preview_configuration with no scaler (capture full sensor)
-        # This avoids internal zoom/crop that was causing the zoom artifact
+        # Strategy: Request FULL sensor resolution to avoid ISP crop/zoom
+        # Then resize in software to the desired output resolution
+        capture_width = settings.width
+        capture_height = settings.height
+        
+        if full_res and len(full_res) >= 2:
+            # Use full sensor for maximum FOV, avoid internal cropping
+            capture_width = full_res[0]
+            capture_height = full_res[1]
+            print(f"[DEBUG] Will capture at full sensor: {capture_width}x{capture_height}, then resize to {settings.width}x{settings.height}", 
+                  file=sys.stderr)
+        
+        # Create configuration with full resolution to avoid ISP crop
         config = picam2.create_preview_configuration(
-            main={"size": (settings.width, settings.height), "format": "RGB888"},
-            raw=None  # Disable raw stream
+            main={"size": (capture_width, capture_height), "format": "RGB888"},
+            lores=None,  # No low-res stream
+            raw=None     # No raw stream
         )
         
-        # Ensure we're not using a scaler that crops the image
+        # Remove any ISP transformations
         if "scaler" in config:
-            config.pop("scaler", None)
+            del config["scaler"]
+        if "crop" in config:
+            del config["crop"]
         
         picam2.configure(config)
+        
+        # Set conservative camera controls
+        try:
+            picam2.set_controls({
+                "AnalogueGain": 1.0,
+            })
+        except Exception:
+            pass
+        
         picam2.start()
         
         # Wrapper to provide OpenCV-compatible interface
@@ -42,6 +69,7 @@ def _try_picamera2():
                 self.is_open = True
                 self.target_width = target_width
                 self.target_height = target_height
+                self.frame_count = 0
             
             def read(self):
                 try:
@@ -49,17 +77,26 @@ def _try_picamera2():
                     if frame_rgb is None or frame_rgb.size == 0:
                         return False, None
                     
-                    # Resize to target dimensions if needed, preserving aspect ratio
+                    # Log actual resolution on first frames for debugging
+                    if self.frame_count < 1:
+                        h, w = frame_rgb.shape[:2]
+                        print(f"[DEBUG] First frame: {w}x{h}, will resize to {self.target_width}x{self.target_height}", 
+                              file=sys.stderr)
+                        self.frame_count = 1
+                    
+                    # Resize to target dimensions
                     h, w = frame_rgb.shape[:2]
                     if (w, h) != (self.target_width, self.target_height):
-                        # Use INTER_AREA for downsampling (preserves quality)
                         frame_rgb = cv2.resize(frame_rgb, (self.target_width, self.target_height), 
                                              interpolation=cv2.INTER_AREA)
                     
                     # Convert RGB to BGR for OpenCV compatibility
                     frame_bgr = cv2.cvtColor(frame_rgb, cv2.COLOR_RGB2BGR)
                     return True, frame_bgr
-                except Exception:
+                except Exception as e:
+                    if self.frame_count == 0:
+                        print(f"[ERROR] First frame failed: {e}", file=sys.stderr)
+                    self.frame_count = -1
                     return False, None
             
             def release(self):
