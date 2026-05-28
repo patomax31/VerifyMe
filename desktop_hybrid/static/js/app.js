@@ -522,6 +522,10 @@ const keyboardInputs = 'input[type="text"], input[type="email"], input[type="pas
 let activeInput = null;
 let osk = null;
 let oskInteracting = false;
+let oskLayout = 'default';
+let shiftLocked = false;
+let lastOskButton = null;
+let lastOskButtonAt = 0;
 
 let kioskActive = false;
 
@@ -617,6 +621,117 @@ kioskPanelOverlay?.addEventListener('click',  closeKioskPanel);
 kioskExitFab?.addEventListener('click', exitFullscreen);
 
 // Tecla Escape ya la maneja el navegador de forma nativa para salir de fullscreen
+function showOsk() {
+  const el = document.getElementById('osk');
+  if (!el) return;
+  el.classList.remove('hidden');
+  el.setAttribute('aria-hidden', 'false');
+}
+
+function hideOsk() {
+  const el = document.getElementById('osk');
+  if (!el) return;
+  el.classList.add('hidden');
+  el.setAttribute('aria-hidden', 'true');
+}
+
+function initOsk() {
+  if (osk || !window.SimpleKeyboard) return;
+  const oskRoot = document.getElementById('osk');
+  if (!oskRoot) return;
+  oskRoot?.addEventListener('pointerdown', e => {
+    oskInteracting = true;
+    e.preventDefault();
+  });
+  oskRoot?.addEventListener('pointerup', () => {
+    setTimeout(() => { oskInteracting = false; }, 0);
+  });
+  const oskMount = oskRoot.querySelector('.simple-keyboard') || oskRoot;
+  osk = new window.SimpleKeyboard.default({
+    rootElement: oskMount,
+    layoutName: oskLayout,
+    onChange: input => {
+      if (!activeInput) return;
+      activeInput.value = input;
+      activeInput.dispatchEvent(new Event('input', { bubbles: true }));
+    },
+    onKeyPress: button => {
+      const now = Date.now();
+      if (button === lastOskButton && now - lastOskButtonAt < 120) return;
+      lastOskButton = button;
+      lastOskButtonAt = now;
+      if (button === '{enter}') {
+        activeInput?.blur();
+        hideOsk();
+      }
+      if (button === '{shift}') {
+        setOskLayout('shift');
+        return;
+      }
+      if (button === '{lock}') {
+        shiftLocked = !shiftLocked;
+        setOskLayout(shiftLocked ? 'shift' : 'default');
+        return;
+      }
+      if (!shiftLocked && oskLayout === 'shift') {
+        setOskLayout('default');
+      }
+    },
+    layout: {
+      default: [
+        'q w e r t y u i o p',
+        'a s d f g h j k l',
+        '{shift} z x c v b n m {bksp}',
+        '@ {space} {enter}'
+      ],
+      shift: [
+        'Q W E R T Y U I O P',
+        'A S D F G H J K L',
+        '{shift} Z X C V B N M {bksp}',
+        '@ {space} {enter}'
+      ]
+    },
+    display: {
+      '{bksp}': '⌫',
+      '{enter}': '↵',
+      '{space}': 'espacio',
+      '{shift}': '⇧',
+      '{lock}': '⇪'
+    }
+  });
+}
+
+function setOskLayout(next) {
+  if (!osk || oskLayout === next) return;
+  oskLayout = next;
+  osk.setOptions({ layoutName: oskLayout });
+}
+
+document.addEventListener('focusin', e => {
+  const target = e.target;
+  if (target && target.matches && target.matches(keyboardInputs)) {
+    initOsk();
+    activeInput = target;
+    osk?.setInput(target.value || '');
+    showOsk();
+  }
+});
+
+document.addEventListener('focusout', e => {
+  const target = e.target;
+  if (target && target.matches && target.matches(keyboardInputs)) {
+    setTimeout(() => {
+      if (oskInteracting) {
+        activeInput?.focus();
+        return;
+      }
+      const focused = document.activeElement;
+      if (focused && focused.matches && focused.matches(keyboardInputs)) return;
+      activeInput = null;
+      hideOsk();
+    }, 0);
+  }
+});
 
 // ════ ACCESO FACIAL ════
 let loginLivId       = null;
