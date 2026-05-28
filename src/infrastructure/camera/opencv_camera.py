@@ -17,12 +17,21 @@ def _try_picamera2():
         picam2 = Picamera2()
         settings = get_camera_settings()
         
-        # Use create_video_configuration for better frame size control (prevents excessive zoom)
-        # and respects the requested resolution without cropping
-        config = picam2.create_video_configuration(
+        # Get full sensor resolution to avoid zoom/crop
+        sensor_modes = picam2.sensor_modes
+        print(f"[DEBUG] Available sensor modes: {len(sensor_modes)} modes", file=sys.stderr)
+        
+        # Use create_preview_configuration with no scaler (capture full sensor)
+        # This avoids internal zoom/crop that was causing the zoom artifact
+        config = picam2.create_preview_configuration(
             main={"size": (settings.width, settings.height), "format": "RGB888"},
-            controls={"FrameRate": settings.fps}
+            raw=None  # Disable raw stream
         )
+        
+        # Ensure we're not using a scaler that crops the image
+        if "scaler" in config:
+            config.pop("scaler", None)
+        
         picam2.configure(config)
         picam2.start()
         
@@ -40,11 +49,12 @@ def _try_picamera2():
                     if frame_rgb is None or frame_rgb.size == 0:
                         return False, None
                     
-                    # Ensure frame is resized to exact target dimensions to prevent zoom artifacts
-                    # caused by aspect ratio mismatch between sensor and requested resolution
+                    # Resize to target dimensions if needed, preserving aspect ratio
                     h, w = frame_rgb.shape[:2]
                     if (w, h) != (self.target_width, self.target_height):
-                        frame_rgb = cv2.resize(frame_rgb, (self.target_width, self.target_height), interpolation=cv2.INTER_LINEAR)
+                        # Use INTER_AREA for downsampling (preserves quality)
+                        frame_rgb = cv2.resize(frame_rgb, (self.target_width, self.target_height), 
+                                             interpolation=cv2.INTER_AREA)
                     
                     # Convert RGB to BGR for OpenCV compatibility
                     frame_bgr = cv2.cvtColor(frame_rgb, cv2.COLOR_RGB2BGR)
