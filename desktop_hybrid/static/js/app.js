@@ -1077,6 +1077,18 @@ function showAccessStep(n) {
   else         { s1?.classList.add('hidden');    s2?.classList.remove('hidden'); }
 }
 
+async function activateAccessHardware() {
+  try {
+    const res = await fetch('/api/hardware/access-success', { method: 'POST' });
+    const data = await res.json();
+    if (!data.ok) {
+      console.warn('No se pudo activar el hardware:', data.message || 'error desconocido');
+    }
+  } catch (error) {
+    console.warn('Error al activar el hardware:', error);
+  }
+}
+
 async function pushLivFrame() {
   if (loginLivBusy) return;
   if (!loginCanvas || !loginLivId) return;
@@ -1134,6 +1146,7 @@ async function captureAndVerify() {
       stopLoginCamera();
       renderAccessResult(data);
       showAccessStep(2);
+      activateAccessHardware();
       if (loginMsgHelp) { loginMsgHelp.classList.add('hidden'); loginMsgHelp.classList.remove('is-clickable'); }
       loginDeniedCount = 0;
     }

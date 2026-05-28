@@ -45,6 +45,7 @@ from src.core.config import RecognitionSettings, get_recognition_settings
 from src.infrastructure.camera.opencv_camera import open_camera
 from src.infrastructure.persistence.pkl_repository import PklRepository
 from src.infrastructure.persistence.sqlite_repository import SQLiteRepository
+from src.hardware.hardware_integration import HardwareIntegration
 from src.hardware import servomotor
 
 RUNTIME_ERROR = None
@@ -529,6 +530,8 @@ def create_app() -> Flask:
         always_active=bool(servo_cfg["always_active"]),
     )
 
+    hardware = HardwareIntegration()
+
     engine = None
     engine_error = None
     try:
@@ -768,6 +771,11 @@ def create_app() -> Flask:
                 "face_box": face_box,
             }
         )
+
+    @app.post("/api/hardware/access-success")
+    def hardware_access_success():
+        hardware.success()
+        return jsonify({"ok": True, "message": "Hardware de acceso activado."})
 
     @app.post("/api/registro-admin")
     def register_admin_face():
