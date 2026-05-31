@@ -4,7 +4,7 @@ from typing import Optional
 
 import cv2
 
-from src.core.config import get_camera_settings, is_raspberry_pi
+from src.core.config import get_camera_settings
 
 
 def _try_picamera2():
@@ -116,8 +116,6 @@ def open_camera(camera_index: Optional[int] = None):
     if profile == "AUTO":
         if os.name == "nt":
             profile = "WINDOWS_STABLE"
-        elif is_raspberry_pi():
-            profile = "RASPBERRY_PI"
         else:
             profile = "LINUX"
 
