@@ -12,6 +12,21 @@ def _get_env_float(name: str, default: float) -> float:
         return default
 
 
+def _get_env_bool(name: str, default: bool = False) -> bool:
+    value = os.getenv(name)
+    if value is None:
+        return default
+    return value.strip().lower() in {"1", "true", "yes", "on", "y", "si"}
+
+
+def _get_env_rotation(name: str, default: int = 0) -> int:
+    try:
+        value = int(os.getenv(name, str(default)))
+    except (TypeError, ValueError):
+        return default
+    return value if value in {0, 90, 180, 270} else default
+
+
 class CameraSettings:
     def __init__(self) -> None:
         self.index = int(os.getenv("CAMERA_INDEX", "0"))
@@ -19,6 +34,11 @@ class CameraSettings:
         self.width = int(os.getenv("CAMERA_WIDTH", "640"))
         self.height = int(os.getenv("CAMERA_HEIGHT", "480"))
         self.fps = int(os.getenv("CAMERA_FPS", "60"))
+        self.picamera_format = os.getenv("PICAMERA_FORMAT", "BGR888").strip().upper()
+        self.swap_rb = _get_env_bool("CAMERA_SWAP_RB")
+        self.rotate = _get_env_rotation("CAMERA_ROTATE", 0)
+        self.flip_horizontal = _get_env_bool("CAMERA_FLIP_HORIZONTAL")
+        self.flip_vertical = _get_env_bool("CAMERA_FLIP_VERTICAL")
 
 
 class RecognitionSettings:

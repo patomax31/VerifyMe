@@ -1,8 +1,12 @@
 import os
 import sys
+from pathlib import Path
 from typing import Optional
 
 import cv2
+
+if __package__ in {None, ""}:
+    sys.path.insert(0, str(Path(__file__).resolve().parents[3]))
 
 from src.core.config import get_camera_settings, is_raspberry_pi
 
@@ -26,6 +30,21 @@ def _try_picamera2():
             full_size = (int(full_size[0]), int(full_size[1]))
 
         print(f"[DEBUG] Full sensor resolution: {full_size}", file=sys.stderr)
+        picamera_format = settings.picamera_format
+        if picamera_format not in {"BGR888", "RGB888"}:
+            print(
+                f"[WARN] PICAMERA_FORMAT={picamera_format!r} no soportado; usando BGR888.",
+                file=sys.stderr,
+            )
+            picamera_format = "BGR888"
+
+        print(
+            f"[DEBUG] Camera transform: format={picamera_format}, "
+            f"swap_rb={settings.swap_rb}, rotate={settings.rotate}, "
+            f"flip_horizontal={settings.flip_horizontal}, "
+            f"flip_vertical={settings.flip_vertical}",
+            file=sys.stderr,
+        )
         print(
             f"[DEBUG] Will capture at full sensor: {full_size[0]}x{full_size[1]}, "
             f"then resize to {settings.width}x{settings.height}",
@@ -33,42 +52,65 @@ def _try_picamera2():
         )
 
         config = picam2.create_preview_configuration(
-            main={"size": full_size, "format": "RGB888"}
+            main={"size": full_size, "format": picamera_format}
         )
         picam2.configure(config)
         picam2.start()
         
         # Wrapper to provide OpenCV-compatible interface
         class PiCameraWrapper:
-            def __init__(self, camera, target_size):
+            def __init__(self, camera, target_size, source_format, swap_rb, rotate, flip_horizontal, flip_vertical):
                 self.camera = camera
                 self.is_open = True
                 self.target_size = target_size
-                self.color_space = "RGB"
+                self.source_format = source_format
+                self.swap_rb = swap_rb
+                self.rotate = rotate
+                self.flip_horizontal = flip_horizontal
+                self.flip_vertical = flip_vertical
+                self.color_space = "BGR"
                 self._logged_first_frame = False
+
+            def _transform_frame(self, frame):
+                if self.rotate == 90:
+                    frame = cv2.rotate(frame, cv2.ROTATE_90_CLOCKWISE)
+                elif self.rotate == 180:
+                    frame = cv2.rotate(frame, cv2.ROTATE_180)
+                elif self.rotate == 270:
+                    frame = cv2.rotate(frame, cv2.ROTATE_90_COUNTERCLOCKWISE)
+                if self.flip_horizontal and self.flip_vertical:
+                    frame = cv2.flip(frame, -1)
+                elif self.flip_horizontal:
+                    frame = cv2.flip(frame, 1)
+                elif self.flip_vertical:
+                    frame = cv2.flip(frame, 0)
+                return frame
             
             def read(self):
                 try:
-                    frame_rgb = self.camera.capture_array()
-                    if frame_rgb is None or frame_rgb.size == 0:
+                    frame = self.camera.capture_array()
+                    if frame is None or frame.size == 0:
                         return False, None
                     if not self._logged_first_frame:
-                        h, w = frame_rgb.shape[:2]
+                        h, w = frame.shape[:2]
                         print(
-                            f"[DEBUG] First frame: {w}x{h}, will resize to "
+                            f"[DEBUG] First frame: {w}x{h}, will transform and resize to "
                             f"{self.target_size[0]}x{self.target_size[1]}",
                             file=sys.stderr,
                         )
                         self._logged_first_frame = True
-                    if (frame_rgb.shape[1], frame_rgb.shape[0]) != self.target_size:
-                        frame_rgb = cv2.resize(
-                            frame_rgb,
+                    frame = self._transform_frame(frame)
+                    if self.source_format == "RGB888":
+                        frame = cv2.cvtColor(frame, cv2.COLOR_RGB2BGR)
+                    if self.swap_rb:
+                        frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+                    if (frame.shape[1], frame.shape[0]) != self.target_size:
+                        frame = cv2.resize(
+                            frame,
                             self.target_size,
                             interpolation=cv2.INTER_AREA,
                         )
-                    # Convert RGB to BGR for OpenCV
-                    frame_bgr = cv2.cvtColor(frame_rgb, cv2.COLOR_RGB2BGR)
-                    return True, frame_bgr
+                    return True, frame
                 except Exception:
                     return False, None
             
@@ -91,7 +133,15 @@ def _try_picamera2():
                 return -1
         
         print("[SUCCESS] Raspberry Pi Camera Module 2 ready via picamera2!", file=sys.stderr)
-        return PiCameraWrapper(picam2, (settings.width, settings.height))
+        return PiCameraWrapper(
+            picam2,
+            (settings.width, settings.height),
+            picamera_format,
+            settings.swap_rb,
+            settings.rotate,
+            settings.flip_horizontal,
+            settings.flip_vertical,
+        )
         
     except ImportError:
         print("[DEBUG] picamera2 not installed, trying fallback methods", file=sys.stderr)
@@ -162,3 +212,25 @@ def open_camera(camera_index: Optional[int] = None):
     print("[ERROR] Could not open camera", file=sys.stderr)
     print("[FIX] Install picamera2: sudo apt install python3-picamera2", file=sys.stderr)
     return None
+
+
+def _main() -> int:
+    cap = open_camera()
+    if cap is None:
+        print("[FAIL] No se pudo abrir la camara")
+        return 1
+
+    try:
+        ok, frame = cap.read()
+        if not ok or frame is None:
+            print("[FAIL] La camara abrio, pero no entrego frame")
+            return 1
+        color_space = getattr(cap, "color_space", "BGR")
+        print(f"[OK] Frame leido: {frame.shape} color_space={color_space}")
+        return 0
+    finally:
+        cap.release()
+
+
+if __name__ == "__main__":
+    raise SystemExit(_main())

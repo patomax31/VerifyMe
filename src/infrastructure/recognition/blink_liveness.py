@@ -62,6 +62,35 @@ def _normalized_face_box(loc: Tuple[int, int, int, int], width: int, height: int
     }
 
 
+def _haar_face_box_from_frame_bgr(frame_bgr: Any) -> Optional[Dict[str, float]]:
+    cascade_path = getattr(cv2, "data", None)
+    if cascade_path is None:
+        return None
+    xml_path = cv2.data.haarcascades + "haarcascade_frontalface_default.xml"
+    detector = cv2.CascadeClassifier(xml_path)
+    if detector.empty():
+        return None
+
+    small = _resize_long_edge(frame_bgr, 720)
+    h, w = small.shape[:2]
+    gray = cv2.cvtColor(small, cv2.COLOR_BGR2GRAY)
+    faces = detector.detectMultiScale(
+        gray,
+        scaleFactor=1.05,
+        minNeighbors=3,
+        minSize=(32, 32),
+    )
+    if len(faces) < 1:
+        return None
+    x, y, fw, fh = max(faces, key=lambda item: item[2] * item[3])
+    return {
+        "x": max(0.0, min(1.0, x / float(w))),
+        "y": max(0.0, min(1.0, y / float(h))),
+        "width": max(0.0, min(1.0, fw / float(w))),
+        "height": max(0.0, min(1.0, fh / float(h))),
+    }
+
+
 def ear_from_frame_bgr(frame_bgr: Any) -> Optional[float]:
     """EAR promedio con un solo rostro; redimensiona para fluidez y usa upsample HOG."""
     ear, _ = ear_and_face_box_from_frame_bgr(frame_bgr)
@@ -75,7 +104,7 @@ def ear_and_face_box_from_frame_bgr(frame_bgr: Any) -> Tuple[Optional[float], Op
     rgb = cv2.cvtColor(small, cv2.COLOR_BGR2RGB)
     locs = face_recognition.face_locations(rgb, number_of_times_to_upsample=1, model="hog")
     if len(locs) != 1:
-        return None, None
+        return None, _haar_face_box_from_frame_bgr(frame_bgr)
     face_box = _normalized_face_box(locs[0], w, h)
     marks = face_recognition.face_landmarks(rgb, locs)
     if not marks:
@@ -148,6 +177,7 @@ class BlinkSessionState:
 
 
 _LIVENESS: Dict[str, BlinkSessionState] = {}
+_LAST_DEBUG_LOG = 0.0
 
 
 def cleanup_liveness_sessions(max_age: float = 180.0) -> None:
@@ -176,8 +206,21 @@ def push_liveness_frame(session_id: str, frame_bgr: Any) -> Tuple[str, str, Opti
     if st is None:
         return "error", "Sesión de liveness inválida. Reinicia la cámara.", None
 
+    global _LAST_DEBUG_LOG
     ear, face_box = ear_and_face_box_from_frame_bgr(frame_bgr)
     state = st.push_ear(ear)
+    now = time.monotonic()
+    if now - _LAST_DEBUG_LOG >= 1.0:
+        try:
+            cv2.imwrite("/tmp/verifyme-liveness-frame.jpg", frame_bgr)
+        except Exception:
+            pass
+        print(
+            f"[LIVENESS] state={state} ear={ear if ear is not None else 'None'} "
+            f"face_box={'yes' if face_box else 'no'}",
+            flush=True,
+        )
+        _LAST_DEBUG_LOG = now
     if state == "no_face":
         return "no_face", "Coloca un solo rostro frente a la cámara.", face_box
     if state == "tracking":

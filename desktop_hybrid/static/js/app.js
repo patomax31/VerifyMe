@@ -856,7 +856,7 @@ function setLoginReadyUi() {
     loginMsg.textContent = t('waiting_face');
     loginMsg.className = 'feedback waiting';
   }
-  setLivUi('ready', t('scanning'));
+  setLivUi('init', t('waiting_face'));
 }
 
 function setLoginInactiveUi() {
@@ -1165,6 +1165,7 @@ async function pushLivFrame() {
     const data = await res.json();
     updateLoginScanFromServer(data.face_box);
     setLivUi(data.state, data.message);
+    if (data.face_box) setLivUi('ready', t('scanning'));
     if (data.state === 'ready') {
       loginLivOk = true;
       if (loginMsg) { loginMsg.textContent = 'Identificando…'; loginMsg.className = 'feedback waiting'; }

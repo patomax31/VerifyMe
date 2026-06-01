@@ -22,7 +22,7 @@ class ServerState:
 def start_flask_server(state: ServerState) -> None:
     try:
         app = create_app()
-        http_server = make_server(HOST, PORT, app)
+        http_server = make_server(HOST, PORT, app, threaded=True)
         state.server = http_server
         http_server.serve_forever()
     except Exception as exc:

@@ -160,10 +160,6 @@ def _decode_image_data_uri(image_data: str):
 def _normalized_login_face_box(frame) -> Optional[Dict[str, float]]:
     if cv2 is None or frame is None:
         return None
-    try:
-        import face_recognition
-    except Exception:
-        return None
 
     h, w = frame.shape[:2]
     if h <= 0 or w <= 0:
@@ -177,16 +173,38 @@ def _normalized_login_face_box(frame) -> Optional[Dict[str, float]]:
         small = frame
 
     sh, sw = small.shape[:2]
-    rgb = cv2.cvtColor(small, cv2.COLOR_BGR2RGB)
-    locs = face_recognition.face_locations(rgb, number_of_times_to_upsample=1, model="hog")
-    if len(locs) != 1:
+    try:
+        import face_recognition
+
+        rgb = cv2.cvtColor(small, cv2.COLOR_BGR2RGB)
+        locs = face_recognition.face_locations(rgb, number_of_times_to_upsample=1, model="hog")
+        if len(locs) == 1:
+            top, right, bottom, left = locs[0]
+            return {
+                "x": max(0.0, min(1.0, left / float(sw))),
+                "y": max(0.0, min(1.0, top / float(sh))),
+                "width": max(0.0, min(1.0, (right - left) / float(sw))),
+                "height": max(0.0, min(1.0, (bottom - top) / float(sh))),
+            }
+    except Exception:
+        pass
+
+    cascade_data = getattr(cv2, "data", None)
+    if cascade_data is None:
         return None
-    top, right, bottom, left = locs[0]
+    detector = cv2.CascadeClassifier(cv2.data.haarcascades + "haarcascade_frontalface_default.xml")
+    if detector.empty():
+        return None
+    gray = cv2.cvtColor(small, cv2.COLOR_BGR2GRAY)
+    faces = detector.detectMultiScale(gray, scaleFactor=1.05, minNeighbors=3, minSize=(32, 32))
+    if len(faces) < 1:
+        return None
+    x, y, fw, fh = max(faces, key=lambda item: item[2] * item[3])
     return {
-        "x": max(0.0, min(1.0, left / float(sw))),
-        "y": max(0.0, min(1.0, top / float(sh))),
-        "width": max(0.0, min(1.0, (right - left) / float(sw))),
-        "height": max(0.0, min(1.0, (bottom - top) / float(sh))),
+        "x": max(0.0, min(1.0, x / float(sw))),
+        "y": max(0.0, min(1.0, y / float(sh))),
+        "width": max(0.0, min(1.0, fw / float(sw))),
+        "height": max(0.0, min(1.0, fh / float(sh))),
     }
 
 
@@ -641,6 +659,70 @@ def create_app() -> Flask:
         response = Response(_generate(), mimetype="multipart/x-mixed-replace; boundary=frame")
         response.headers["Access-Control-Allow-Origin"] = "*"
         return response
+
+    @app.get("/api/debug/face-detect")
+    def debug_face_detect():
+        frame = _get_latest_frame_bgr()
+        if frame is None:
+            return jsonify({"ok": False, "message": "No hay latest_frame todavia"}), 404
+
+        out_path = Path("/tmp/verifyme-latest-frame.jpg")
+        try:
+            cv2.imwrite(str(out_path), frame)
+        except Exception:
+            pass
+
+        result = {
+            "ok": True,
+            "saved": str(out_path),
+            "shape": list(frame.shape),
+            "login_face_box": _normalized_login_face_box(frame),
+            "dlib": {},
+            "haar": {},
+        }
+
+        try:
+            import face_recognition
+
+            variants = {
+                "bgr_to_rgb": cv2.cvtColor(frame, cv2.COLOR_BGR2RGB),
+                "raw_as_rgb": frame,
+            }
+            for name, img in variants.items():
+                result["dlib"][name] = {}
+                for upsample in (0, 1, 2):
+                    locs = face_recognition.face_locations(
+                        img,
+                        number_of_times_to_upsample=upsample,
+                        model="hog",
+                    )
+                    result["dlib"][name][str(upsample)] = [list(loc) for loc in locs]
+        except Exception as exc:
+            result["dlib_error"] = str(exc)
+
+        try:
+            gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+            for xml in (
+                "haarcascade_frontalface_default.xml",
+                "haarcascade_frontalface_alt2.xml",
+                "haarcascade_profileface.xml",
+            ):
+                detector = cv2.CascadeClassifier(cv2.data.haarcascades + xml)
+                result["haar"][xml] = {}
+                for neighbors in (2, 3, 4):
+                    faces = detector.detectMultiScale(
+                        gray,
+                        scaleFactor=1.03,
+                        minNeighbors=neighbors,
+                        minSize=(24, 24),
+                    )
+                    result["haar"][xml][str(neighbors)] = [
+                        [int(v) for v in face] for face in faces
+                    ]
+        except Exception as exc:
+            result["haar_error"] = str(exc)
+
+        return jsonify(result)
 
     @app.get("/api/login/status")
     def login_status():
