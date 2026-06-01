@@ -126,6 +126,7 @@ class BlinkSessionState:
     in_blink: bool = False
     blinks: int = 0
     fallback_face_since: Optional[float] = None
+    fallback_face_score: int = 0
 
     def push_ear(self, ear: Optional[float]) -> str:
         """
@@ -221,11 +222,13 @@ def push_liveness_frame(session_id: str, frame_bgr: Any) -> Tuple[str, str, Opti
     if face_box and allow_face_fallback:
         if st.fallback_face_since is None:
             st.fallback_face_since = now
+        st.fallback_face_score = min(8, st.fallback_face_score + 1)
     else:
         st.fallback_face_since = None
+        st.fallback_face_score = max(0, st.fallback_face_score - 1)
 
     if ear is None and face_box and allow_face_fallback:
-        if now - (st.fallback_face_since or now) >= 1.5:
+        if st.fallback_face_score >= 3:
             st.verified = True
             st.verified_until = now + 22.0
             state = "ready"
@@ -238,7 +241,7 @@ def push_liveness_frame(session_id: str, frame_bgr: Any) -> Tuple[str, str, Opti
             and allow_face_fallback
             and state in {"tracking", "need_blink"}
             and st.fallback_face_since is not None
-            and now - st.fallback_face_since >= 3.0
+            and st.fallback_face_score >= 4
         ):
             st.verified = True
             st.verified_until = now + 22.0
