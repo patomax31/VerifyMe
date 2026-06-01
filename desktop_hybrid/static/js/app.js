@@ -1089,6 +1089,23 @@ async function activateAccessHardware() {
   }
 }
 
+async function restartLoginLiveness() {
+  loginLivOk = false;
+  loginLivId = null;
+  setLivUi('init', t('liveness_init'));
+  try {
+    const res = await fetch('/api/login/liveness/start', { method:'POST' });
+    const data = await res.json();
+    if (data.ok && data.session_id) {
+      loginLivId = data.session_id;
+      return true;
+    }
+  } catch (_) {
+  }
+  loginLivOk = true;
+  return false;
+}
+
 async function pushLivFrame() {
   if (loginLivBusy) return;
   if (!loginCanvas || !loginLivId) return;
@@ -1138,6 +1155,11 @@ async function captureAndVerify() {
     });
     const data = await res.json();
     updateLoginScanFromServer(data.face_box);
+    if (data.state === 'liveness_required') {
+      await restartLoginLiveness();
+      if (loginMsg) { loginMsg.textContent = data.message || t('liveness_init'); loginMsg.className = 'feedback waiting'; }
+      return;
+    }
     if (data.state === 'granted' || data.state === 'denied') {
       stopLoginFaceTracker();
     }
@@ -1257,6 +1279,7 @@ function resetAccessStep() {
   if (loginMsg) { loginMsg.textContent = t('waiting_face'); loginMsg.className = 'feedback waiting'; }
   if (loginMsgHelp) { loginMsgHelp.classList.add('hidden'); loginMsgHelp.classList.remove('is-clickable'); }
   loginDeniedCount = 0;
+  setTimeout(startLoginCameraAuto, 250);
 }
 
 document.getElementById('btnScanAnother')?.addEventListener('click', resetAccessStep);

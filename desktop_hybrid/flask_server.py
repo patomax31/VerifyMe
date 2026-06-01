@@ -895,6 +895,7 @@ def create_app() -> Flask:
         frame_l = _decode_image_data_uri(str(payload.get("image_left", "") or ""))
         frame_r = _decode_image_data_uri(str(payload.get("image_right", "") or ""))
         legacy = _decode_image_data_uri(str(payload.get("image", "") or ""))
+        foto_bytes = None
 
         scale = engine.recognition_settings.scale
 

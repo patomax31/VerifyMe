@@ -1,0 +1,60 @@
+﻿diff --git a/desktop_hybrid/flask_server.py b/desktop_hybrid/flask_server.py
+index 14daea6..2aeffb5 100644
+--- a/desktop_hybrid/flask_server.py
++++ b/desktop_hybrid/flask_server.py
+@@ -895,6 +895,7 @@ def create_app() -> Flask:
+         frame_l = _decode_image_data_uri(str(payload.get("image_left", "") or ""))
+         frame_r = _decode_image_data_uri(str(payload.get("image_right", "") or ""))
+         legacy = _decode_image_data_uri(str(payload.get("image", "") or ""))
++        foto_bytes = None
+ 
+         scale = engine.recognition_settings.scale
+ 
+diff --git a/desktop_hybrid/static/js/app.js b/desktop_hybrid/static/js/app.js
+index 20ddc4a..00938b4 100644
+--- a/desktop_hybrid/static/js/app.js
++++ b/desktop_hybrid/static/js/app.js
+@@ -1089,6 +1089,23 @@ async function activateAccessHardware() {
+   }
+ }
+ 
++async function restartLoginLiveness() {
++  loginLivOk = false;
++  loginLivId = null;
++  setLivUi('init', t('liveness_init'));
++  try {
++    const res = await fetch('/api/login/liveness/start', { method:'POST' });
++    const data = await res.json();
++    if (data.ok && data.session_id) {
++      loginLivId = data.session_id;
++      return true;
++    }
++  } catch (_) {
++  }
++  loginLivOk = true;
++  return false;
++}
++
+ async function pushLivFrame() {
+   if (loginLivBusy) return;
+   if (!loginCanvas || !loginLivId) return;
+@@ -1138,6 +1155,11 @@ async function captureAndVerify() {
+     });
+     const data = await res.json();
+     updateLoginScanFromServer(data.face_box);
++    if (data.state === 'liveness_required') {
++      await restartLoginLiveness();
++      if (loginMsg) { loginMsg.textContent = data.message || t('liveness_init'); loginMsg.className = 'feedback waiting'; }
++      return;
++    }
+     if (data.state === 'granted' || data.state === 'denied') {
+       stopLoginFaceTracker();
+     }
+@@ -1257,6 +1279,7 @@ function resetAccessStep() {
+   if (loginMsg) { loginMsg.textContent = t('waiting_face'); loginMsg.className = 'feedback waiting'; }
+   if (loginMsgHelp) { loginMsgHelp.classList.add('hidden'); loginMsgHelp.classList.remove('is-clickable'); }
+   loginDeniedCount = 0;
++  setTimeout(startLoginCameraAuto, 250);
+ }
+ 
+ document.getElementById('btnScanAnother')?.addEventListener('click', resetAccessStep);
