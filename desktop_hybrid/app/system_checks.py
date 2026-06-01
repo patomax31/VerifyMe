@@ -53,11 +53,14 @@ def run_system_checks(update_cb: Callable[[int, str], None]) -> list[CheckResult
 
     def _check_camera() -> CheckResult:
         try:
-            import cv2
+            from src.infrastructure.camera.opencv_camera import open_camera
 
-            cap = cv2.VideoCapture(0)
-            if cap.isOpened():
-                cap.release()
+            cap = open_camera()
+            if cap is not None and cap.isOpened():
+                try:
+                    cap.release()
+                except Exception:
+                    pass
                 return CheckResult(name="Camara", status=CheckStatus.SUCCESS)
             return CheckResult(
                 name="Camara",

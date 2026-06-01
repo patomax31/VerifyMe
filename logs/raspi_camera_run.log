@@ -1,0 +1,204 @@
+Detected locale "es_MX" with character encoding "ISO-8859-1", which is not UTF-8.
+Qt depends on a UTF-8 locale, and has switched to "C.UTF-8" instead.
+If this causes problems, reconfigure your locale. See the locale(1) manual
+for more information.
+Detected locale "es_MX" with character encoding "ISO-8859-1", which is not UTF-8.
+Qt depends on a UTF-8 locale, and has switched to "C.UTF-8" instead.
+If this causes problems, reconfigure your locale. See the locale(1) manual
+for more information.
+Detected locale "es_MX" with character encoding "ISO-8859-1", which is not UTF-8.
+Qt depends on a UTF-8 locale, and has switched to "C.UTF-8" instead.
+If this causes problems, reconfigure your locale. See the locale(1) manual
+for more information.
+Exception in thread Thread-3 (_play_pattern_blocking):
+Traceback (most recent call last):
+  File "/usr/lib/python3.13/threading.py", line 1043, in _bootstrap_inner
+    self.run()
+    ~~~~~~~~^^
+  File "/usr/lib/python3.13/threading.py", line 994, in run
+    self._target(*self._args, **self._kwargs)
+    ~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/pi/Desktop/identifyme/face-recognition/src/hardware/audio.py", line 103, in _play_pattern_blocking
+    self.setup()
+    ~~~~~~~~~~^^
+  File "/home/pi/Desktop/identifyme/face-recognition/src/hardware/audio.py", line 97, in setup
+    self._gpio.setup(self.pin, self._gpio.OUT)
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^
+RuntimeError: Cannot determine SOC peripheral base address
+[INFO] Initializing Raspberry Pi Camera Module 2 with picamera2...
+[1:57:01.943189761] [13550]  INFO Camera camera_manager.cpp:340 libcamera v0.7.1+rpt20260429
+[1:57:01.953663945] [13562]  INFO RPI pisp.cpp:720 libpisp version v1.5.0 01-05-2026 (05:33:53)
+[1:57:01.968609342] [13562]  INFO IPAProxy ipa_proxy.cpp:184 Using tuning file /usr/share/libcamera/ipa/rpi/pisp/imx219.json
+[1:57:01.976545364] [13562]  INFO Camera camera_manager.cpp:223 Adding camera '/base/axi/pcie@1000120000/rp1/i2c@88000/imx219@10' for pipeline handler rpi/pisp
+[1:57:01.976624512] [13562]  INFO RPI pisp.cpp:1181 Registered camera /base/axi/pcie@1000120000/rp1/i2c@88000/imx219@10 to CFE device /dev/media0 and ISP device /dev/media2 using PiSP variant BCM2712_C0
+[DEBUG] Full sensor resolution: (3280, 2464)
+[DEBUG] Will capture at full sensor: 3280x2464, then resize to 640x480
+[1:57:01.981921465] [13562]  WARN V4L2 v4l2_pixelformat.cpp:346 Unsupported V4L2 pixel format Nc30
+[1:57:01.981949354] [13562]  WARN V4L2 v4l2_pixelformat.cpp:346 Unsupported V4L2 pixel format Nc12
+[1:57:01.982368464] [13550]  INFO Camera camera.cpp:1216 configuring streams: (0) 3280x2464-RGB888/sRGB (1) 3280x2464-BGGR_PISP_COMP1/RAW
+[1:57:01.982465760] [13562]  INFO RPI pisp.cpp:1485 Sensor: /base/axi/pcie@1000120000/rp1/i2c@88000/imx219@10 - Selected sensor format: 3280x2464-SBGGR10_1X10/RAW - Selected CFE format: 3280x2464-PC1B/RAW
+[SUCCESS] Raspberry Pi Camera Module 2 ready via picamera2!
+127.0.0.1 - - [28/May/2026 02:12:29] "GET /status HTTP/1.1" 200 -
+Exception in thread Thread-8 (_play_pattern_blocking):
+Traceback (most recent call last):
+  File "/usr/lib/python3.13/threading.py", line 1043, in _bootstrap_inner
+    self.run()
+    ~~~~~~~~^^
+  File "/usr/lib/python3.13/threading.py", line 994, in run
+    self._target(*self._args, **self._kwargs)
+    ~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/pi/Desktop/identifyme/face-recognition/src/hardware/audio.py", line 103, in _play_pattern_blocking
+    self.setup()
+    ~~~~~~~~~~^^
+  File "/home/pi/Desktop/identifyme/face-recognition/src/hardware/audio.py", line 97, in setup
+    self._gpio.setup(self.pin, self._gpio.OUT)
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^
+RuntimeError: Cannot determine SOC peripheral base address
+127.0.0.1 - - [28/May/2026 02:12:29] "GET / HTTP/1.1" 200 -
+127.0.0.1 - - [28/May/2026 02:12:29] "GET /static/css/style.css HTTP/1.1" 200 -
+127.0.0.1 - - [28/May/2026 02:12:29] "GET /static/img/logo_verifyme.png HTTP/1.1" 200 -
+127.0.0.1 - - [28/May/2026 02:12:29] "GET /static/img/guides/perfilHead_frente.png HTTP/1.1" 200 -
+127.0.0.1 - - [28/May/2026 02:12:29] "GET /static/js/app.js HTTP/1.1" 200 -
+127.0.0.1 - - [28/May/2026 02:12:29] "GET /api/admin/students HTTP/1.1" 200 -
+127.0.0.1 - - [28/May/2026 02:12:29] "GET /static/img/guides/perfilHead_izquierdo.png HTTP/1.1" 200 -
+127.0.0.1 - - [28/May/2026 02:12:29] "GET /static/img/guides/perfilHead_derecho.png HTTP/1.1" 200 -
+127.0.0.1 - - [28/May/2026 02:12:29] "POST /api/login/liveness/start HTTP/1.1" 200 -
+Detected locale "es_MX" with character encoding "ISO-8859-1", which is not UTF-8.
+Qt depends on a UTF-8 locale, and has switched to "C.UTF-8" instead.
+If this causes problems, reconfigure your locale. See the locale(1) manual
+for more information.
+[INFO] Initializing Raspberry Pi Camera Module 2 with picamera2...
+[1:57:04.430737543] [13570]  INFO Camera camera_manager.cpp:340 libcamera v0.7.1+rpt20260429
+[1:57:04.446322087] [13588]  INFO RPI pisp.cpp:720 libpisp version v1.5.0 01-05-2026 (05:33:53)
+[1:57:04.448730619] [13588]  INFO IPAProxy ipa_proxy.cpp:184 Using tuning file /usr/share/libcamera/ipa/rpi/pisp/imx219.json
+[1:57:04.463008073] [13588]  INFO Camera camera_manager.cpp:223 Adding camera '/base/axi/pcie@1000120000/rp1/i2c@88000/imx219@10' for pipeline handler rpi/pisp
+[1:57:04.463193276] [13588]  INFO RPI pisp.cpp:1181 Registered camera /base/axi/pcie@1000120000/rp1/i2c@88000/imx219@10 to CFE device /dev/media0 and ISP device /dev/media2 using PiSP variant BCM2712_C0
+[DEBUG] Full sensor resolution: (3280, 2464)
+[DEBUG] Will capture at full sensor: 3280x2464, then resize to 640x480
+[1:57:04.466661640] [13588]  WARN V4L2 v4l2_pixelformat.cpp:346 Unsupported V4L2 pixel format Nc30
+[1:57:04.466695621] [13588]  WARN V4L2 v4l2_pixelformat.cpp:346 Unsupported V4L2 pixel format Nc12
+[1:57:04.467137176] [13570]  INFO Camera camera.cpp:1216 configuring streams: (0) 3280x2464-RGB888/sRGB (1) 3280x2464-BGGR_PISP_COMP1/RAW
+[1:57:04.467237954] [13588]  INFO RPI pisp.cpp:1485 Sensor: /base/axi/pcie@1000120000/rp1/i2c@88000/imx219@10 - Selected sensor format: 3280x2464-SBGGR10_1X10/RAW - Selected CFE format: 3280x2464-PC1B/RAW
+[SUCCESS] Raspberry Pi Camera Module 2 ready via picamera2!
+[DEBUG] First frame: 3280x2464, will resize to 640x480
+127.0.0.1 - - [28/May/2026 02:12:30] "GET /api/camera/stream?ts=1779955950133 HTTP/1.1" 200 -
+Registered new object after initialization, existing clients won't be notified!
+xkbcommon: ERROR: /usr/share/X11/locale/iso8859-1/Compose:39:34: string literal is not a valid UTF-8 string
+xkbcommon: ERROR: /usr/share/X11/locale/iso8859-1/Compose:40:29: string literal is not a valid UTF-8 string
+xkbcommon: ERROR: /usr/share/X11/locale/iso8859-1/Compose:41:29: string literal is not a valid UTF-8 string
+xkbcommon: ERROR: /usr/share/X11/locale/iso8859-1/Compose:42:29: string literal is not a valid UTF-8 string
+xkbcommon: ERROR: /usr/share/X11/locale/iso8859-1/Compose:43:29: string literal is not a valid UTF-8 string
+xkbcommon: ERROR: /usr/share/X11/locale/iso8859-1/Compose:44:27: string literal is not a valid UTF-8 string
+xkbcommon: ERROR: /usr/share/X11/locale/iso8859-1/Compose:45:27: string literal is not a valid UTF-8 string
+xkbcommon: ERROR: /usr/share/X11/locale/iso8859-1/Compose:46:27: string literal is not a valid UTF-8 string
+xkbcommon: ERROR: /usr/share/X11/locale/iso8859-1/Compose:47:27: string literal is not a valid UTF-8 string
+xkbcommon: ERROR: /usr/share/X11/locale/iso8859-1/Compose:48:29: string literal is not a valid UTF-8 string
+xkbcommon: ERROR: /usr/share/X11/locale/iso8859-1/Compose:49:29: string literal is not a valid UTF-8 string
+xkbcommon: ERROR: /usr/share/X11/locale/iso8859-1/Compose:49:29: too many errors
+xkbcommon: ERROR: /usr/share/X11/locale/iso8859-1/Compose:49:29: failed to parse file
+qt.qpa.input.methods: failed to create compose table
+[2026-05-28 02:12:43,308] ERROR in app: Exception on /api/login/liveness/frame [POST]
+Traceback (most recent call last):
+  File "/usr/lib/python3/dist-packages/flask/app.py", line 1511, in wsgi_app
+    response = self.full_dispatch_request()
+  File "/usr/lib/python3/dist-packages/flask/app.py", line 919, in full_dispatch_request
+    rv = self.handle_user_exception(e)
+  File "/usr/lib/python3/dist-packages/flask/app.py", line 917, in full_dispatch_request
+    rv = self.dispatch_request()
+  File "/usr/lib/python3/dist-packages/flask/app.py", line 902, in dispatch_request
+    return self.ensure_sync(self.view_functions[rule.endpoint])(**view_args)  # type: ignore[no-any-return]
+           ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^
+  File "/home/pi/Desktop/identifyme/face-recognition/desktop_hybrid/flask_server.py", line 667, in liveness_frame
+    state, message, face_box = push_liveness_frame(session_id, frame)
+                               ~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^
+  File "/home/pi/Desktop/identifyme/face-recognition/src/infrastructure/recognition/blink_liveness.py", line 172, in push_liveness_frame
+    ear, face_box = ear_and_face_box_from_frame_bgr(frame_bgr)
+                    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^
+  File "/home/pi/Desktop/identifyme/face-recognition/src/infrastructure/recognition/blink_liveness.py", line 69, in ear_and_face_box_from_frame_bgr
+    locs = face_recognition.face_locations(rgb, number_of_times_to_upsample=1, model="hog")
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AttributeError: module 'face_recognition' has no attribute 'face_locations'
+127.0.0.1 - - [28/May/2026 02:12:43] "[35m[1mPOST /api/login/liveness/frame HTTP/1.1[0m" 500 -
+127.0.0.1 - - [28/May/2026 02:12:43] "[33mGET /favicon.ico HTTP/1.1[0m" 404 -
+Detected locale "es_MX" with character encoding "ISO-8859-1", which is not UTF-8.
+Qt depends on a UTF-8 locale, and has switched to "C.UTF-8" instead.
+If this causes problems, reconfigure your locale. See the locale(1) manual
+for more information.
+[INFO] Initializing Raspberry Pi Camera Module 2 with picamera2...
+[1:57:28.318511327] [13592]  INFO Camera camera_manager.cpp:340 libcamera v0.7.1+rpt20260429
+[1:57:28.329764731] [13643]  INFO RPI pisp.cpp:720 libpisp version v1.5.0 01-05-2026 (05:33:53)
+[1:57:28.331753264] [13643]  INFO IPAProxy ipa_proxy.cpp:184 Using tuning file /usr/share/libcamera/ipa/rpi/pisp/imx219.json
+[1:57:28.341279615] [13643]  INFO Camera camera_manager.cpp:223 Adding camera '/base/axi/pcie@1000120000/rp1/i2c@88000/imx219@10' for pipeline handler rpi/pisp
+[1:57:28.341389541] [13643]  INFO RPI pisp.cpp:1181 Registered camera /base/axi/pcie@1000120000/rp1/i2c@88000/imx219@10 to CFE device /dev/media0 and ISP device /dev/media2 using PiSP variant BCM2712_C0
+[DEBUG] Full sensor resolution: (3280, 2464)
+[DEBUG] Will capture at full sensor: 3280x2464, then resize to 640x480
+[1:57:28.344427035] [13643]  WARN V4L2 v4l2_pixelformat.cpp:346 Unsupported V4L2 pixel format Nc30
+[1:57:28.344452738] [13643]  WARN V4L2 v4l2_pixelformat.cpp:346 Unsupported V4L2 pixel format Nc12
+[1:57:28.344858034] [13592]  INFO Camera camera.cpp:1216 configuring streams: (0) 3280x2464-RGB888/sRGB (1) 3280x2464-BGGR_PISP_COMP1/RAW
+[1:57:28.344954015] [13643]  INFO RPI pisp.cpp:1485 Sensor: /base/axi/pcie@1000120000/rp1/i2c@88000/imx219@10 - Selected sensor format: 3280x2464-SBGGR10_1X10/RAW - Selected CFE format: 3280x2464-PC1B/RAW
+[SUCCESS] Raspberry Pi Camera Module 2 ready via picamera2!
+[DEBUG] First frame: 3280x2464, will resize to 640x480
+127.0.0.1 - - [28/May/2026 02:12:54] "GET /api/camera/stream?ts=1779955974018 HTTP/1.1" 200 -
+[2026-05-28 02:13:05,003] ERROR in app: Exception on /api/registro [POST]
+Traceback (most recent call last):
+  File "/usr/lib/python3/dist-packages/flask/app.py", line 1511, in wsgi_app
+    response = self.full_dispatch_request()
+  File "/usr/lib/python3/dist-packages/flask/app.py", line 919, in full_dispatch_request
+    rv = self.handle_user_exception(e)
+  File "/usr/lib/python3/dist-packages/flask/app.py", line 917, in full_dispatch_request
+    rv = self.dispatch_request()
+  File "/usr/lib/python3/dist-packages/flask/app.py", line 902, in dispatch_request
+    return self.ensure_sync(self.view_functions[rule.endpoint])(**view_args)  # type: ignore[no-any-return]
+           ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^
+  File "/home/pi/Desktop/identifyme/face-recognition/desktop_hybrid/flask_server.py", line 908, in register_face
+    encodings_f = _encode_registration_frame(frame_f)[1]
+                  ~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^
+  File "/home/pi/Desktop/identifyme/face-recognition/desktop_hybrid/flask_server.py", line 903, in _encode_registration_frame
+    return detect_face_encodings_from_frame_robust(fr, base_scale=scale)
+  File "/home/pi/Desktop/identifyme/face-recognition/src/infrastructure/recognition/face_engine.py", line 44, in detect_face_encodings_from_frame_robust
+    boxes = face_recognition.face_locations(
+            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AttributeError: module 'face_recognition' has no attribute 'face_locations'
+127.0.0.1 - - [28/May/2026 02:13:05] "[35m[1mPOST /api/registro HTTP/1.1[0m" 500 -
+127.0.0.1 - - [28/May/2026 02:13:09] "POST /api/login/liveness/start HTTP/1.1" 200 -
+Detected locale "es_MX" with character encoding "ISO-8859-1", which is not UTF-8.
+Qt depends on a UTF-8 locale, and has switched to "C.UTF-8" instead.
+If this causes problems, reconfigure your locale. See the locale(1) manual
+for more information.
+[INFO] Initializing Raspberry Pi Camera Module 2 with picamera2...
+[1:57:43.497770988] [13647]  INFO Camera camera_manager.cpp:340 libcamera v0.7.1+rpt20260429
+[1:57:43.508341003] [13656]  INFO RPI pisp.cpp:720 libpisp version v1.5.0 01-05-2026 (05:33:53)
+[1:57:43.510685572] [13656]  INFO IPAProxy ipa_proxy.cpp:184 Using tuning file /usr/share/libcamera/ipa/rpi/pisp/imx219.json
+[1:57:43.518308520] [13656]  INFO Camera camera_manager.cpp:223 Adding camera '/base/axi/pcie@1000120000/rp1/i2c@88000/imx219@10' for pipeline handler rpi/pisp
+[1:57:43.518354964] [13656]  INFO RPI pisp.cpp:1181 Registered camera /base/axi/pcie@1000120000/rp1/i2c@88000/imx219@10 to CFE device /dev/media0 and ISP device /dev/media2 using PiSP variant BCM2712_C0
+[DEBUG] Full sensor resolution: (3280, 2464)
+[DEBUG] Will capture at full sensor: 3280x2464, then resize to 640x480
+[1:57:43.521519550] [13656]  WARN V4L2 v4l2_pixelformat.cpp:346 Unsupported V4L2 pixel format Nc30
+[1:57:43.521551087] [13656]  WARN V4L2 v4l2_pixelformat.cpp:346 Unsupported V4L2 pixel format Nc12
+[1:57:43.521959494] [13647]  INFO Camera camera.cpp:1216 configuring streams: (0) 3280x2464-RGB888/sRGB (1) 3280x2464-BGGR_PISP_COMP1/RAW
+[1:57:43.522086679] [13656]  INFO RPI pisp.cpp:1485 Sensor: /base/axi/pcie@1000120000/rp1/i2c@88000/imx219@10 - Selected sensor format: 3280x2464-SBGGR10_1X10/RAW - Selected CFE format: 3280x2464-PC1B/RAW
+[SUCCESS] Raspberry Pi Camera Module 2 ready via picamera2!
+[DEBUG] First frame: 3280x2464, will resize to 640x480
+127.0.0.1 - - [28/May/2026 02:13:09] "GET /api/camera/stream?ts=1779955989189 HTTP/1.1" 200 -
+[2026-05-28 02:13:22,240] ERROR in app: Exception on /api/login/liveness/frame [POST]
+Traceback (most recent call last):
+  File "/usr/lib/python3/dist-packages/flask/app.py", line 1511, in wsgi_app
+    response = self.full_dispatch_request()
+  File "/usr/lib/python3/dist-packages/flask/app.py", line 919, in full_dispatch_request
+    rv = self.handle_user_exception(e)
+  File "/usr/lib/python3/dist-packages/flask/app.py", line 917, in full_dispatch_request
+    rv = self.dispatch_request()
+  File "/usr/lib/python3/dist-packages/flask/app.py", line 902, in dispatch_request
+    return self.ensure_sync(self.view_functions[rule.endpoint])(**view_args)  # type: ignore[no-any-return]
+           ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^
+  File "/home/pi/Desktop/identifyme/face-recognition/desktop_hybrid/flask_server.py", line 667, in liveness_frame
+    state, message, face_box = push_liveness_frame(session_id, frame)
+                               ~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^
+  File "/home/pi/Desktop/identifyme/face-recognition/src/infrastructure/recognition/blink_liveness.py", line 172, in push_liveness_frame
+    ear, face_box = ear_and_face_box_from_frame_bgr(frame_bgr)
+                    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^
+  File "/home/pi/Desktop/identifyme/face-recognition/src/infrastructure/recognition/blink_liveness.py", line 69, in ear_and_face_box_from_frame_bgr
+    locs = face_recognition.face_locations(rgb, number_of_times_to_upsample=1, model="hog")
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AttributeError: module 'face_recognition' has no attribute 'face_locations'
+127.0.0.1 - - [28/May/2026 02:13:22] "[35m[1mPOST /api/login/liveness/frame HTTP/1.1[0m" 500 -

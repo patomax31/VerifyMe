@@ -1,4 +1,5 @@
 import os
+import platform
 
 
 def _get_env_float(name: str, default: float) -> float:
@@ -33,3 +34,24 @@ def get_camera_settings() -> CameraSettings:
 
 def get_recognition_settings() -> RecognitionSettings:
     return RecognitionSettings()
+
+
+def is_raspberry_pi() -> bool:
+    """Detecta si la ejecución es sobre una Raspberry Pi.
+
+    Intenta usar la arquitectura y el contenido de /proc/device-tree/model
+    como heurística. Devuelve True ante dudas en máquinas ARM.
+    """
+    try:
+        arch = platform.machine().lower()
+        if "arm" in arch or "aarch" in arch:
+            try:
+                with open("/proc/device-tree/model", "r") as fh:
+                    model = fh.read().lower()
+                    return "raspberry" in model
+            except Exception:
+                # No podemos leer el modelo, pero la arquitectura es ARM: asumir Raspberry
+                return True
+    except Exception:
+        pass
+    return False
