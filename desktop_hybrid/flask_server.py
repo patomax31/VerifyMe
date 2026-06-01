@@ -810,6 +810,11 @@ def create_app() -> Flask:
             )
 
         engine.refresh_known_students()
+        print(
+            f"[LOGIN] known={len(engine.known_encodings)} ids={len(engine.known_ids)} "
+            f"labels={len(engine.known_labels)}",
+            flush=True,
+        )
         if not engine.known_encodings:
             return jsonify(
                 {
@@ -841,6 +846,7 @@ def create_app() -> Flask:
             enc_live = enc_list[0] if len(enc_list) == 1 else None
 
         if enc_live is None:
+            print("[LOGIN] enc_live=None", flush=True)
             return jsonify(
                 {
                     "ok": True,
@@ -852,6 +858,20 @@ def create_app() -> Flask:
             )
 
         web_tol = min(0.6, float(engine.recognition_settings.tolerance) + 0.08)
+        try:
+            import face_recognition
+
+            distances = face_recognition.face_distance(engine.known_encodings, enc_live)
+            if len(distances):
+                best_idx = int(distances.argmin())
+                print(
+                    f"[LOGIN] best_distance={float(distances[best_idx]):.4f} "
+                    f"best_label={engine.known_labels[best_idx] if best_idx < len(engine.known_labels) else '?'} "
+                    f"tol={web_tol:.4f}",
+                    flush=True,
+                )
+        except Exception as exc:
+            print(f"[LOGIN] distance_debug_error={exc}", flush=True)
 
         result = engine.login_use_case.process_frame(
             [enc_live],

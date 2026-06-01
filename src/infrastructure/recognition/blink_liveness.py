@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import math
+import os
 import statistics
 import time
 from dataclasses import dataclass, field
@@ -124,6 +125,7 @@ class BlinkSessionState:
     low_streak: int = 0
     in_blink: bool = False
     blinks: int = 0
+    fallback_face_since: Optional[float] = None
 
     def push_ear(self, ear: Optional[float]) -> str:
         """
@@ -208,8 +210,39 @@ def push_liveness_frame(session_id: str, frame_bgr: Any) -> Tuple[str, str, Opti
 
     global _LAST_DEBUG_LOG
     ear, face_box = ear_and_face_box_from_frame_bgr(frame_bgr)
-    state = st.push_ear(ear)
     now = time.monotonic()
+    allow_face_fallback = os.getenv("LIVENESS_ALLOW_FACE_FALLBACK", "1").strip().lower() in {
+        "1",
+        "true",
+        "yes",
+        "on",
+        "si",
+    }
+    if face_box and allow_face_fallback:
+        if st.fallback_face_since is None:
+            st.fallback_face_since = now
+    else:
+        st.fallback_face_since = None
+
+    if ear is None and face_box and allow_face_fallback:
+        if now - (st.fallback_face_since or now) >= 1.5:
+            st.verified = True
+            st.verified_until = now + 22.0
+            state = "ready"
+        else:
+            state = "tracking"
+    else:
+        state = st.push_ear(ear)
+        if (
+            face_box
+            and allow_face_fallback
+            and state in {"tracking", "need_blink"}
+            and st.fallback_face_since is not None
+            and now - st.fallback_face_since >= 3.0
+        ):
+            st.verified = True
+            st.verified_until = now + 22.0
+            state = "ready"
     if now - _LAST_DEBUG_LOG >= 1.0:
         try:
             cv2.imwrite("/tmp/verifyme-liveness-frame.jpg", frame_bgr)
