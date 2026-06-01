@@ -7,6 +7,33 @@ import cv2
 from src.core.config import get_camera_settings, is_raspberry_pi
 
 
+def _normalize_picamera_format(value: str) -> str:
+    raw = (value or "BGR888").strip().upper()
+    if raw not in {"BGR888", "RGB888"}:
+        return "BGR888"
+    return raw
+
+
+def _apply_orientation(frame, settings):
+    rotate = int(getattr(settings, "rotate", 0)) % 360
+    if rotate == 90:
+        frame = cv2.rotate(frame, cv2.ROTATE_90_CLOCKWISE)
+    elif rotate == 180:
+        frame = cv2.rotate(frame, cv2.ROTATE_180)
+    elif rotate == 270:
+        frame = cv2.rotate(frame, cv2.ROTATE_90_COUNTERCLOCKWISE)
+
+    flip_horizontal = bool(getattr(settings, "flip_horizontal", False))
+    flip_vertical = bool(getattr(settings, "flip_vertical", False))
+    if flip_horizontal and flip_vertical:
+        frame = cv2.flip(frame, -1)
+    elif flip_horizontal:
+        frame = cv2.flip(frame, 1)
+    elif flip_vertical:
+        frame = cv2.flip(frame, 0)
+    return frame
+
+
 def _try_picamera2():
     """
     Try picamera2 for Raspberry Pi Camera Module 2 (RECOMMENDED).
@@ -32,42 +59,65 @@ def _try_picamera2():
             file=sys.stderr,
         )
 
-        config = picam2.create_preview_configuration(
-            main={"size": full_size, "format": "RGB888"}
-        )
+        capture_format = _normalize_picamera_format(getattr(settings, "picamera_format", "BGR888"))
+        try:
+            config = picam2.create_preview_configuration(
+                main={"size": full_size, "format": capture_format}
+            )
+        except Exception as exc:
+            print(
+                f"[WARN] Picamera2 format {capture_format} failed ({exc}); falling back to RGB888.",
+                file=sys.stderr,
+            )
+            capture_format = "RGB888"
+            config = picam2.create_preview_configuration(
+                main={"size": full_size, "format": capture_format}
+            )
+
         picam2.configure(config)
         picam2.start()
+        print(f"[DEBUG] Picamera2 capture format: {capture_format}", file=sys.stderr)
         
         # Wrapper to provide OpenCV-compatible interface
         class PiCameraWrapper:
-            def __init__(self, camera, target_size):
+            def __init__(self, camera, target_size, camera_settings, frame_format):
                 self.camera = camera
                 self.is_open = True
                 self.target_size = target_size
-                self.color_space = "RGB"
+                self.settings = camera_settings
+                self.frame_format = frame_format
+                self.color_space = "BGR"
                 self._logged_first_frame = False
             
             def read(self):
                 try:
-                    frame_rgb = self.camera.capture_array()
-                    if frame_rgb is None or frame_rgb.size == 0:
+                    frame = self.camera.capture_array()
+                    if frame is None or frame.size == 0:
                         return False, None
                     if not self._logged_first_frame:
-                        h, w = frame_rgb.shape[:2]
+                        h, w = frame.shape[:2]
                         print(
                             f"[DEBUG] First frame: {w}x{h}, will resize to "
                             f"{self.target_size[0]}x{self.target_size[1]}",
                             file=sys.stderr,
                         )
                         self._logged_first_frame = True
-                    if (frame_rgb.shape[1], frame_rgb.shape[0]) != self.target_size:
-                        frame_rgb = cv2.resize(
-                            frame_rgb,
+                    if (frame.shape[1], frame.shape[0]) != self.target_size:
+                        frame = cv2.resize(
+                            frame,
                             self.target_size,
                             interpolation=cv2.INTER_AREA,
                         )
-                    # Convert RGB to BGR for OpenCV
-                    frame_bgr = cv2.cvtColor(frame_rgb, cv2.COLOR_RGB2BGR)
+
+                    if self.frame_format == "RGB888":
+                        frame_bgr = cv2.cvtColor(frame, cv2.COLOR_RGB2BGR)
+                    else:
+                        frame_bgr = frame
+
+                    if bool(getattr(self.settings, "swap_rb", False)):
+                        frame_bgr = cv2.cvtColor(frame_bgr, cv2.COLOR_BGR2RGB)
+
+                    frame_bgr = _apply_orientation(frame_bgr, self.settings)
                     return True, frame_bgr
                 except Exception:
                     return False, None
@@ -91,7 +141,7 @@ def _try_picamera2():
                 return -1
         
         print("[SUCCESS] Raspberry Pi Camera Module 2 ready via picamera2!", file=sys.stderr)
-        return PiCameraWrapper(picam2, (settings.width, settings.height))
+        return PiCameraWrapper(picam2, (settings.width, settings.height), settings, capture_format)
         
     except ImportError:
         print("[DEBUG] picamera2 not installed, trying fallback methods", file=sys.stderr)

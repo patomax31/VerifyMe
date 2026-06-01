@@ -860,6 +860,7 @@ function setLoginReadyUi() {
 }
 
 function setLoginInactiveUi() {
+  setLoginScanning(false);
   setLivUi('off', t('liveness_init'));
 }
 
