@@ -27,7 +27,7 @@ def _set_raspberry_defaults() -> None:
     os.environ.setdefault("CAMERA_HEIGHT", "480")
     os.environ.setdefault("CAMERA_FPS", "20")
     os.environ.setdefault("HARDWARE_ENABLED", "0")
-    os.environ.setdefault("LIVENESS_ALLOW_FACE_FALLBACK", "1")
+    os.environ.setdefault("LIVENESS_ALLOW_FACE_FALLBACK", "0")
 
 
 _set_raspberry_defaults()

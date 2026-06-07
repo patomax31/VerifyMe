@@ -12,6 +12,8 @@ from typing import Any, Dict, List, Optional, Tuple
 import cv2
 import face_recognition
 
+CALIBRATION_SAMPLES = 5
+
 if not hasattr(face_recognition, "face_locations"):
     origin = getattr(face_recognition, "__file__", None) or getattr(face_recognition, "__path__", None)
     raise RuntimeError(
@@ -141,9 +143,9 @@ class BlinkSessionState:
             self.ear_hist.pop(0)
 
         if self.baseline is None:
-            if len(self.ear_hist) < 9:
+            if len(self.ear_hist) < CALIBRATION_SAMPLES:
                 return "tracking"
-            chunk = self.ear_hist[-18:]
+            chunk = self.ear_hist[-10:]
             med = statistics.median(chunk)
             upper = [x for x in chunk if x >= med * 0.92]
             base = statistics.mean(upper) if upper else med
@@ -212,7 +214,7 @@ def push_liveness_frame(session_id: str, frame_bgr: Any) -> Tuple[str, str, Opti
     global _LAST_DEBUG_LOG
     ear, face_box = ear_and_face_box_from_frame_bgr(frame_bgr)
     now = time.monotonic()
-    allow_face_fallback = os.getenv("LIVENESS_ALLOW_FACE_FALLBACK", "1").strip().lower() in {
+    allow_face_fallback = os.getenv("LIVENESS_ALLOW_FACE_FALLBACK", "0").strip().lower() in {
         "1",
         "true",
         "yes",
@@ -247,10 +249,11 @@ def push_liveness_frame(session_id: str, frame_bgr: Any) -> Tuple[str, str, Opti
             st.verified_until = now + 22.0
             state = "ready"
     if now - _LAST_DEBUG_LOG >= 1.0:
-        try:
-            cv2.imwrite("/tmp/verifyme-liveness-frame.jpg", frame_bgr)
-        except Exception:
-            pass
+        if os.getenv("LIVENESS_DEBUG_FRAME", "0").strip().lower() in {"1", "true", "yes", "on", "si"}:
+            try:
+                cv2.imwrite("/tmp/verifyme-liveness-frame.jpg", frame_bgr)
+            except Exception:
+                pass
         print(
             f"[LIVENESS] state={state} ear={ear if ear is not None else 'None'} "
             f"face_box={'yes' if face_box else 'no'}",
@@ -258,9 +261,14 @@ def push_liveness_frame(session_id: str, frame_bgr: Any) -> Tuple[str, str, Opti
         )
         _LAST_DEBUG_LOG = now
     if state == "no_face":
-        return "no_face", "Coloca un solo rostro frente a la cámara.", face_box
+        if face_box:
+            return "no_face", "Rostro detectado. Acércate, mira de frente y mejora la luz.", face_box
+        return "no_face", "Coloca un rostro frente a la cámara.", face_box
     if state == "tracking":
-        return "tracking", "Mantén los ojos abiertos un momento (mirando a la cámara)…", face_box
+        if ear is None:
+            return "tracking", "Rostro detectado. Mira de frente a la cámara.", face_box
+        progress = min(CALIBRATION_SAMPLES, len(st.ear_hist))
+        return "tracking", f"Rostro detectado. Calibrando ojos ({progress}/{CALIBRATION_SAMPLES})...", face_box
     if state == "need_blink":
         return "need_blink", "Parpadea una vez de forma natural (sin taparte la cara).", face_box
     if state == "ready":

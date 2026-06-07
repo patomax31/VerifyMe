@@ -1076,7 +1076,7 @@ async function startLoginCameraAuto() {
     loginInterval = setInterval(async () => {
       if (!loginLivOk) await pushLivFrame();
       else             await captureAndVerify();
-    }, 700);
+    }, 500);
   } catch (_) {
     try {
       loginStream = { backend: 'mjpeg' };
@@ -1088,7 +1088,7 @@ async function startLoginCameraAuto() {
       loginInterval = setInterval(async () => {
         if (!loginLivOk) await pushLivFrame();
         else             await captureAndVerify();
-      }, 700);
+      }, 500);
     } catch (_) {
       if (loginMsg) { loginMsg.textContent = t('no_camera'); loginMsg.className = 'feedback denied'; }
       if (loginStart) loginStart.disabled = false;
@@ -1165,10 +1165,12 @@ async function pushLivFrame() {
     const data = await res.json();
     updateLoginScanFromServer(data.face_box);
     setLivUi(data.state, data.message);
-    if (data.face_box) setLivUi('ready', t('scanning'));
     if (data.state === 'ready') {
       loginLivOk = true;
       if (loginMsg) { loginMsg.textContent = 'Identificando…'; loginMsg.className = 'feedback waiting'; }
+    } else if (loginMsg) {
+      loginMsg.textContent = data.message || t('waiting_face');
+      loginMsg.className = 'feedback waiting';
     }
   } catch (err) {
     console.error("Error en pushLivFrame:", err);
@@ -1267,7 +1269,7 @@ loginStart?.addEventListener('click', async () => {
     loginInterval = setInterval(async () => {
       if (!loginLivOk) await pushLivFrame();
       else             await captureAndVerify();
-    }, 700);
+    }, 500);
   } catch (_) {
     try {
       loginStream = { backend: 'mjpeg' };
@@ -1280,7 +1282,7 @@ loginStart?.addEventListener('click', async () => {
       loginInterval = setInterval(async () => {
         if (!loginLivOk) await pushLivFrame();
         else             await captureAndVerify();
-      }, 700);
+      }, 500);
     } catch (_) {
       if (loginMsg) { loginMsg.textContent = t('no_camera'); loginMsg.className = 'feedback denied'; }
     }
