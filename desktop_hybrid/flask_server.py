@@ -918,6 +918,11 @@ def create_app() -> Flask:
         hardware.success()
         return jsonify({"ok": True, "message": "Hardware de acceso activado."})
 
+    @app.post("/api/hardware/open-door")
+    def hardware_open_door():
+        hardware.open_door()
+        return jsonify({"ok": True, "message": "Puerta abierta."})
+
     @app.post("/api/registro-admin")
     def register_admin_face():
         runtime_issue = _runtime_check(engine_error, engine)

@@ -548,6 +548,21 @@ document.getElementById('logoutBtn')?.addEventListener('click', async () => {
   window.location.href = '/';
 });
 
+// ════ ABRIR PUERTA ════
+document.getElementById('openDoorBtn')?.addEventListener('click', async () => {
+  try {
+    const res = await fetch('/api/hardware/open-door', { method: 'POST' });
+    const data = await res.json();
+    if (data.ok) {
+      console.log('Puerta abierta:', data.message);
+    } else {
+      console.warn('Error al abrir puerta:', data.message || 'error desconocido');
+    }
+  } catch (error) {
+    console.warn('Error al ejecutar abrir puerta:', error);
+  }
+});
+
 const ADMIN_DRAWER_PASSWORD = '1234';
 
 // ════ MODO KIOSCO / FULLSCREEN ════
