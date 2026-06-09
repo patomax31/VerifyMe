@@ -116,6 +116,8 @@ const I18N = {
     log_col_shift:'Turno',
     log_col_event:'Evento',
     log_col_result:'Resultado',
+    drawer_auth_title:'Acceso a menú de administrador', drawer_auth_sub:'Ingresa la contraseña para acceder al menú de administrador.',
+    field_password:'Contraseña', btn_unlock:'Desbloquear', btn_cancel:'Cancelar',
   },
   en: {
     nav_home:'Home', nav_access:'Facial access', nav_register:'Facial register', nav_admin:'Admin panel',
@@ -183,6 +185,8 @@ const I18N = {
     log_col_shift:'Shift',
     log_col_event:'Event',
     log_col_result:'Result',
+    drawer_auth_title:'Admin menu access', drawer_auth_sub:'Enter the password to access the admin menu.',
+    field_password:'Password', btn_unlock:'Unlock', btn_cancel:'Cancel',
   },
 };
 
@@ -234,13 +238,57 @@ function unlockDrawerAccess() {
 }
 
 function requestDrawerUnlock() {
-  const pass = prompt('Ingresa la contraseña de administrador:');
-  if (pass === null) return;
-  if (pass === ADMIN_DRAWER_PASSWORD) {
+  const modal = document.getElementById('drawerAuthModal');
+  const input = document.getElementById('drawerAuthInput');
+  if (!modal || !input) return;
+  
+  // Limpiar y mostrar modal
+  input.value = '';
+  const msg = document.getElementById('drawerAuthMsg');
+  if (msg) msg.style.display = 'none';
+  
+  modal.classList.remove('hidden');
+  input.focus();
+  
+  // Inicializar teclado para este input si no está activo
+  initOsk();
+  activeInput = input;
+  if (osk) osk.setInput(input.value || '');
+  showOsk();
+}
+
+function closeDrawerAuthModal() {
+  const modal = document.getElementById('drawerAuthModal');
+  if (modal) {
+    modal.classList.add('hidden');
+    hideOsk();
+    activeInput = null;
+  }
+}
+
+function confirmDrawerAuth() {
+  const input = document.getElementById('drawerAuthInput');
+  const msg = document.getElementById('drawerAuthMsg');
+  
+  if (!input) return;
+  
+  const password = input.value || '';
+  
+  if (password === ADMIN_DRAWER_PASSWORD) {
     unlockDrawerAccess();
+    closeDrawerAuthModal();
     return;
   }
-  alert('Contraseña incorrecta');
+  
+  // Mostrar error
+  if (msg) {
+    msg.style.display = 'block';
+    msg.className = 'feedback denied';
+    msg.textContent = 'Contraseña incorrecta';
+  }
+  
+  // Seleccionar todo el texto para reintento rápido
+  input.select();
 }
 
 function openDrawer()  {
@@ -265,8 +313,31 @@ drawerAuthBtn?.addEventListener('click', () => {
 });
 document.getElementById('drawerClose')?.addEventListener('click', closeDrawer);
 drawerOverlay?.addEventListener('click', closeDrawer);
+
+// ════ DRAWER AUTH MODAL ════
+document.getElementById('drawerAuthConfirm')?.addEventListener('click', confirmDrawerAuth);
+document.getElementById('drawerAuthCancel')?.addEventListener('click', closeDrawerAuthModal);
+document.getElementById('drawerAuthClose')?.addEventListener('click', closeDrawerAuthModal);
+document.getElementById('drawerAuthOverlay')?.addEventListener('click', closeDrawerAuthModal);
+
+// Confirmar con Enter en el input del modal
+document.getElementById('drawerAuthInput')?.addEventListener('keypress', e => {
+  if (e.key === 'Enter') {
+    confirmDrawerAuth();
+  }
+});
+
+// Manejo global de Escape para drawer y modal
 document.addEventListener('keydown', e => {
-  if (e.key === 'Escape') { closeDrawer(); closeClockOverlay(); }
+  if (e.key === 'Escape') {
+    const modal = document.getElementById('drawerAuthModal');
+    if (modal && !modal.classList.contains('hidden')) {
+      closeDrawerAuthModal();
+    } else {
+      closeDrawer();
+      closeClockOverlay();
+    }
+  }
 });
 
 syncDrawerAuthUi();
@@ -780,12 +851,14 @@ function initOsk() {
     },
     layout: {
       default: [
+        '1 2 3 4 5 6 7 8 9 0',
         'q w e r t y u i o p',
         'a s d f g h j k l',
         '{shift} z x c v b n m {bksp}',
         '@ {space} {enter}'
       ],
       shift: [
+        '1 2 3 4 5 6 7 8 9 0',
         'Q W E R T Y U I O P',
         'A S D F G H J K L',
         '{shift} Z X C V B N M {bksp}',

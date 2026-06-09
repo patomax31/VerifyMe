@@ -597,6 +597,36 @@
     </div>
   </div>
 
+  <!-- DRAWER AUTH MODAL -->
+  <div id="drawerAuthModal" class="modal-overlay hidden" role="dialog" aria-modal="true" aria-labelledby="drawerAuthTitle">
+    <div class="modal-overlay-backdrop" id="drawerAuthOverlay"></div>
+    <div class="modal-box">
+      <div class="modal-header">
+        <h3 id="drawerAuthTitle" data-i18n="drawer_auth_title">Acceso a menú de administrador</h3>
+        <button id="drawerAuthClose" class="icon-btn" aria-label="Cerrar">
+          <span class="material-symbols-outlined">close</span>
+        </button>
+      </div>
+      <div class="modal-body">
+        <p class="modal-subtitle" data-i18n="drawer_auth_sub">Ingresa la contraseña para acceder al menú de administrador.</p>
+        <label class="form-label" style="margin-top: 16px;">
+          <span data-i18n="field_password">Contraseña</span>
+          <input id="drawerAuthInput" type="password" placeholder="•••••••" autocomplete="off">
+        </label>
+        <p id="drawerAuthMsg" class="feedback waiting" style="margin-top: 12px; display: none;"></p>
+      </div>
+      <div class="modal-actions">
+        <button id="drawerAuthConfirm" class="btn-primary">
+          <span class="material-symbols-outlined">lock_open</span>
+          <span data-i18n="btn_unlock">Desbloquear</span>
+        </button>
+        <button id="drawerAuthCancel" class="btn-secondary">
+          <span data-i18n="btn_cancel">Cancelar</span>
+        </button>
+      </div>
+    </div>
+  </div>
+
   <!-- CLOCK OVERLAY -->
   <div id="clockOverlay" class="clock-overlay hidden">
     <div class="clock-overlay__grid"></div>
