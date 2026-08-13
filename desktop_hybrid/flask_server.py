@@ -41,7 +41,7 @@ from src.application.auth_service import AuthService
 from src.application.login_use_case import LoginUseCase
 from src.application.registration_service import RegistrationService
 from src.application.registration_use_case import RegistrationUseCase
-from src.core.config import RecognitionSettings, get_recognition_settings
+from src.application.config import RecognitionSettings, get_recognition_settings
 from src.infrastructure.camera.opencv_camera import open_camera
 from src.infrastructure.persistence.pkl_repository import PklRepository
 from src.infrastructure.persistence.sqlite_repository import SQLiteRepository

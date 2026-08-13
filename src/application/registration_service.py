@@ -1,4 +1,4 @@
-from src.domain.ports import RegistrationRepositoryPort
+from .ports import RegistrationRepositoryPort
 
 
 class RegistrationService:

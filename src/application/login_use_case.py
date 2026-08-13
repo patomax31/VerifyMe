@@ -6,7 +6,7 @@ import face_recognition
 import numpy as np
 
 from src.application.auth_service import AuthService
-from src.domain.ports import FaceMatcherPort, PklBiometricRepositoryPort
+from .ports import FaceMatcherPort, PklBiometricRepositoryPort
 
 
 def _is_face_encoding_vector(value: object) -> bool:

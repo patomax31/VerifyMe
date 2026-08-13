@@ -1,4 +1,4 @@
-from src.domain.ports import AuthRepositoryPort
+from .ports import AuthRepositoryPort
 
 
 class AuthService:

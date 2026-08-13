@@ -2,7 +2,7 @@ from dataclasses import dataclass
 from typing import Optional
 
 from src.application.registration_service import RegistrationService
-from src.domain.ports import PklBiometricRepositoryPort
+from .ports import PklBiometricRepositoryPort
 
 
 @dataclass

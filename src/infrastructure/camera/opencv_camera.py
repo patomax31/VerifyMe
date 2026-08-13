@@ -8,7 +8,7 @@ import cv2
 if __package__ in {None, ""}:
     sys.path.insert(0, str(Path(__file__).resolve().parents[3]))
 
-from src.core.config import get_camera_settings, is_raspberry_pi
+from src.application.config import get_camera_settings, is_raspberry_pi
 
 
 def _try_picamera2():
